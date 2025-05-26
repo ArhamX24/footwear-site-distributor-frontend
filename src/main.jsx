@@ -23,14 +23,19 @@ import AuthWrapper from './Components/Auth/AuthWrapper.jsx'
 
 let AppRouter = createBrowserRouter([
   {
+    path: "/",
+    element: <Home />, // ✅ Ensure there is a homepage at the root
+    errorElement: <UserErrorPage />
+  },
+  {
     path: "/secure/distributor",
-    element:<AuthWrapper><App /></AuthWrapper>,
-    errorElement: <UserErrorPage/>,
+    element: <AuthWrapper><App /></AuthWrapper>,
+    errorElement: <UserErrorPage />,
     children: [
-      { path: "", element: <Home /> },
-      { path: "dashboard", element: <ProductScreen/>},
-      { path: "cart", element: <CartPage/>},
-      { path: "*", element: <ErrorPage/>}
+      { path: "", element: <Home /> }, // This may need to be "index"
+      { path: "dashboard", element: <ProductScreen /> },
+      { path: "cart", element: <CartPage /> },
+      { path: "*", element: <UserErrorPage /> }
     ],
   },
   {
@@ -43,13 +48,12 @@ let AppRouter = createBrowserRouter([
       { path: "product", element: <AddProduct /> },
       { path: "deal", element: <AddDeal /> },
       { path: "profile", element: <AdminProfile /> },
-      { path: "pastorders", element: <PastOrdersPage/>},
+      { path: "pastorders", element: <PastOrdersPage /> },
     ],
   },
-  { path: "secure/distributor/login", element: <LoginPage /> },
-  { path: "secure/admin/login", element: <AdminLoginPage /> },
+  { path: "/secure/distributor/login", element: <LoginPage /> },
+  { path: "/secure/admin/login", element: <AdminLoginPage /> },
 ]);
-
 createRoot(document.getElementById('root')).render(
   <Provider store={Store}>
     <RouterProvider router={AppRouter}/>

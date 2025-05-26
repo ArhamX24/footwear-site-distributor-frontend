@@ -16,7 +16,7 @@ const UserErrorPage = () => {
               Sorry, we can't find that page. You'll find lots to explore on the home page.
             </p>
             <Link
-                href="/"
+                to={"/secure/distributor/dashboard"}
                 className="inline-flex text-gray-900 bg-gray-200 hover:bg-gray-300 focus:ring-4 focus:outline-none focus:ring-gray-400 font-medium rounded-lg text-sm px-5 py-2.5 text-center my-4 shadow-md"
                 >
                 Back to Homepage
