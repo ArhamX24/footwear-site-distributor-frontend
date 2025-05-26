@@ -24,7 +24,7 @@ import AuthWrapper from './Components/Auth/AuthWrapper.jsx'
 let AppRouter = createBrowserRouter([
   {
     path: "/",
-    element: <Home />, // ✅ Ensure there is a homepage at the root
+    element: <AuthWrapper><App /></AuthWrapper>, // ✅ Ensure there is a homepage at the root
     errorElement: <UserErrorPage />
   },
   {
