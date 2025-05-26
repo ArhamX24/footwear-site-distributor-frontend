@@ -51,7 +51,7 @@ let AppRouter = createBrowserRouter([
       { path: "pastorders", element: <PastOrdersPage /> },
     ],
   },
-  { path: "/secure/distributor/login", element: <LoginPage /> },
+  { path: "login", element: <LoginPage /> },
   { path: "/secure/admin/login", element: <AdminLoginPage /> },
 ]);
 createRoot(document.getElementById('root')).render(
