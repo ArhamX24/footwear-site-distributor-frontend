@@ -20,7 +20,7 @@ const ProductCard = ({ product, setPlaceOrderModal, setSelectedProductDetails })
   };
 
   return (
-    <div className="lg:w-72 w-44 md:w-60 mx-auto h-fit bg-white rounded-lg shadow-md overflow-hidden mt-4 relative min-h-[400px]">
+    <div className="lg:w-72 w-40 md:w-60 mx-auto h-fit bg-white rounded-lg shadow-md overflow-hidden mt-4 relative min-h-[400px]">
       {/* Main Image Display */}
       <div className="relative lg:h-72 h-56">
         <img

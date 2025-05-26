@@ -45,7 +45,7 @@ const Home = () => {
               </svg>
             )}
           </div>
-          <Link to={"dashboard"}><img src={logo} className="w-24"></img></Link>
+          <Link to={"dashboard"}><img src={logo} className="w-16 md:w-24"></img></Link>
         </div>
         <div className="flex items-center gap-x-2">
       <div className="flex items-center border rounded-md">
