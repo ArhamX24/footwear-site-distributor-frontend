@@ -45,10 +45,10 @@ const Home = () => {
               </svg>
             )}
           </div>
-          <Link to={"dashboard"}><img src={logo} className="w-16 md:w-24"></img></Link>
+          <Link to={"dashboard"}><img src={logo} className=" w-20 md:w-24"></img></Link>
         </div>
-        <div className="flex items-center gap-x-2">
-      <div className="flex items-center border rounded-md">
+        <div className="flex items-center justify-end gap-x-2">
+      <div className="flex items-center border rounded-md w-4/5">
         <input
           type="text"
           placeholder="Search products..."
