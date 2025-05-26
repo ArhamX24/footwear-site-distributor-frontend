@@ -27,7 +27,7 @@ let AppRouter = createBrowserRouter([
     element:<AuthWrapper><App /></AuthWrapper>,
     errorElement: <UserErrorPage/>,
     children: [
-      { path: "/", element: <Home /> },
+      { path: "", element: <Home /> },
       { path: "dashboard", element: <ProductScreen/>},
       { path: "cart", element: <CartPage/>},
       { path: "*", element: <ErrorPage/>}
