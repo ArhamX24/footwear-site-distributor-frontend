@@ -3,6 +3,7 @@ import './App.css'
 import AdminPanel from './Screens/AdminPanel/AdminPanel'
 import { Outlet } from 'react-router'
 import Home from './Screens/User/Home'
+import BootAuth from './Components/Auth/BootAuth'
 
 function App() {
 

@@ -2,7 +2,7 @@ import  {Link} from 'react-router-dom'
 
 const Sidebar = ({position}) => {
   return (
-    <div className={`w-full bg-gray-100 border-r border-gray-100 min-h-screen ${position} left-0 top-0 z-10`}>
+    <div className={`w-full bg-gray-100 border-r border-gray-100 min-h-full ${position} left-0 top-0 z-10`}>
       <div className='w-11/12 mx-auto'>
         <div className='text-gray-700 text-center w-full pt-3'>Menu</div>
         <Link to={"dashboard"}>

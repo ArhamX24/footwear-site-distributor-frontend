@@ -4,14 +4,15 @@ import axios from "axios";
 import OrderModal from "../../Components/UserComponents/OrderModal";
 import { useSelector } from "react-redux";
 import Carousel from "./Carousel";
+import FestivalGallery from "../../Components/UserComponents/FestivalGallery";
+import { baseURL } from "../../Utils/URLS";
 
 const ProductScreen = () => {
-      const [products, setProducts] = useState(null); // filtered products
       const [allProducts, setAllProducts] = useState(null); // all products fetched
       const [openDropdown, setOpenDropdown] = useState(null);
       const [selectedFilters, setSelectedFilters] = useState({
-        Price: [],
-        Category: []
+        filterNames: [],
+        filterOptions: [],
       });
       const [placeOrderModal, setPlaceOrderModal] = useState(false);
       const [selectedProductDetails, setSelectedProductDetails] = useState(null);
@@ -22,41 +23,77 @@ const ProductScreen = () => {
       const [articleDetails, setArticleDetails] = useState([])
       const [dealsImages, setDealsImages] = useState(null)
       const [selectedArticle, setSelectedArticle] = useState('')
+      const [loading, setLoading] = useState(false)
+      const [festivalImages, setFestivalImages] = useState(null)
 
       // Hardcoded price filter remains unchanged.
-      const priceOptions = ["Under ₹500", "₹500 - ₹1000", "₹1000 - ₹2000", "Above ₹2000"];
+      const priceOptions = ["Under ₹100", "₹100 - ₹200", "₹200 - ₹300", "Above ₹300"];
       const categories = ["Gents", "Ladies", "Kids"]
 
       let sideMenuOpen = useSelector((Store)=> Store.nav.isOpen)
       let searchQuery = useSelector((Store)=> Store?.nav?.searchQuery)
 
-      // Fetch all products (assuming backend returns complete or paginated data)
-      // We call this only on mount.
-      const getProducts = async () => {
-        try {
-          // Remove page dependency here if API doesn't support server-side pagination.
-          let response = await axios.get(`https://footwear-site-distributor-backend-3.onrender.com/api/v1/distributor/products/get?page=${page}&limit=10&search=${searchQuery}`);
-          setAllProducts(response.data.data);
-          setTotalPages(response.data.totalPages)
-        } catch (error) {
-          console.error(error.response?.data);
-        }
-      };
-    
-      // Fetch dynamic filters from backend.
+     const getProducts = async () => {
+  try {
+    setLoading(true)
+    // Build query parameters and serialize filters as JSON strings
+    const queryParams = new URLSearchParams({
+      page,
+      limit: 12,
+      search: searchQuery || "",
+      filterName: JSON.stringify(selectedFilters.filterNames),
+      filterOption: JSON.stringify(selectedFilters.filterOptions),
+    });
+
+
+    // Send GET request with the query string carrying the JSON-serialized filters
+    let response = await axios.get(
+      `http://${baseURL}/api/v1/distributor/products/get?${queryParams.toString()}`
+    );
+
+    // Update state based on API response
+    if(response.data.result){
+      setLoading(false)
+      setAllProducts(response.data.data);
+      setTotalPages(response.data.totalPages);
+    }else{
+      setLoading(false)
+      setAllProducts(null);
+      setTotalPages(0);
+    }
+  } catch (error) {
+    console.error("Error fetching products:", error.response?.data);
+  } finally {
+    setLoading(false)
+  }
+};
+            // Fetch dynamic filters from backend.
       const getFilters = async () => {
         try {
-          let response = await axios.get("https://footwear-site-distributor-backend-3.onrender.com/api/v1/distributor/products/filters/get");
+          let response = await axios.get(`http://${baseURL}/api/v1/distributor/products/filters/get`);
           setFilters(response.data.data);
         } catch (error) {
           console.error(error.response?.data);
         }
       };
 
+      const getFestivalImages = async () => {
+        try {
+          let response = await axios.get(`http://${baseURL}/api/v1/distributor/festival/get`);
+          if(response.data.result){
+            setFestivalImages(response.data.imageUrls);
+          }
+        } catch (error) {
+          console.error(error)
+        }
+      }
+
       const getDealsImages = async () => {
         try {
-          let response = await axios.get("https://footwear-site-distributor-backend-3.onrender.com/api/v1/distributor/deals/getimages")
-          setDealsImages(response.data.data)
+          let response = await axios.get(`http://${baseURL}/api/v1/distributor/deals/getimages`);
+          if(response.data.result){
+            setDealsImages(response.data.data)
+          }
         } catch (error) {
           console.error(error.response?.data);
         }
@@ -64,7 +101,7 @@ const ProductScreen = () => {
 
       const getArticleDetails = async () => {
         try {
-          let response = await axios.get(`https://footwear-site-distributor-backend-3.onrender.com/api/v1/distributor/products/details/get?articleName=${selectedArticle}`)
+          let response = await axios.get(`http://${baseURL}/api/v1/distributor/products/details/get?articleName=${selectedArticle}`)
           setArticleDetails(response.data.data)
         } catch (error) {
           console.error(error.response.data.data)
@@ -77,32 +114,82 @@ const ProductScreen = () => {
       };
     
       // Update selected filters when a user clicks an option.
-      const handleFilterChange = (category, option) => {       
-        setSelectedFilters((prev) => {
-          if (category === "Category") {
-            return {
-              ...prev,
-              Category: prev.Category === option ? null : option,
-              // Use dynamic sizes coming from backend if available.
-              Size: prev.Category === option ? [] : filters?.sizes?.[option] || [],
-            };
-          } else {
-            return {
-              ...prev,
-              [category]: prev[category]?.includes(option)
-                ? prev[category].filter((item) => item !== option)
-                : [...(prev[category] || []), option],
-            };
-          }
-        });
+const handleFilterChange = (filterName, selectedOption, isChecked) => {
+  setSelectedFilters((prev) => {
+    const filterIndex = prev.filterNames.indexOf(filterName);
 
-      };      
+    // Special handling for the price filter: only one value allowed.
+    if (filterName === "price") {
+      if (isChecked) {
+        // If the price filter already exists, overwrite its value.
+        if (filterIndex !== -1) {
+          const updatedFilterOptions = [...prev.filterOptions];
+          updatedFilterOptions[filterIndex] = [selectedOption]; // Replace with new value.
+          return { ...prev, filterOptions: updatedFilterOptions };
+        } else {
+          // Otherwise, add the price filter.
+          return {
+            filterNames: [...prev.filterNames, filterName],
+            filterOptions: [...prev.filterOptions, [selectedOption]],
+          };
+        }
+      } else {
+        // If the price filter checkbox is unchecked, remove it.
+        if (filterIndex !== -1) {
+          const updatedFilterNames = prev.filterNames.filter((name) => name !== filterName);
+          const updatedFilterOptions = prev.filterOptions.filter(
+            (_, index) => prev.filterNames[index] !== filterName
+          );
+          return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
+        }
+        return prev;
+      }
+    }
+
+    // Default handling for other filters (multiple selections allowed)
+    if (isChecked) {
+      if (filterIndex !== -1) {
+        const updatedFilterOptions = [...prev.filterOptions];
+        updatedFilterOptions[filterIndex] = [
+          ...new Set([...updatedFilterOptions[filterIndex], selectedOption]),
+        ];
+        return { ...prev, filterOptions: updatedFilterOptions };
+      } else {
+        return {
+          filterNames: [...prev.filterNames, filterName],
+          filterOptions: [...prev.filterOptions, [selectedOption]],
+        };
+      }
+    } else {
+      if (filterIndex !== -1) {
+        const updatedFilterOptions = [...prev.filterOptions];
+        updatedFilterOptions[filterIndex] = updatedFilterOptions[filterIndex].filter(
+          (option) => option !== selectedOption
+        );
+
+        // Reset related state if needed (e.g., clear selected article)
+        setSelectedArticle('');
+
+        if (updatedFilterOptions[filterIndex].length === 0) {
+          const updatedFilterNames = prev.filterNames.filter((name) => name !== filterName);
+          const filteredOptions = updatedFilterOptions.filter(
+            (_, index) => prev.filterNames[index] !== filterName
+          );
+          return { filterNames: updatedFilterNames, filterOptions: filteredOptions };
+        }
+        return { filterNames: prev.filterNames, filterOptions: updatedFilterOptions };
+      }
+      return prev;
+    }
+  });
+};
+      
     
       // Call products and filters only once.
       useEffect(() => {
         getFilters();
         getDealsImages();
-        getArticleDetails()
+        getFestivalImages();
       }, []);
 
       useEffect(()=>{
@@ -111,49 +198,10 @@ const ProductScreen = () => {
 
       useEffect(() => {
         getProducts()
-      }, [page, searchQuery])
+      }, [page, searchQuery, selectedFilters])
       
     
       // Filter products based on selected filters whenever the filters or full products list changes.
-      useEffect(() => {
-        let filtered = allProducts?.filter((product) => {
-          return (
-            (!selectedFilters?.Variant?.length ||
-              selectedFilters?.Variant?.some((name) =>
-                product?.variants?.some((item) => item.toLowerCase() === name.toLowerCase())
-              )
-            ) &&
-            (!selectedFilters?.Articlename?.length ||
-              selectedFilters?.Articlename?.some((name)=> product.articleName.toLowerCase().includes(name.toLowerCase()))
-            )&&
-            (!selectedFilters?.colors?.length ||
-              selectedFilters?.colors?.some((color) =>
-                product.colors?.map((c) => c.toLowerCase()).includes(color.toLowerCase())
-              )) &&
-            (!selectedFilters?.types?.length ||
-              selectedFilters?.types?.some((val) =>
-                product.type.toLowerCase().includes(val.toLowerCase())
-              )) &&
-            (!selectedFilters?.Category?.length || 
-              selectedFilters?.Category.toLowerCase() == product.category.toLowerCase()
-            ) &&
-            (!selectedFilters?.Price?.length ||
-              selectedFilters?.Price.some((priceRange) => {
-                if (priceRange === "Under ₹500") return product.price < 500;
-                if (priceRange === "₹500 - ₹1000") return product.price >= 500 && product.price <= 1000;
-                if (priceRange === "₹1000 - ₹2000") return product.price >= 1000 && product.price <= 2000;
-                if (priceRange === "Above ₹2000") return product.price > 2000;
-                return false;
-              })) &&
-            (!selectedFilters?.sizes?.length ||
-              selectedFilters?.sizes?.some((size) =>
-                product.sizes.map((s) => s.toLowerCase()).includes(size.toLowerCase())
-            ))          
-          );
-        });
-        setProducts(filtered);
-      }, [selectedFilters, allProducts]);
-    
 
   return (
     <div className="w-full flex min-h-screen">
@@ -170,45 +218,51 @@ const ProductScreen = () => {
           <div className="border-b mb-3"></div>
 
           {/* Price Filter as Dropdown */}
-          <div className="mb-3">
-            <p
-              className="flex items-center justify-between text-lg cursor-pointer font-medium px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300"
-              onClick={() => toggleDropdown("Price")}
-            >
-              Price
-              <span>
-                {openDropdown === "Price" ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                    <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z"></path>
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                    <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z"></path>
-                  </svg>
-                )}
-              </span>
-            </p>
-            {openDropdown === "Price" && (
-              <div className="bg-gray-100 p-2 rounded-lg border">
-                {priceOptions.map((option) => (
-                  <label key={option} className="flex items-center gap-2 py-1" onClick={() => handleFilterChange("Price", option)}>
-                    <input
-                      type="checkbox"
-                      className="form-checkbox text-indigo-600"
-                      checked={selectedFilters.Price.includes(option)}
-                      onChange={() => handleFilterChange("Price", option)}
-                    />
-                    <span className="capitalize">{option}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+<div className="mb-3">
+  <p
+    className="flex items-center justify-between text-lg cursor-pointer font-medium px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300"
+    onClick={() => toggleDropdown("Price")}
+  >
+    Price
+    <span>
+      {openDropdown === "Price" ? (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z"></path>
+        </svg>
+      ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z"></path>
+        </svg>
+      )}
+    </span>
+  </p>
+  {openDropdown === "Price" && (
+    <div className="bg-gray-100 p-2 rounded-lg border">
+      {priceOptions.map((option) => {
+        const priceIndex = selectedFilters.filterNames.indexOf("price");
+        const isChecked =
+          priceIndex !== -1 &&
+          selectedFilters.filterOptions[priceIndex].includes(option);
+        return (
+          <label key={option} className="flex items-center gap-2 py-1">
+            <input
+              type="checkbox"
+              className="form-checkbox text-indigo-600"
+              checked={isChecked}
+              onChange={(e) => handleFilterChange("price", option, e.target.checked)}
+            />
+            <span className="capitalize">{option}</span>
+          </label>
+        );
+      })}
+    </div>
+  )}
+</div>
 
           {/* Dynamic Filters (for Color, Type, Category) */}
           {filters &&
             Object.keys(filters)
-              .filter((key) => key !== "sizes") // Exclude sizes object from main listing
+              .filter((key) => key !== "articles" && key !== "sizes") // Exclude sizes object from main listing
               .map((category) => (
                 <div key={category} className="mb-3">
                   <p
@@ -231,13 +285,13 @@ const ProductScreen = () => {
                   {openDropdown === category && (
                     <div className="bg-gray-100 p-2 rounded-lg border">
                       {filters[category].map((option) => (
-                        <label key={option} className="flex items-center gap-2 py-1" onClick={() => handleFilterChange(category, option)}>
+                        <label key={option} className="flex items-center gap-2 py-1">
                         <input
                           type="checkbox"
                           name={`${category}`}
                           className="form-checkbox text-indigo-600"
-                          checked={selectedFilters[category]?.some(item => item == option) || false}
-                          onChange={() => handleFilterChange(category, option)}
+                          checked={selectedFilters.filterNames.includes(category) && selectedFilters.filterOptions[selectedFilters.filterNames.indexOf(category)].includes(option)}
+                          onChange={(e) => handleFilterChange(category, option, e.target.checked)}
                         />
                         <span className="capitalize">{option}</span>
                       </label>
@@ -248,7 +302,8 @@ const ProductScreen = () => {
               ))}
           <button
             className="bg-gray-700 w-4/5 mt-2 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-all duration-300 shadow-md"
-            onClick={() => setSelectedFilters({ Price: []})}
+            onClick={() => setSelectedFilters({filterNames: [],
+        filterOptions: [],})}
           >
             Reset Filters
           </button>
@@ -265,138 +320,150 @@ const ProductScreen = () => {
     }}
   >
 
-     <aside className="lg:hidden block w-full bg-gray-200 border-r z-20 border-gray-300 min-h-screen shadow-md p-4 absolute top-0 left-0">
-      <div className="text-xl font-semibold mb-3 flex items-center justify-between">
-        Filters{" "}
-        <span>
+    <aside className="lg:hidden block w-full bg-gray-200 border-r z-20 border-gray-300 min-h-screen shadow-md p-4 absolute top-0 left-0">
+  <div className="text-xl font-semibold mb-3 flex items-center justify-between">
+    Filters{" "}
+    <span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        width="24"
+        height="24"
+        fill="currentColor"
+      >
+        <path d="M21 4V6H20L15 13.5V22H9V13.5L4 6H3V4H21ZM6.4037 6L11 12.8944V20H13V12.8944L17.5963 6H6.4037Z" />
+      </svg>
+    </span>
+  </div>
+  <div className="border-b mb-3"></div>
+
+  {/* Price Filter as Dropdown */}
+  <div className="mb-3">
+    <p
+      className="flex items-center justify-between text-lg cursor-pointer font-medium px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300"
+      onClick={() => toggleDropdown("Price")}
+    >
+      Price
+      <span>
+        {openDropdown === "Price" ? (
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
-            width="24"
-            height="24"
+            width="18"
+            height="18"
             fill="currentColor"
           >
-            <path d="M21 4V6H20L15 13.5V22H9V13.5L4 6H3V4H21ZM6.4037 6L11 12.8944V20H13V12.8944L17.5963 6H6.4037Z" />
+            <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z" />
           </svg>
-        </span>
-      </div>
-      <div className="border-b mb-3"></div>
-
-      {/* Price Filter as a Dropdown */}
-      <div className="mb-3">
-        <p
-          className="flex items-center justify-between text-lg cursor-pointer font-medium px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300"
-          onClick={() => toggleDropdown("Price")}
-        >
-          Price
-          <span>
-            {openDropdown === "Price" ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                fill="currentColor"
-              >
-                <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z" />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                fill="currentColor"
-              >
-                <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z" />
-              </svg>
-            )}
-          </span>
-        </p>
-        {openDropdown === "Price" && (
-          <div className="bg-gray-100 p-2 rounded-lg border">
-            {priceOptions.map((option) => (
-              <label
-                key={option}
-                className="flex items-center gap-2 py-1"
-                onClick={() => handleFilterChange("Price", option)}
-              >
-                <input
-                  type="checkbox"
-                  className="form-checkbox text-indigo-600"
-                  checked={selectedFilters.Price.includes(option)}
-                  onChange={() => handleFilterChange("Price", option)}
-                />
-                <span className="capitalize">{option}</span>
-              </label>
-            ))}
-          </div>
+        ) : (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="currentColor"
+          >
+            <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z" />
+          </svg>
         )}
+      </span>
+    </p>
+    {openDropdown === "Price" && (
+      <div className="bg-gray-100 p-2 rounded-lg border">
+        {priceOptions.map((option) => {
+          // Use consistent key "price" in state.
+          const priceIndex = selectedFilters.filterNames.indexOf("price");
+          const isChecked =
+            priceIndex !== -1 &&
+            selectedFilters.filterOptions[priceIndex].includes(option);
+          return (
+            <label key={option} className="flex items-center gap-2 py-1">
+              <input
+                type="checkbox"
+                className="form-checkbox text-indigo-600"
+                checked={isChecked}
+                onChange={(e) =>
+                  handleFilterChange("price", option, e.target.checked)
+                }
+              />
+              <span className="capitalize">{option}</span>
+            </label>
+          );
+        })}
       </div>
+    )}
+  </div>
 
-      {/* Dynamic Filters for Other Categories */}
-      {filters &&
-        Object.keys(filters)
-          .filter((key) => key !== "sizes" && key !== "Price") // Exclude sizes and Price is handled above.
-          .map((category) => (
-            <div key={category} className="mb-3">
-              <p
-                className="flex items-center justify-between text-lg cursor-pointer font-medium px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 capitalize"
-                onClick={() => toggleDropdown(category)}
-              >
-                <span className="capitalize">{category}</span>
-                <span>
-                  {openDropdown === category ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="currentColor"
-                    >
-                      <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z" />
-                    </svg>
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="currentColor"
-                    >
-                    <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z" />
-                    </svg>
-                  )}
-                </span>
-              </p>
-              {openDropdown === category && (
-                <div className="bg-gray-100 p-2 rounded-lg border">
-                  {filters[category].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center gap-2 py-1"
-                      onClick={() => handleFilterChange(category, option)}
-                    >
-                      <input
-                        type="checkbox"
-                        className="form-checkbox text-indigo-600"
-                        checked={selectedFilters[category]?.some(item => item == option) || false}
-                        onChange={() => handleFilterChange(category, option)}
-                      />
-                      <span className="capitalize">{option}</span>
-                    </label>
-                  ))}
-                </div>
+  {/* Dynamic Filters for Other Categories */}
+  {filters &&
+    Object.keys(filters)
+      .filter((key) => key !== "articles" && key !== "sizes") // Exclude articles and sizes.
+      .map((category) => (
+        <div key={category} className="mb-3">
+          <p
+            className="flex items-center justify-between text-lg cursor-pointer font-medium px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 capitalize"
+            onClick={() => toggleDropdown(category)}
+          >
+            <span className="capitalize">{category}</span>
+            <span>
+              {openDropdown === category ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                  fill="currentColor"
+                >
+                  <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                  fill="currentColor"
+                >
+                  <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z" />
+                </svg>
               )}
+            </span>
+          </p>
+          {openDropdown === category && (
+            <div className="bg-gray-100 p-2 rounded-lg border">
+              {filters[category].map((option) => (
+                <label key={option} className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    name={category}
+                    className="form-checkbox text-indigo-600"
+                    checked={
+                      selectedFilters.filterNames.includes(category) &&
+                      selectedFilters.filterOptions[
+                        selectedFilters.filterNames.indexOf(category)
+                      ].includes(option)
+                    }
+                    onChange={(e) =>
+                      handleFilterChange(category, option, e.target.checked)
+                    }
+                  />
+                  <span className="capitalize">{option}</span>
+                </label>
+              ))}
             </div>
-          ))}
-      <button
-        className="bg-gray-700 text-white w-full p-2 rounded-xl md:hidden mt-2"
-        onClick={() => setSelectedFilters({ Price: []})}
-      >
-        Reset Filters
-      </button>
-    </aside>
+          )}
+        </div>
+      ))}
+
+  <button
+    className="bg-gray-700 w-full mt-2 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-all duration-300 shadow-md"
+    onClick={() =>
+      setSelectedFilters({ filterNames: [], filterOptions: [] })
+    }
+  >
+    Reset Filters
+  </button>
+</aside>
    
   </div>
 ) : (
@@ -404,7 +471,12 @@ const ProductScreen = () => {
 )}
 
         {/* Products Display with Infinite Scroll */}
-        <main className="lg:w-4/5 w-full mx-auto p-6">
+        <main className="lg:w-4/5 w-full mx-auto lg:p-6 p-3">
+          <div>
+            {
+              festivalImages && <FestivalGallery festivalImages={festivalImages}/>
+            }
+          </div>
           {placeOrderModal ? (
             <OrderModal
               setPlaceOrderModal={setPlaceOrderModal}
@@ -446,34 +518,34 @@ const ProductScreen = () => {
     </span>
   </p>
   {openDropdown === "Articlename" && (
-    <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full">
-      {articleDetails?.allArticles?.map((option) => (
+  <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full">
+    {filters?.articles?.map((option) => {
+      const filterValue = option.toLowerCase();
+      const articleIndex = selectedFilters.filterNames.indexOf("articleName");
+      const isChecked =
+        articleIndex !== -1 &&
+        selectedFilters.filterOptions[articleIndex].includes(filterValue);
+      return (
         <label
           key={option}
           className="flex items-center gap-2 py-1 cursor-pointer"
-          onClick={()=> {handleFilterChange("Articlename", option)}}
         >
           <input
             type="checkbox"
             className="form-checkbox text-indigo-600"
-            checked={selectedArticle === option}
-            onChange={() => {
-              if (selectedArticle === option) {
-                // If already selected, uncheck it
-                setSelectedArticle('');
-                setSelectedFilters({Price: []})
-              } else {
-                setSelectedArticle(option);
-                setSelectedFilters({Price: []})
-                handleFilterChange("Articlename", option);
-              }
-            }}
+            checked={isChecked}
+            onChange={(e) => {
+              handleFilterChange("articleName", filterValue, e.target.checked)
+              setSelectedArticle(filterValue)
+            }
+            }
           />
           <span className="capitalize">{option}</span>
         </label>
-      ))}
-    </div>
-  )}
+      );
+    })}
+  </div>
+)}
 </div>
           <div className="w-1/4 md:w-2/6 relative">
                 <p
@@ -506,24 +578,36 @@ const ProductScreen = () => {
           </span>
         </p>
         {openDropdown === "Variant" && (
-          <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full">
-            { articleDetails?.variants.length <=0 ? <p>No Variants For This Article</p> :articleDetails?.variants?.map((option) => (
-              <label
-                key={option}
-                className="flex items-center gap-2 py-1 cursor-pointer"
-                onClick={()=> handleFilterChange("Variant", option)}
-              >
-                <input
-                  type="checkbox"
-                  className="form-checkbox text-indigo-600"
-                  checked={selectedFilters?.Variant?.includes(option)}
-                  onChange={() => {handleFilterChange("Variant", option)}}
-                />
-                <span className="capitalize">{option}</span>
-              </label>
-            ))}
-          </div>
-        )}
+  <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full">
+    {articleDetails?.variants?.length <= 0 ? (
+      <p>No Variants For This Article</p>
+    ) : (
+      articleDetails?.variants?.map((option) => {
+        const filterValue = option.toLowerCase();
+        const variantIndex = selectedFilters.filterNames.indexOf("variants");
+        const isChecked =
+          variantIndex !== -1 &&
+          selectedFilters.filterOptions[variantIndex].includes(filterValue);
+        return (
+          <label
+            key={option}
+            className="flex items-center gap-2 py-1 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              className="form-checkbox text-indigo-600"
+              checked={isChecked}
+              onChange={(e) =>
+                handleFilterChange("variants", filterValue, e.target.checked)
+              }
+            />
+            <span className="capitalize">{option}</span>
+          </label>
+        );
+      })
+    )}
+  </div>
+)}
           </div>
           <div className="w-1/4 md:w-2/6 relative">
                 <p
@@ -556,37 +640,43 @@ const ProductScreen = () => {
           </span>
         </p>
           {openDropdown === "Gender" && (
-              <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3  w-full">
-                {categories?.map((option) => (
-                  <label
-                    key={option}
-                    className="flex items-center gap-2 py-1"
-                    onClick={() => handleFilterChange("Category", option)}
-                  >
-                    <input
-                      type="checkbox"
-                      className="form-checkbox text-indigo-600"
-                      checked={selectedFilters?.Category?.includes(option)}
-                      onChange={() => handleFilterChange("Category", option)}
-                    />
-                    <span className="capitalize">{option}</span>
-                  </label>
-                ))}
-              </div>
-            )}
+  <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full">
+    {categories?.map((option) => {
+      const filterValue = option.toLowerCase();
+      const genderIndex = selectedFilters.filterNames.indexOf("gender");
+      const isChecked =
+        genderIndex !== -1 &&
+        selectedFilters.filterOptions[genderIndex].includes(filterValue);
+
+      return (
+        <label key={option} className="flex items-center gap-2 py-1">
+          <input
+            type="checkbox"
+            className="form-checkbox text-indigo-600"
+            checked={isChecked}
+            onChange={(e) =>
+              handleFilterChange("gender", filterValue, e.target.checked)
+            }
+          />
+          <span className="capitalize">{option}</span>
+        </label>
+      );
+    })}
+  </div>
+)}
           </div>
           </div>
           {
             dealsImages && <Carousel dealsImages={dealsImages}/>
           }
-          {!allProducts ? (
+          {loading ? (
             <div className="flex w-full h-4/5 items-center justify-center">
               <span className="loading loading-bars loading-lg"></span>
             </div>
-          ) : products?.length ? (
+          ) : allProducts?.length ? (
               <div>
-              <div className="flex flex-wrap justify-around">
-                {products?.map((product) => (
+              <div className="flex flex-wrap justify-around w-full">
+                {allProducts?.map((product) => (
                   <ProductCard
                   key={product?._id}
                   product={product}

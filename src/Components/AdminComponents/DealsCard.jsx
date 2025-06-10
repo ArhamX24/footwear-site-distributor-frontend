@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 import { FaTrash, FaEdit, FaSave, FaTimes } from "react-icons/fa";
 import { useFormik } from "formik";
 import { CircularProgress } from "@mui/material";
+import { baseURL } from "../../Utils/URLS";
 
 const DealsCard = ({ deal, setIsDeleted, setIsUpdated }) => {
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
@@ -30,7 +31,7 @@ const DealsCard = ({ deal, setIsDeleted, setIsUpdated }) => {
         confirmButtonText: "Yes, delete it!",
       }).then(async (result) => {
         if (result.isConfirmed) {
-          await axios.delete(`http://localhost:8080/api/v1/admin/deal/delete/${id}`, {
+          await axios.delete(`http://${baseURL}/api/v1/admin/deal/delete/${id}`, {
             withCredentials: true,
           });
           Swal.fire({
@@ -60,7 +61,7 @@ const DealsCard = ({ deal, setIsDeleted, setIsUpdated }) => {
       try {
         setLoading(true);
         const response = await axios.patch(
-          `http://localhost:8080/api/v1/admin/deal/update/${deal?._id}`,
+          `http://${baseURL}/api/v1/admin/deal/update/${deal?._id}`,
           values,
           { withCredentials: true }
         );

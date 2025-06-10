@@ -1,6 +1,7 @@
 import {useState, useEffect} from 'react'
 import axios from 'axios'
 import DistributorCard from '../../Components/AdminComponents/DistributorCard'
+import { baseURL } from '../../Utils/URLS'
 
 const AddDistributor = () => {
   const [distributors, setDistributors] = useState(null)
@@ -9,7 +10,7 @@ const AddDistributor = () => {
 
   const getDistributors = async () => {
     try {
-      let response = await axios.get("http://localhost:8080/api/v1/admin/distributor/get", {withCredentials: true})
+      let response = await axios.get(`http://${baseURL}/api/v1/admin/distributor/get`, {withCredentials: true})
       setDistributors(response.data.data)
     } catch (error) {
       console.error(error)

@@ -42,9 +42,6 @@ const AdminPanel = () => {
 </div>
             <Link to={"/secure/admin/dashboard"}><img src={logo} className="w-24"></img></Link>
         </div>
-        <Link to={"profile"}>
-            <div className='px-4 py-2 rounded-xl bg-gray-600 text-white cursor-pointer'>Profile</div>  
-        </Link>
         </div>
       {
         navMenu ? 

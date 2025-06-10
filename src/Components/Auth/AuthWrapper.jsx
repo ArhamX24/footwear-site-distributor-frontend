@@ -1,48 +1,34 @@
-import axios from "axios"
-import { useEffect, useState } from "react";
-import { setUserRole } from "../../Slice/AuthSlice";
-import { Navigate } from "react-router";
+import { Navigate, useLocation, Outlet } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { useState, useEffect } from "react";
 
-
-const AuthWrapper = ({children}) => {
-  const [user, setUser] = useState(false)
-  const [isLoading, setisLoading] = useState(false)
-
-  const userLoggedIn = useSelector((Store)=> Store.auth.isLoggedIn);
-
-  const getUser = async () => {
-    try {
-      setisLoading(true)
-      let res = await axios.get("https://footwear-site-distributor-backend-3.onrender.com/api/v1/distributor/get", {withCredentials: true})
-
-      if(res.data.result){
-        setisLoading(false)
-        setUser(true)
-      }
-
-    } catch (error) {
-      console.error(error.response.data)
-    } finally {
-      setisLoading(false)
-    }
-  }
+const AuthWrapper = ({ allowedRole, children }) => {
+  const userLoggedIn = useSelector((store) => store.auth.isLoggedIn);
+  const userRole = useSelector((store) => store.auth.userRole);
+  const location = useLocation();
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    getUser()
-  }, [])
-  
+    if (userLoggedIn) {
+      if (userRole) {
+        setCheckingAuth(false); // ✅ Wait for Redux to fully update userRole
+      }
+    } else {
+      setCheckingAuth(false); // ✅ Ensure unauthorized users don't get stuck
+    }
+  }, [userLoggedIn, userRole]);
 
-  if(isLoading){
-    return <div>Loading...</div>
-  }
+  if (checkingAuth) return <div>Loading...</div>; // ✅ Avoid premature redirects
 
-  if(!userLoggedIn){
-    return <Navigate to={"login"}/>
-  }
+  return (
+    !userLoggedIn ? (
+      <Navigate to="/login" replace />
+    ) : userRole === allowedRole ? (
+      children || <Outlet /> // ✅ Supports nested routes
+    ) : (
+      <Navigate to="/unauthorized" state={{ from: location }} replace />
+    )
+  );
+};
 
-
-  return children
-}
-
-export default AuthWrapper
+export default AuthWrapper;

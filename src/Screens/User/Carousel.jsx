@@ -17,7 +17,7 @@ const Carousel = ({ dealsImages }) => {
 
   return (
     <div className="carousel w-full my-4 relative">
-  <div className="carousel-item w-full h-80 min-h-80 flex justify-center items-center">
+  <div className="carousel-item w-full lg:h-80 min-h-40 lg:min-h-80 flex justify-center items-center">
     <img
       src={dealsImages[currentIndex]}
       className="w-full h-full max-h-80 object-cover rounded-md"

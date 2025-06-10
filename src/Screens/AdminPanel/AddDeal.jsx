@@ -1,6 +1,7 @@
 import {useState, useEffect} from 'react'
 import axios from 'axios'
 import DealsCard from '../../Components/AdminComponents/DealsCard'
+import { baseURL } from '../../Utils/URLS'
 
 const AddDeal = () => {
   const [deals, setDeals] = useState(null)
@@ -9,7 +10,7 @@ const AddDeal = () => {
 
   const getDeals = async () => {
     try {
-      let response = await axios.get("http://localhost:8080/api/v1/admin/deal/get", {withCredentials: true})
+      let response = await axios.get(`http://${baseURL}/api/v1/admin/deal/get`, {withCredentials: true})
       setDeals(response.data.data)
     } catch (error) {
       console.error(error)

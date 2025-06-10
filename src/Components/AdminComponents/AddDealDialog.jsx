@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import axios from "axios";
 import Swal from "sweetalert2";
 import CircularProgress from "@mui/material/CircularProgress";
+import { baseURL } from "../../Utils/URLS";
 
 const AddDealDialog = ({ products }) => {
   const [open, setOpen] = useState(false);
@@ -54,7 +55,7 @@ const AddDealDialog = ({ products }) => {
         });
 
         const response = await axios.post(
-          "http://localhost:8080/api/v1/admin/deal/add",
+          `http://${baseURL}/api/v1/admin/deal/add`,
           formData,
           {
             withCredentials: true,

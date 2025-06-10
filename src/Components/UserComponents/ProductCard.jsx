@@ -62,7 +62,7 @@ const ProductCard = ({ product, setPlaceOrderModal, setSelectedProductDetails })
 
         {/* Thumbnail Image Selector */}
         {product.images?.length > 1 && (
-          <div className="flex mt-2 justify-center space-x-2 h-1/4">
+          <div className="flex mt-2 justify-center space-x-2 h-1/4 overflow-x-auto">
             {product.images.map((image, index) => (
               <img
                 key={index}

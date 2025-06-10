@@ -4,13 +4,14 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import CircularProgress from "@mui/material/CircularProgress";
 import { clearCart } from '../../Slice/CartSlice';
+import { baseURL } from '../../Utils/URLS';
 
 const CartPage = () => {
   const cart = useSelector((Store) => Store.cart.items);
   const dispatch = useDispatch();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [loading, setLoading] = useState(false);
-
+  
   // Opens the Order Confirmation modal.
   const handlePlaceOrderClick = () => {
     setShowConfirmModal(true);
@@ -25,8 +26,7 @@ const CartPage = () => {
       };
       setLoading(true)
 
-      const response = await axios.post('https://footwear-site-distributor-backend-3.onrender.com/api/v1/distributor/product/placeorder', orderData, {withCredentials: true});
-
+      const response = await axios.post(`http://${baseURL}/api/v1/distributor/product/placeorder`, orderData, {withCredentials: true});
 
       if(response.data.result){
         setLoading(false)
@@ -40,7 +40,7 @@ const CartPage = () => {
         }).then((result) => {
           if (result.isConfirmed) {
             // Open the download endpoint in a new window.
-            window.open(`https://footwear-site-distributor-backend-3.onrender.com/api/v1/distributor/orders/download-performa/${response?.data.order._id}`, '_blank');
+            window.open(`http://${baseURL}/api/v1/distributor/orders/download-performa/${response?.data.order._id}`, '_blank');
           }
         });
       }
@@ -48,7 +48,6 @@ const CartPage = () => {
       dispatch(clearCart());
 
     } catch (error) {
-      console.error(error)
       setLoading(false)
       Swal.fire({
         title: 'Error',
@@ -67,7 +66,7 @@ const CartPage = () => {
       ) : (
         <div className="space-y-4">
           {cart.map((item, index) => {
-            const totalPrice = item.price * item.quantity;
+            const totalPrice = item.singlePrice * item.quantity;
             return (
               <div key={index} className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-md">
                 {/* Product Image */}
@@ -79,13 +78,16 @@ const CartPage = () => {
 
                 {/* Product Info */}
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-800">
+                  <h3 className="text-lg font-semibold text-gray-800 capitalize">
                     {item.articlename || "No Name Provided"}
                   </h3>
+                  <p className="text-gray-600 capitalize">
+                    {item.variants ? item.variants[0] : ""}
+                  </p>
                   <p className="text-sm text-gray-600">
                     Cartons: <span className="font-medium">{item.quantity}</span>
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 capitalize">
                     Colors: <span className="font-medium">{item.colors.join(", ")}</span>
                   </p>
                   <p className="text-sm text-gray-600">
@@ -96,7 +98,7 @@ const CartPage = () => {
                 {/* Price Section */}
                 <div className="text-right">
                   <p className="text-gray-700 font-semibold">
-                    ₹{item.price} / carton
+                    ₹{item.singlePrice} / carton
                   </p>
                   <p className="text-gray-900 font-bold text-lg">
                     Total: ₹{totalPrice}
@@ -133,7 +135,7 @@ const CartPage = () => {
 const OrderConfirmationModal = ({ cart, onClose, onConfirm , loading}) => {
   // Calculate total order price
   const calculateTotal = () =>
-    cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    cart.reduce((acc, item) => acc + item.singlePrice * item.quantity, 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-800/50 bg-opacity-50">
@@ -148,10 +150,11 @@ const OrderConfirmationModal = ({ cart, onClose, onConfirm , loading}) => {
             >
               <div>
                 <h3 className="font-medium">{item.articlename || "No Name Provided"}</h3>
+                <p className="text-gray-600">{item.variants[0]}</p>
                 <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                <p className="text-sm text-gray-600">Price: ₹{item.price} / carton</p>
+                <p className="text-sm text-gray-600">Price: ₹{item.singlePrice} / carton</p>
               </div>
-              <div className="font-semibold">₹{item.price * item.quantity}</div>
+              <div className="font-semibold">₹{item.singlePrice * item.quantity}</div>
             </div>
           ))}
         </div>

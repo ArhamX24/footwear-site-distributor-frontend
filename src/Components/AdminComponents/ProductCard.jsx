@@ -3,6 +3,7 @@ import { FaTrash, FaEdit, FaSave, FaTimes } from "react-icons/fa";
 import axios from "axios";
 import { useFormik } from "formik";
 import Swal from "sweetalert2";
+import { baseURL } from "../../Utils/URLS";
 
 const ProductCard = ({product, setIsDeleted, setIsUpdated}) => {
 
@@ -17,7 +18,7 @@ const ProductCard = ({product, setIsDeleted, setIsUpdated}) => {
             confirmButtonText: "Yes, delete it!"
           }).then((result) => {
             if (result.isConfirmed) {
-                const response = axios.delete(`http://localhost:8080/api/v1/admin/products/deleteproduct/${id}`, {withCredentials: true})
+                const response = axios.delete(`http://${baseURL}/api/v1/admin/products/deleteproduct/${id}`, {withCredentials: true})
                 Swal.fire({
                 title: "Deleted!",
                 text: "Your file has been deleted.",
@@ -41,41 +42,60 @@ const ProductCard = ({product, setIsDeleted, setIsUpdated}) => {
     }
 
   return (
-    <div className="w-full h-fit lg:w-64 bg-gray-100 p-4 rounded-2xl shadow-lg flex flex-col justify-between my-3">
-      {/* Image Container */}
-      <div className="relative flex justify-center">
-        <img
-          src={product?.images[0]}
-          alt={product?.name || "Product Image"}
-          className="w-4/5 h-32 object-cover rounded-2xl"
-        />
-      </div>
+    <>
+     
+    <div className="w-full bg-white rounded-lg shadow-sm">
 
-      {/* Product Details */}
-      <div className="mt-3 text-center">
-        <h3 className="text-lg font-bold text-gray-900">{product?.articleName || "No Name"}</h3>
-      </div>
+      {/* Table Body */}
+      <div className="divide-y divide-gray-100">
+          <div 
+            key={product._id} 
+            className={`grid grid-cols-3 px-2 py-4 items-center hover:bg-gray-50 transition-colors`}
+            >
+            {/* Product */}
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                <img 
+                  src={product.images[0]} 
+                  alt={product.articleName}
+                  className="w-full h-full object-cover"
+                  />
+              </div>
+              <div className="text-sm text-gray-900 font-medium truncate">
+                {product.articleName}
+              </div>
+            </div>
 
-      {/* Action Buttons */}
-      <div className="flex justify-center items-center mt-3 space-x-3">
+
+            {/* Price */}
+            <div className="text-sm text-gray-900 font-medium">
+              {product.price}
+            </div>
+
+
+
+
+            <div className="flex justify-center items-center mt-3 space-x-3">
         <button
           onClick={() => handleUpdate(product?._id)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all"
-        >
-          <FaEdit /> Update
+          >
+          <FaEdit />
         </button>
         <button
           onClick={() => handleDelete(product?._id)}
           className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all"
-        >
-          <FaTrash /> Delete
+          >
+          <FaTrash />
         </button>
       </div>
+          </div>
+      </div>
     </div>
+          </>
   );
 };
 
 export default ProductCard;
-
 
 

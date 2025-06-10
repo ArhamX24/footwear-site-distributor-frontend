@@ -3,6 +3,7 @@ import Swal from "sweetalert2";
 import { FaTrash, FaEdit, FaSave, FaTimes } from "react-icons/fa";
 import { useState } from "react";
 import { useFormik } from "formik";
+import { baseURL } from "../../Utils/URLS";
 
 const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
@@ -20,7 +21,7 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
       }).then(async (result) => {
         if (result.isConfirmed) {
           const response = await axios.delete(
-            `http://localhost:8080/api/v1/admin/distributor/delete/${id}`,
+            `http://${baseURL}/api/v1/admin/distributor/delete/${id}`,
             { withCredentials: true }
           );
           if (response.data.result) {

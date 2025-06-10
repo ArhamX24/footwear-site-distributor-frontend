@@ -9,9 +9,7 @@ import AddDistributor from './Screens/AdminPanel/AddDistributor.jsx'
 import Home from './Screens/User/Home.jsx'
 import AddProduct from './Screens/AdminPanel/AddProduct.jsx'
 import AddDeal from './Screens/AdminPanel/AddDeal.jsx'
-import AdminProfile from './Screens/AdminPanel/AdminProfile.jsx'
-import LoginPage from './Components/UserComponents/LoginPage.jsx'
-import AdminLoginPage from './Components/AdminComponents/AdminLoginPage.jsx'
+import LoginPage from './Components/Auth/LoginPage.jsx'
 import ErrorPage from './Components/AdminComponents/ErrorPage.jsx'
 import UserErrorPage from './Components/UserComponents/UserErrorPage.jsx'
 import PastOrdersPage from './Components/AdminComponents/PastOrdersPage.jsx'
@@ -20,16 +18,20 @@ import ProductScreen from './Screens/User/ProductScreen.jsx'
 import {Provider} from "react-redux"
 import Store from './Store/Store.js'
 import AuthWrapper from './Components/Auth/AuthWrapper.jsx'
+import Unauthorized from './Components/Auth/Unauthorized.jsx'
+import BootAuth from './Components/Auth/BootAuth.jsx'
 
 let AppRouter = createBrowserRouter([
   {
     path: "/",
-    element: <AuthWrapper><App /></AuthWrapper>, // ✅ Ensure there is a homepage at the root
+    element: <App />, // ✅ Ensure there is a homepage at the root
     errorElement: <UserErrorPage />
   },
+  { path: "login", element: <LoginPage /> },
+  { path: "/unauthorized", element: <Unauthorized/>},
   {
-    path: "/secure/distributor",
-    element: <AuthWrapper><App /></AuthWrapper>,
+    path: "/",
+    element: <AuthWrapper allowedRole={"distributor"}><App /></AuthWrapper>,
     errorElement: <UserErrorPage />,
     children: [
       { path: "", element: <Home /> }, // This may need to be "index"
@@ -40,22 +42,20 @@ let AppRouter = createBrowserRouter([
   },
   {
     path: "/secure/admin/",
-    element: <AdminPanel />,
+    element: <AuthWrapper allowedRole={"admin"}><AdminPanel /></AuthWrapper>,
     errorElement: <ErrorPage />,
     children: [
       { path: "dashboard", element: <AdminDashboard /> },
       { path: "distributor", element: <AddDistributor /> },
       { path: "product", element: <AddProduct /> },
       { path: "deal", element: <AddDeal /> },
-      { path: "profile", element: <AdminProfile /> },
       { path: "pastorders", element: <PastOrdersPage /> },
     ],
   },
-  { path: "login", element: <LoginPage /> },
-  { path: "/secure/admin/login", element: <AdminLoginPage /> },
 ]);
 createRoot(document.getElementById('root')).render(
   <Provider store={Store}>
+    <BootAuth/>
     <RouterProvider router={AppRouter}/>
   </Provider>
 )

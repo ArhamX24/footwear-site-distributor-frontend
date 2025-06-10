@@ -3,6 +3,7 @@ import { useFormik } from "formik";
 import axios from "axios";
 import Swal from "sweetalert2";
 import CircularProgress from "@mui/material/CircularProgress";
+import { baseURL } from '../../Utils/URLS';
 
 const AddDistributorDialog = () => {
   const [open, setOpen] = useState(false);
@@ -34,7 +35,7 @@ const AddDistributorDialog = () => {
         formData.append("password", values.password);
   
         const response = await axios.post(
-          "http://localhost:8080/api/v1/admin/distributor/add",
+          `http://${baseURL}/api/v1/admin/distributor/add`,
           formData,
           {
             withCredentials: true,
@@ -75,7 +76,7 @@ const AddDistributorDialog = () => {
     <>
       <button 
         onClick={handleOpen} 
-        className="bg-gradient-to-r bg-gray-700 text-white px-4 py-2 rounded-xl cursor-pointer hover:bg-gray-800 ease-in-out duration-200 mt-2 md:mt-0">
+        className="bg-gray-700 text-white px-4 py-2 rounded-xl hover:bg-gray-800 ease-in-out duration-200 mt-2 md:mt-0">
         Register New Distributor
       </button>
 

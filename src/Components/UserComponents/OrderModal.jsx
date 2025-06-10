@@ -1,18 +1,25 @@
-import React, { useState, useContext } from "react";
+import { useState} from "react";
 import { useFormik } from "formik";
-import axios from "axios";
 import Swal from "sweetalert2";
 import { FaChevronDown, FaChevronUp } from "react-icons/fa"; // ✅ Import icons
 import { useDispatch } from "react-redux";
 import { addItem } from "../../Slice/CartSlice";
 
-const OrderModal = ({ setPlaceOrderModal, selectedProductDetails, getProducts }) => {
+const OrderModal = ({ setPlaceOrderModal, selectedProductDetails }) => {
     const [selectedSizes, setSelectedSizes] = useState([]);
     const [selectedColors, setSelectedColors] = useState([]);
     const [showDropdown, setShowDropdown] = useState(""); // ✅ Tracks which dropdown is open
 
     const dispatch = useDispatch();
 
+    let minCartonsForDeal = null;
+    let reward = null
+
+    if(selectedProductDetails?.indeal){
+        minCartonsForDeal = selectedProductDetails?.deal?.minQuantity
+        reward = selectedProductDetails?.deal?.reward;
+    }
+    
     const formik = useFormik({
         initialValues: {
             quantity: "",
@@ -26,12 +33,16 @@ const OrderModal = ({ setPlaceOrderModal, selectedProductDetails, getProducts })
 
                 let data = new Object({
                     productid: selectedProductDetails?._id,
+                    articlename: selectedProductDetails?.articleName,
+                    productImg: selectedProductDetails?.images[0],
                     quantity: values.quantity,
                     colors: selectedColors,
                     sizes: finalSizes,
-                    productImg: selectedProductDetails?.images[0],
                     price: finalPrice,
-                    articlename: selectedProductDetails?.articleName,
+                    singlePrice: selectedProductDetails?.price,
+                    indeal: selectedProductDetails?.indeal,
+                    variants: selectedProductDetails?.variants,
+                    deal: selectedProductDetails?.deal,
                 })
 
                 dispatch(addItem(data))
@@ -68,6 +79,18 @@ const OrderModal = ({ setPlaceOrderModal, selectedProductDetails, getProducts })
                                 className="w-full mt-1 p-2 border rounded outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </label>
+
+                        {minCartonsForDeal && (
+                            <p className="text-sm mt-2 font-medium capitalize">
+                                {formik.values.quantity >= minCartonsForDeal ? (
+                                    <span className="text-green-600">🎉 You will get *{reward}* on your purchase!</span>
+                                ) : (
+                                    <span className="text-blue-600 capitalize">
+                                        📢 Add *{minCartonsForDeal - formik.values.quantity}* more cartons for a free *{reward}!*
+                                    </span>
+                                )}
+                            </p>
+                        )}
                         {/* Size Multi-Select Dropdown */}
                         <label className="block mt-4 relative">
                             <span className="font-medium">Sizes:</span>
@@ -139,7 +162,7 @@ const OrderModal = ({ setPlaceOrderModal, selectedProductDetails, getProducts })
                                 Cancel
                             </button>
                             <button type="submit" className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300">
-                            Place Order
+                            Add to Cart
                             </button>
                         </div>
                     </form>
