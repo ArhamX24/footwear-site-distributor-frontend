@@ -1,1 +1,1 @@
-export const baseURL = "www.pinkeyfootwear.in"
+export const baseURL = "localhost:8080"
