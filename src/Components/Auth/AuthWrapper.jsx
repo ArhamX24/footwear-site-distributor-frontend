@@ -26,7 +26,7 @@ const AuthWrapper = ({ allowedRole, children }) => {
     ) : userRole === allowedRole ? (
       children || <Outlet /> // ✅ Supports nested routes
     ) : (
-      <Navigate to="/unauthorized" state={{ from: location }} replace />
+      <Navigate to="/login"/>
     )
   );
 };

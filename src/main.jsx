@@ -22,11 +22,11 @@ import Unauthorized from './Components/Auth/Unauthorized.jsx'
 import BootAuth from './Components/Auth/BootAuth.jsx'
 
 let AppRouter = createBrowserRouter([
-  {
-    path: "/",
-    element: <App />, // ✅ Ensure there is a homepage at the root
-    errorElement: <UserErrorPage />
-  },
+  // {
+  //   path: "/",
+  //   element: <AuthWrapper><App />,</AuthWrapper> // ✅ Ensure there is a homepage at the root
+  //   errorElement: <UserErrorPage />
+  // },
   { path: "login", element: <LoginPage /> },
   { path: "/unauthorized", element: <Unauthorized/>},
   {
