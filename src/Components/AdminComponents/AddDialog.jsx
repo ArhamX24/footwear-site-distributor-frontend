@@ -48,7 +48,7 @@ const AddDialog = ({ getProducts }) => {
           .filter(Boolean);
         const sizeArr = values.sizes
           .split(",")
-          .map((size) => size.trim())U
+          .map((size) => size.trim())
           .filter(Boolean);
 
         formData.append("name", values.name);
