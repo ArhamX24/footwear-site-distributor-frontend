@@ -35,7 +35,7 @@ const AddDistributorDialog = () => {
         formData.append("password", values.password);
   
         const response = await axios.post(
-          `http://${baseURL}/api/v1/admin/distributor/add`,
+          `https://${baseURL}/api/v1/admin/distributor/add`,
           formData,
           {
             withCredentials: true,

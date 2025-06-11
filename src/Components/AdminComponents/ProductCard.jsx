@@ -18,7 +18,7 @@ const ProductCard = ({product, setIsDeleted, setIsUpdated}) => {
             confirmButtonText: "Yes, delete it!"
           }).then((result) => {
             if (result.isConfirmed) {
-                const response = axios.delete(`http://${baseURL}/api/v1/admin/products/deleteproduct/${id}`, {withCredentials: true})
+                const response = axios.delete(`https://${baseURL}/api/v1/admin/products/deleteproduct/${id}`, {withCredentials: true})
                 Swal.fire({
                 title: "Deleted!",
                 text: "Your file has been deleted.",

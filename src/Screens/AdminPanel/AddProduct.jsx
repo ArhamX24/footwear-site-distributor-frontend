@@ -14,7 +14,7 @@ const [isUpdated, setisUpdated] = useState(false)
   const getProducts = async () => {
     try {
       let response = await axios.get(
-        `http://${baseURL}/api/v1/admin/products/getproducts`
+        `https://${baseURL}/api/v1/admin/products/getproducts`
       );
       setProducts(response.data.data);
     } catch (error) {

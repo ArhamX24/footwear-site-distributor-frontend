@@ -55,7 +55,7 @@ const AddDealDialog = ({ products }) => {
         });
 
         const response = await axios.post(
-          `http://${baseURL}/api/v1/admin/deal/add`,
+          `https://${baseURL}/api/v1/admin/deal/add`,
           formData,
           {
             withCredentials: true,

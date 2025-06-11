@@ -48,7 +48,7 @@ const ProductScreen = () => {
 
     // Send GET request with the query string carrying the JSON-serialized filters
     let response = await axios.get(
-      `http://${baseURL}/api/v1/distributor/products/get?${queryParams.toString()}`
+      `https://${baseURL}/api/v1/distributor/products/get?${queryParams.toString()}`
     );
 
     // Update state based on API response
@@ -70,7 +70,7 @@ const ProductScreen = () => {
             // Fetch dynamic filters from backend.
       const getFilters = async () => {
         try {
-          let response = await axios.get(`http://${baseURL}/api/v1/distributor/products/filters/get`);
+          let response = await axios.get(`https://${baseURL}/api/v1/distributor/products/filters/get`);
           setFilters(response.data.data);
         } catch (error) {
           console.error(error.response?.data);
@@ -79,7 +79,7 @@ const ProductScreen = () => {
 
       const getFestivalImages = async () => {
         try {
-          let response = await axios.get(`http://${baseURL}/api/v1/distributor/festival/get`);
+          let response = await axios.get(`https://${baseURL}/api/v1/distributor/festival/get`);
           if(response.data.result){
             setFestivalImages(response.data.imageUrls);
           }
@@ -90,7 +90,7 @@ const ProductScreen = () => {
 
       const getDealsImages = async () => {
         try {
-          let response = await axios.get(`http://${baseURL}/api/v1/distributor/deals/getimages`);
+          let response = await axios.get(`https://${baseURL}/api/v1/distributor/deals/getimages`);
           if(response.data.result){
             setDealsImages(response.data.data)
           }
@@ -101,7 +101,7 @@ const ProductScreen = () => {
 
       const getArticleDetails = async () => {
         try {
-          let response = await axios.get(`http://${baseURL}/api/v1/distributor/products/details/get?articleName=${selectedArticle}`)
+          let response = await axios.get(`https://${baseURL}/api/v1/distributor/products/details/get?articleName=${selectedArticle}`)
           setArticleDetails(response.data.data)
         } catch (error) {
           console.error(error.response.data.data)

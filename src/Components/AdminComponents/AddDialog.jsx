@@ -48,7 +48,7 @@ const AddDialog = ({ getProducts }) => {
           .filter(Boolean);
         const sizeArr = values.sizes
           .split(",")
-          .map((size) => size.trim())
+          .map((size) => size.trim())U
           .filter(Boolean);
 
         formData.append("name", values.name);
@@ -70,7 +70,7 @@ const AddDialog = ({ getProducts }) => {
         });
 
         const response = await axios.post(
-          `http://${baseURL}/api/v1/admin/products/addproduct`,
+          `https://${baseURL}/api/v1/admin/products/addproduct`,
           formData,
           {
             withCredentials: true,

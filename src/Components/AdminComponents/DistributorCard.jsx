@@ -21,7 +21,7 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
       }).then(async (result) => {
         if (result.isConfirmed) {
           const response = await axios.delete(
-            `http://${baseURL}/api/v1/admin/distributor/delete/${id}`,
+            `https://${baseURL}/api/v1/admin/distributor/delete/${id}`,
             { withCredentials: true }
           );
           if (response.data.result) {

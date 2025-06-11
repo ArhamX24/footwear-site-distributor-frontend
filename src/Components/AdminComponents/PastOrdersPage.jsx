@@ -7,7 +7,7 @@ const PastOrdersPage = () => {
 
     const getPastOrders = async () => {
         try {
-            let response = await axios.get(`http://${baseURL}/api/v1/admin/products/orders`, {withCredentials: true})
+            let response = await axios.get(`https://${baseURL}/api/v1/admin/products/orders`, {withCredentials: true})
             let orders = response.data.data;
 
             let filteredOrders = orders.filter((order)=> {
@@ -23,7 +23,7 @@ const PastOrdersPage = () => {
     const handleViewOrder = async (id) => {
       try {
         // Open the generated order performa PDF in the user's default browser
-        window.open(`http://${baseURL}/api/v1/admin/orders/view-performa/${id}`, "_blank");
+        window.open(`https://${baseURL}/api/v1/admin/orders/view-performa/${id}`, "_blank");
       } catch (error) {
         console.error("Error viewing order performa:", error);
       }

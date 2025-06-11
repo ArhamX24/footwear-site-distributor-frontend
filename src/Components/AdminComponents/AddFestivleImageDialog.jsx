@@ -32,7 +32,7 @@ const AddFestivleImageDialog = () => {
         formData.append("endDate", values.endDate);
         formData.append("images", values.images);
 
-        const response = await axios.post(`http://${baseURL}/api/v1/admin/festival/upload`, formData, {
+        const response = await axios.post(`https://${baseURL}/api/v1/admin/festival/upload`, formData, {
           withCredentials: true,
           headers: { "Content-Type": "multipart/form-data" },
         });

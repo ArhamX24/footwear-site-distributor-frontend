@@ -26,7 +26,7 @@ const CartPage = () => {
       };
       setLoading(true)
 
-      const response = await axios.post(`http://${baseURL}/api/v1/distributor/product/placeorder`, orderData, {withCredentials: true});
+      const response = await axios.post(`https://${baseURL}/api/v1/distributor/product/placeorder`, orderData, {withCredentials: true});
 
       if(response.data.result){
         setLoading(false)
@@ -40,7 +40,7 @@ const CartPage = () => {
         }).then((result) => {
           if (result.isConfirmed) {
             // Open the download endpoint in a new window.
-            window.open(`http://${baseURL}/api/v1/distributor/orders/download-performa/${response?.data.order._id}`, '_blank');
+            window.open(`https://${baseURL}/api/v1/distributor/orders/download-performa/${response?.data.order._id}`, '_blank');
           }
         });
       }
