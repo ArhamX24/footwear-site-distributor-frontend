@@ -194,11 +194,9 @@ const AddDialog = ({ getProducts }) => {
                   type="text"
                   name="colors"
                   placeholder="eg. Red, Blue, Black"
-                  {...formik.getFieldProps("colors")}
+                  value={formik.values.colors}
                   onChange={(e) => {
-                    if (e.target.value.endsWith(" ")) {
-                      handleInputChange(e, "colors");
-                    }
+                    formik.setFieldValue("colors", e.target.value.replace(/\s/g, ","));
                   }}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
                 />
@@ -256,9 +254,9 @@ const AddDialog = ({ getProducts }) => {
                 type="text"
                 name="sizes"
                 placeholder="eg. UK-6,7,8"
-                {...formik.getFieldProps("sizes")}
-                onInput={(e) => {
-                  if (e.data === " ") handleInputChange(e, "sizes");
+                value={formik.values.sizes} // Ensure state is properly linked
+                onChange={(e) => {
+                  formik.setFieldValue("sizes", e.target.value.replace(/\s/g, ",")); // Replace spaces with commas
                 }}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
               />
