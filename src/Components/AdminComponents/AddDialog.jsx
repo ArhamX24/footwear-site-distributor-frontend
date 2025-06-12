@@ -195,8 +195,10 @@ const AddDialog = ({ getProducts }) => {
                   name="colors"
                   placeholder="eg. Red, Blue, Black"
                   {...formik.getFieldProps("colors")}
-                  onKeyDown={(e) => {
-                    if (e.key === " ") handleInputChange(e, "colors");
+                  onChange={(e) => {
+                    if (e.target.value.endsWith(" ")) {
+                      handleInputChange(e, "colors");
+                    }
                   }}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
                 />
@@ -251,15 +253,15 @@ const AddDialog = ({ getProducts }) => {
               {/* Sizes Input */}
               <div>
                 <input
-                  type="text"
-                  name="sizes"
-                  placeholder="eg. UK-6,7,8"
-                  {...formik.getFieldProps("sizes")}
-                  onKeyDown={(e) => {
-                    if (e.key === " ") handleInputChange(e, "sizes");
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
-                />
+                type="text"
+                name="sizes"
+                placeholder="eg. UK-6,7,8"
+                {...formik.getFieldProps("sizes")}
+                onInput={(e) => {
+                  if (e.data === " ") handleInputChange(e, "sizes");
+                }}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
+              />
               </div>
 
               {/* Image Upload */}
