@@ -18,20 +18,21 @@ const ProductCard = ({product, setIsDeleted, setIsUpdated}) => {
             confirmButtonText: "Yes, delete it!"
           }).then((result) => {
             if (result.isConfirmed) {
-                const response = axios.delete(`https://${baseURL}/api/v1/admin/products/deleteproduct/${id}`, {withCredentials: true})
-                Swal.fire({
-                title: "Deleted!",
-                text: "Your file has been deleted.",
-                icon: "success"
-              });
-              setIsDeleted(true)
+                axios.delete(`https://${baseURL}/api/v1/admin/products/deleteproduct/${id}`, {withCredentials: true}).then((res)=>{
+                if(res.data.result){
+                  setIsDeleted(true)
+                  Swal.fire({
+                  title: "Deleted!",
+                  text: "Your file has been deleted.",
+                  icon: "success"
+                });
+                }
+              }).catch((err)=>{
+                console.log(err);
+              })
             }
           });
     }
-
-    const formik = useFormik({
-
-    })
 
     const handleUpdate = async (id) => {
       try {
