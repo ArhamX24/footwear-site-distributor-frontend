@@ -54,6 +54,7 @@ const AddFestivleImageDialog = () => {
         setOpen(false);
         setPreview(null);
       } catch (error) {
+        console.error(error)
         setLoading(false);
         Swal.fire({
           icon: "error",

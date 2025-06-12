@@ -48,6 +48,7 @@ const CartPage = () => {
       dispatch(clearCart());
 
     } catch (error) {
+      console.error(error)
       setLoading(false)
       Swal.fire({
         title: 'Error',

@@ -71,7 +71,9 @@ const ProductScreen = () => {
       const getFilters = async () => {
         try {
           let response = await axios.get(`https://${baseURL}/api/v1/distributor/products/filters/get`);
-          setFilters(response.data.data);
+          if(response.data.result){
+            setFilters(response.data.data);
+          }
         } catch (error) {
           console.error(error.response?.data);
         }
@@ -102,7 +104,9 @@ const ProductScreen = () => {
       const getArticleDetails = async () => {
         try {
           let response = await axios.get(`https://${baseURL}/api/v1/distributor/products/details/get?articleName=${selectedArticle}`)
-          setArticleDetails(response.data.data)
+          if(response.data.reult){
+            setArticleDetails(response.data.data)
+          }
         } catch (error) {
           console.error(error.response.data.data)
         }
