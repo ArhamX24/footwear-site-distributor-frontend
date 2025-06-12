@@ -77,7 +77,7 @@ const handleConfirmOrder = async (id) => {
       setIsLoading(true);
       setError("");
 
-      let response = await axios.post(`http://localhost:8080/api/v1/admin/products/orders/confirm/${id}`);
+      let response = await axios.post(`https://localhost:8080/api/v1/admin/products/orders/confirm/${id}`);
 
       if(!response.data.result){
         setIsLoading(false);
