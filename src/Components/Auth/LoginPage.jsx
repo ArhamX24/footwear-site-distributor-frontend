@@ -54,6 +54,7 @@ const LoginPage = () => {
         setIsLoading(false);
         action.resetForm();
       } catch (error) {
+        console.error(error);
         setIsLoading(false);
         setError(error.response?.data?.message || "Login Failed. Try Again.");
       }

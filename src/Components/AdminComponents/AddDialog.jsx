@@ -97,13 +97,14 @@ const AddDialog = ({ getProducts }) => {
         getProducts();
         setIsVariant(false)
       } catch (error) {
+        console.error(error)
         setLoading(false);
         Swal.fire({
           icon: "error",
           title: "Oops...",
           text: "Something went wrong!",
         });
-        setError(error.response?.data?.message || "Something went wrong.");
+        setError(error.response?.data?.message);
       }
     },
   });

@@ -81,6 +81,7 @@ const AddDealDialog = ({ products }) => {
         setSelectedProduct(null);
         setPreview([]);
       } catch (error) {
+        console.error(error)
         setLoading(false);
         Swal.fire({
           icon: "error",
