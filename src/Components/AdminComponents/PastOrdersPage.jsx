@@ -23,7 +23,7 @@ const PastOrdersPage = () => {
     const handleViewOrder = async (id) => {
       try {
         // Open the generated order performa PDF in the user's default browser
-        window.open(`https://${baseURL}/api/v1/admin/orders/view-performa/${id}`, "_blank");
+        window.open(`${baseURL}/api/v1/admin/orders/view-performa/${id}`, "_blank");
       } catch (error) {
         console.error("Error viewing order performa:", error);
       }

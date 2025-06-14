@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useFormik } from 'formik';
 import CircularProgress from "@mui/material/CircularProgress";
@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import logo from "../../../public/logo.png";
 import { useDispatch } from 'react-redux';
 import { setIsLoggedIn, setUserRole } from '../../Slice/AuthSlice'; // Updated to only track role
-import { baseURL } from '../../Utils/URLS';
 
 const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);

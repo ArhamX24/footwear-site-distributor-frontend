@@ -22,7 +22,7 @@ const AdminDashboard = () => {
   const getProducts = async () => {
     try {
       let response = await axios.get(
-        `https://${baseURL}/api/v1/admin/products/getproducts`
+        `${baseURL}/api/v1/admin/products/getproducts`
       );
       setProducts(response.data.data);
     } catch (error) {
@@ -32,7 +32,7 @@ const AdminDashboard = () => {
 
   const getDistributors = async () => {
     try {
-      let response = await axios.get(`https://${baseURL}/api/v1/admin/distributor/get`, {withCredentials: true});
+      let response = await axios.get(`${baseURL}/api/v1/admin/distributor/get`, {withCredentials: true});
       setDistributors(response.data.data);
     } catch (error) {
       console.error(error)
@@ -41,7 +41,7 @@ const AdminDashboard = () => {
 
   const getOrders = async () => {
     try {
-      let response = await axios.get(`https://${baseURL}/api/v1/admin/products/orders`, {withCredentials: true});
+      let response = await axios.get(`${baseURL}/api/v1/admin/products/orders`, {withCredentials: true});
       setOrders(response.data.data);
     } catch (error) {
       console.error(error);
@@ -77,7 +77,7 @@ const handleConfirmOrder = async (id) => {
       setIsLoading(true);
       setError("");
 
-      let response = await axios.post(`https://${baseURL}/api/v1/admin/products/orders/confirm/${id}`);
+      let response = await axios.post(`${baseURL}/api/v1/admin/products/orders/confirm/${id}`);
 
       if(!response.data.result){
         setIsLoading(false);

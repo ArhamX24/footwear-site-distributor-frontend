@@ -31,7 +31,7 @@ const DealsCard = ({ deal, setIsDeleted, setIsUpdated }) => {
         confirmButtonText: "Yes, delete it!",
       }).then(async (result) => {
         if (result.isConfirmed) {
-          await axios.delete(`https://${baseURL}/api/v1/admin/deal/delete/${id}`, {
+          await axios.delete(`${baseURL}/api/v1/admin/deal/delete/${id}`, {
             withCredentials: true,
           });
           Swal.fire({
@@ -39,7 +39,7 @@ const DealsCard = ({ deal, setIsDeleted, setIsUpdated }) => {
             text: "Deal has been deleted.",
             icon: "success",
           });
-          setIsDeleted(true);
+          setIsDeleted((prev) => !prev); 
         }
       });
     } catch (error) {
@@ -61,7 +61,7 @@ const DealsCard = ({ deal, setIsDeleted, setIsUpdated }) => {
       try {
         setLoading(true);
         const response = await axios.patch(
-          `https://${baseURL}/api/v1/admin/deal/update/${deal?._id}`,
+          `${baseURL}/api/v1/admin/deal/update/${deal?._id}`,
           values,
           { withCredentials: true }
         );

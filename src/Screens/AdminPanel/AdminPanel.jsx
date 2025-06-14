@@ -45,7 +45,7 @@ const AdminPanel = () => {
         </div>
       {
         navMenu ? 
-            <div className={`w-1/2 h-screen fixed bg-white shadow-lg z-10 p-5 transition-transform duration-300 ease-in-out ${
+            <div className={`w-2/3 h-screen fixed bg-white shadow-lg z-10 p-5 transition-transform duration-300 ease-in-out ${
         navMenu ? "translate-x-0" : "-translate-x-full"
       }`} onClick={(e)=>{e.stopPropagation(), e.preventDefault(), setNavMenu(false)}}>
                   <Sidebar position={"absolute"} setNavMenu={setNavMenu}/>

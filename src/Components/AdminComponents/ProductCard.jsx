@@ -18,9 +18,9 @@ const ProductCard = ({product, setIsDeleted, setIsUpdated}) => {
             confirmButtonText: "Yes, delete it!"
           }).then((result) => {
             if (result.isConfirmed) {
-                axios.delete(`https://${baseURL}/api/v1/admin/products/deleteproduct/${id}`, {withCredentials: true}).then((res)=>{
+                axios.delete(`${baseURL}/api/v1/admin/products/deleteproduct/${id}`, {withCredentials: true}).then((res)=>{
                 if(res.data.result){
-                  setIsDeleted(true)
+                  setIsDeleted((prev) => !prev); 
                   Swal.fire({
                   title: "Deleted!",
                   text: "Your file has been deleted.",
@@ -28,18 +28,10 @@ const ProductCard = ({product, setIsDeleted, setIsUpdated}) => {
                 });
                 }
               }).catch((err)=>{
-                console.log(err);
+                console.error(err);
               })
             }
           });
-    }
-
-    const handleUpdate = async (id) => {
-      try {
-        let response = await axios.patch("")
-      } catch (error) {
-        
-      }
     }
 
   return (
@@ -77,12 +69,6 @@ const ProductCard = ({product, setIsDeleted, setIsUpdated}) => {
 
 
             <div className="flex justify-center items-center mt-3 space-x-3">
-        <button
-          onClick={() => handleUpdate(product?._id)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all"
-          >
-          <FaEdit />
-        </button>
         <button
           onClick={() => handleDelete(product?._id)}
           className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all"

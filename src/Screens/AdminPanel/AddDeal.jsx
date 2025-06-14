@@ -10,7 +10,7 @@ const AddDeal = () => {
 
   const getDeals = async () => {
     try {
-      let response = await axios.get(`https://${baseURL}/api/v1/admin/deal/get`, {withCredentials: true})
+      let response = await axios.get(`${baseURL}/api/v1/admin/deal/get`, {withCredentials: true})
       setDeals(response.data.data)
     } catch (error) {
       console.error(error)
@@ -19,6 +19,10 @@ const AddDeal = () => {
 
   useEffect(() => {
     getDeals()
+    if(isDeleted || isUpdated){
+      setIsDeleted(false)
+      setIsUpdated(false)
+    }
   }, [isDeleted, isUpdated])
   
 

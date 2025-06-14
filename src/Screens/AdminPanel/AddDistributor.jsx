@@ -10,8 +10,10 @@ const AddDistributor = () => {
 
   const getDistributors = async () => {
     try {
-      let response = await axios.get(`https://${baseURL}/api/v1/admin/distributor/get`, {withCredentials: true})
-      setDistributors(response.data.data)
+      let response = await axios.get(`${baseURL}/api/v1/admin/distributor/get`, {withCredentials: true})
+      if(response.data.result){
+        setDistributors(response.data.data)        
+      }
     } catch (error) {
       console.error(error)
     }

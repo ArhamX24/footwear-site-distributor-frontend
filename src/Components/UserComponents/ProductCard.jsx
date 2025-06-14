@@ -78,7 +78,8 @@ const ProductCard = ({ product, setPlaceOrderModal, setSelectedProductDetails })
 
       {/* Product Details */}
       <div className="p-2">
-        <h5 className="text-gray-800">{product?.articleName}</h5>
+        <h5 className="text-gray-800 capitalize">{product?.articleName}</h5>
+        <h5 className="text-gray-800 capitalize text-sm">{product?.variants ? product.variants[0] : ""}</h5>
         {product?.discount ? (
           <div className="flex items-center gap-2">
             <span className="text-gray-500 line-through">₹ {product.price}</span>

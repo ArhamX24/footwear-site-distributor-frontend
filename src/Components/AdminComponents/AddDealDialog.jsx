@@ -55,7 +55,7 @@ const AddDealDialog = ({ products }) => {
         });
 
         const response = await axios.post(
-          `https://${baseURL}/api/v1/admin/deal/add`,
+          `${baseURL}/api/v1/admin/deal/add`,
           formData,
           {
             withCredentials: true,
@@ -96,7 +96,7 @@ const AddDealDialog = ({ products }) => {
 
   // Filter products based on search term
   const filteredProducts = products?.filter((product) =>
-    product.articleName.toLowerCase().includes(productSearch.toLowerCase())
+    product?.articleName?.toLowerCase()?.includes(productSearch.toLowerCase())
   );
 
   return (

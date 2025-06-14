@@ -53,7 +53,7 @@ const AddDialog = ({ getProducts }) => {
 
         formData.append("name", values.name);
         formData.append("price", values.price);
-        formData.append("category", values.category);
+        formData.append("gender", values.category);
         formData.append("type", values.type);
         colorsArr.forEach((color) => formData.append("colors", color));
         sizeArr.forEach((size) => formData.append("sizes", size));
@@ -70,7 +70,7 @@ const AddDialog = ({ getProducts }) => {
         });
 
         const response = await axios.post(
-          `https://${baseURL}/api/v1/admin/products/addproduct`,
+          `${baseURL}/api/v1/admin/products/addproduct`,
           formData,
           {
             withCredentials: true,
@@ -125,7 +125,7 @@ const AddDialog = ({ getProducts }) => {
         onClick={handleOpen}
         className="bg-gray-700 text-white px-4 py-2 rounded-xl hover:bg-gray-800 transition duration-200"
       >
-        Add New Product
+        Add New Article
       </button>
 
       {open && (
@@ -138,7 +138,7 @@ const AddDialog = ({ getProducts }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Add Product
+              Add Article
             </h2>
 
             <form onSubmit={formik.handleSubmit} className="space-y-4">
@@ -205,7 +205,7 @@ const AddDialog = ({ getProducts }) => {
               {/* Product Type Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Product Type
+                  Article Type
                 </label>
                 <input
                   type="text"
@@ -273,7 +273,8 @@ const AddDialog = ({ getProducts }) => {
                     type="file"
                     name="images"
                     multiple
-                    accept="image/*"
+                    accept="image/*" 
+                    capture="environment"
                     className="hidden"
                     onChange={(event) => {
                       const files = Array.from(event.target.files);

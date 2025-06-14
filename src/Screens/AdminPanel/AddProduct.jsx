@@ -14,7 +14,7 @@ const [isUpdated, setisUpdated] = useState(false)
   const getProducts = async () => {
     try {
       let response = await axios.get(
-        `https://${baseURL}/api/v1/admin/products/getproducts`
+        `${baseURL}/api/v1/admin/products/getproducts`
       );
       setProducts(response.data.data);
     } catch (error) {
@@ -34,7 +34,7 @@ useEffect(() => {
 
   return (
     <>
-      <h1 className='text-xl text-center underline'>All Products Listed</h1>
+      <h1 className='text-xl text-center underline'>All Articles Listed</h1>
     {
       products == null ? <div className='flex w-full h-4/5 items-center justify-center'><span className="loading loading-bars loading-lg"></span></div>
       :

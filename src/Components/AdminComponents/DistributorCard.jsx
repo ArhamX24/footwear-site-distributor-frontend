@@ -21,7 +21,7 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
       }).then(async (result) => {
         if (result.isConfirmed) {
           const response = await axios.delete(
-            `https://${baseURL}/api/v1/admin/distributor/delete/${id}`,
+            `${baseURL}/api/v1/admin/distributor/delete/${id}`,
             { withCredentials: true }
           );
           if (response.data.result) {
@@ -30,7 +30,7 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
               text: "Distributor has been deleted.",
               icon: "success",
             });
-            setIsDeleted(true);
+            setIsDeleted((prev) => !prev); 
           }
         }
       });
@@ -53,7 +53,7 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
     onSubmit: async (values) => {
       try {
         const response = await axios.patch(
-          `http://localhost:8080/api/v1/admin/distributor/update/${distributor?._id}`,
+          `${baseURL}/api/v1/admin/distributor/update/${distributor?._id}`,
           values,
           { withCredentials: true }
         );

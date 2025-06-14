@@ -4,7 +4,6 @@ import axios from "axios";
 import OrderModal from "../../Components/UserComponents/OrderModal";
 import { useSelector } from "react-redux";
 import Carousel from "./Carousel";
-import FestivalGallery from "../../Components/UserComponents/FestivalGallery";
 import { baseURL } from "../../Utils/URLS";
 
 const ProductScreen = () => {
@@ -25,6 +24,7 @@ const ProductScreen = () => {
       const [selectedArticle, setSelectedArticle] = useState('')
       const [loading, setLoading] = useState(false)
       const [festivalImages, setFestivalImages] = useState(null)
+      const [variantDropDown, setVariantDropDown] = useState(false)
 
       // Hardcoded price filter remains unchanged.
       const priceOptions = ["Under ₹100", "₹100 - ₹200", "₹200 - ₹300", "Above ₹300"];
@@ -48,7 +48,7 @@ const ProductScreen = () => {
 
     // Send GET request with the query string carrying the JSON-serialized filters
     let response = await axios.get(
-      `https://${baseURL}/api/v1/distributor/products/get?${queryParams.toString()}`
+      `${baseURL}/api/v1/distributor/products/get?${queryParams.toString()}`
     );
 
     // Update state based on API response
@@ -70,7 +70,7 @@ const ProductScreen = () => {
             // Fetch dynamic filters from backend.
       const getFilters = async () => {
         try {
-          let response = await axios.get(`https://${baseURL}/api/v1/distributor/products/filters/get`);
+          let response = await axios.get(`${baseURL}/api/v1/distributor/products/filters/get`);
           if(response.data.result){
             setFilters(response.data.data);
           }
@@ -81,7 +81,7 @@ const ProductScreen = () => {
 
       const getFestivalImages = async () => {
         try {
-          let response = await axios.get(`https://${baseURL}/api/v1/distributor/festival/get`);
+          let response = await axios.get(`${baseURL}/api/v1/distributor/festival/get`);
           if(response.data.result){
             setFestivalImages(response.data.imageUrls);
           }
@@ -92,7 +92,7 @@ const ProductScreen = () => {
 
       const getDealsImages = async () => {
         try {
-          let response = await axios.get(`https://${baseURL}/api/v1/distributor/deals/getimages`);
+          let response = await axios.get(`${baseURL}/api/v1/distributor/deals/getimages`);
           if(response.data.result){
             setDealsImages(response.data.data)
           }
@@ -103,9 +103,9 @@ const ProductScreen = () => {
 
       const getArticleDetails = async () => {
         try {
-          let response = await axios.get(`https://${baseURL}/api/v1/distributor/products/details/get?articleName=${selectedArticle}`)
-          if(response.data.reult){
-            setArticleDetails(response.data.data)
+          let response = await axios.get(`${baseURL}/api/v1/distributor/products/details/get?articleName=${selectedArticle}`)
+          if(response.data.result){
+            setArticleDetails(response.data.data.variants)
           }
         } catch (error) {
           console.error(error.response.data.data)
@@ -120,73 +120,75 @@ const ProductScreen = () => {
       // Update selected filters when a user clicks an option.
 const handleFilterChange = (filterName, selectedOption, isChecked) => {
   setSelectedFilters((prev) => {
+    let updatedFilterNames = [...prev.filterNames];
+    let updatedFilterOptions = [...prev.filterOptions];
     const filterIndex = prev.filterNames.indexOf(filterName);
 
-    // Special handling for the price filter: only one value allowed.
+    // 🔹 Special handling for price (single-value selection)
     if (filterName === "price") {
       if (isChecked) {
-        // If the price filter already exists, overwrite its value.
         if (filterIndex !== -1) {
-          const updatedFilterOptions = [...prev.filterOptions];
-          updatedFilterOptions[filterIndex] = [selectedOption]; // Replace with new value.
-          return { ...prev, filterOptions: updatedFilterOptions };
+          updatedFilterOptions[filterIndex] = [selectedOption];
         } else {
-          // Otherwise, add the price filter.
-          return {
-            filterNames: [...prev.filterNames, filterName],
-            filterOptions: [...prev.filterOptions, [selectedOption]],
-          };
+          updatedFilterNames.push(filterName);
+          updatedFilterOptions.push([selectedOption]);
         }
-      } else {
-        // If the price filter checkbox is unchecked, remove it.
-        if (filterIndex !== -1) {
-          const updatedFilterNames = prev.filterNames.filter((name) => name !== filterName);
-          const updatedFilterOptions = prev.filterOptions.filter(
-            (_, index) => prev.filterNames[index] !== filterName
-          );
-          return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
-        }
-        return prev;
+      } else if (filterIndex !== -1) {
+        updatedFilterNames.splice(filterIndex, 1);
+        updatedFilterOptions.splice(filterIndex, 1);
       }
+      return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
     }
 
-    // Default handling for other filters (multiple selections allowed)
+    // 🔹 Special handling for articleName (single selection only)
+    if (filterName === "articleName") {
+      // Always remove any existing articleName filter first
+      const oldIndex = updatedFilterNames.indexOf("articleName");
+      if (oldIndex !== -1) {
+        updatedFilterNames.splice(oldIndex, 1);
+        updatedFilterOptions.splice(oldIndex, 1);
+      }
+
+      if (isChecked) {
+        updatedFilterNames.push("articleName");
+        updatedFilterOptions.push([selectedOption]);
+        setSelectedArticle(selectedOption);
+      } else {
+        setSelectedArticle('');
+        setVariantDropDown(false)
+      }
+
+      return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
+    }
+
+    // 🔹 Default multi-select logic
     if (isChecked) {
       if (filterIndex !== -1) {
-        const updatedFilterOptions = [...prev.filterOptions];
         updatedFilterOptions[filterIndex] = [
           ...new Set([...updatedFilterOptions[filterIndex], selectedOption]),
         ];
-        return { ...prev, filterOptions: updatedFilterOptions };
       } else {
-        return {
-          filterNames: [...prev.filterNames, filterName],
-          filterOptions: [...prev.filterOptions, [selectedOption]],
-        };
+        updatedFilterNames.push(filterName);
+        updatedFilterOptions.push([selectedOption]);
       }
-    } else {
-      if (filterIndex !== -1) {
-        const updatedFilterOptions = [...prev.filterOptions];
-        updatedFilterOptions[filterIndex] = updatedFilterOptions[filterIndex].filter(
-          (option) => option !== selectedOption
-        );
+    } else if (filterIndex !== -1) {
+      updatedFilterOptions[filterIndex] = updatedFilterOptions[filterIndex].filter(
+        (opt) => opt !== selectedOption
+      );
 
-        // Reset related state if needed (e.g., clear selected article)
-        setSelectedArticle('');
+      if (updatedFilterOptions[filterIndex].length === 0) {
+        updatedFilterNames.splice(filterIndex, 1);
+        updatedFilterOptions.splice(filterIndex, 1);
 
-        if (updatedFilterOptions[filterIndex].length === 0) {
-          const updatedFilterNames = prev.filterNames.filter((name) => name !== filterName);
-          const filteredOptions = updatedFilterOptions.filter(
-            (_, index) => prev.filterNames[index] !== filterName
-          );
-          return { filterNames: updatedFilterNames, filterOptions: filteredOptions };
-        }
-        return { filterNames: prev.filterNames, filterOptions: updatedFilterOptions };
       }
-      return prev;
     }
+
+
+    return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
   });
 };
+
+      
       
     
       // Call products and filters only once.
@@ -315,7 +317,7 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
 
         {sideMenuOpen ? (
   <div
-    className={`w-1/2 h-screen fixed bg-gray-200 shadow-lg z-10 p-5 transition-transform duration-300 ease-in-out ${
+    className={`w-2/3 h-screen fixed bg-gray-200 shadow-lg z-10 p-5 transition-transform duration-300 ease-in-out ${
       sideMenuOpen ? "translate-x-0" : "-translate-x-full"
     }`}
     onClick={(e) => {
@@ -526,13 +528,11 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
     {filters?.articles?.map((option) => {
       const filterValue = option.toLowerCase();
       const articleIndex = selectedFilters.filterNames.indexOf("articleName");
-      const isChecked =
-        articleIndex !== -1 &&
-        selectedFilters.filterOptions[articleIndex].includes(filterValue);
+      const isChecked = filterValue === selectedArticle.toLowerCase()
       return (
         <label
           key={option}
-          className="flex items-center gap-2 py-1 cursor-pointer"
+          className="flex items-center gap-2 py-1 cursor-pointer text-sm md:text-lg"
         >
           <input
             type="checkbox"
@@ -541,6 +541,7 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
             onChange={(e) => {
               handleFilterChange("articleName", filterValue, e.target.checked)
               setSelectedArticle(filterValue)
+              setVariantDropDown(true)
             }
             }
           />
@@ -554,11 +555,11 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
           <div className="w-1/4 md:w-2/6 relative">
                 <p
           className="flex items-center justify-between md:text-lg text-sm cursor-pointer font-medium px-2 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
-          onClick={() => toggleDropdown("Variant")}
+          onClick={() => setVariantDropDown(false)}
           >
           Variants
           <span>
-            {openDropdown === "Variant" ? (
+            {variantDropDown ? (
               <svg
               xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -581,29 +582,27 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
             )}
           </span>
         </p>
-        {openDropdown === "Variant" && (
+        {variantDropDown && (
   <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full">
-    {articleDetails?.variants?.length <= 0 ? (
-      <p>No Variants For This Article</p>
+    {articleDetails?.length <= 0 ? (
+      <p className="text-sm w-full">No Variants For This Article</p>
     ) : (
-      articleDetails?.variants?.map((option) => {
+      articleDetails?.map((option) => {
         const filterValue = option.toLowerCase();
         const variantIndex = selectedFilters.filterNames.indexOf("variants");
-        const isChecked =
-          variantIndex !== -1 &&
-          selectedFilters.filterOptions[variantIndex].includes(filterValue);
+        const isChecked = variantIndex !== -1 && selectedFilters.filterOptions?.[variantIndex]?.includes(filterValue)
         return (
           <label
             key={option}
-            className="flex items-center gap-2 py-1 cursor-pointer"
+            className="flex items-center gap-2 py-1 cursor-pointer text-sm md:text-lg"
           >
             <input
               type="checkbox"
               className="form-checkbox text-indigo-600"
               checked={isChecked}
-              onChange={(e) =>
+              onChange={(e) => {
                 handleFilterChange("variants", filterValue, e.target.checked)
-              }
+              }}
             />
             <span className="capitalize">{option}</span>
           </label>
@@ -653,7 +652,7 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
         selectedFilters.filterOptions[genderIndex].includes(filterValue);
 
       return (
-        <label key={option} className="flex items-center gap-2 py-1">
+        <label key={option} className="flex items-center gap-2 py-1 text-sm md:text-lg">
           <input
             type="checkbox"
             className="form-checkbox text-indigo-600"

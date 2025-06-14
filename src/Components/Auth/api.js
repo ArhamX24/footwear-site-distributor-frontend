@@ -2,7 +2,7 @@ import axios from "axios";
 import { baseURL } from "../../Utils/URLS";
 
 const api = axios.create({
-    baseURL: `https://${baseURL}`, // ✅ Unified base for both admin & distributor
+    baseURL: `${baseURL}`, // ✅ Unified base for both admin & distributor
     withCredentials: true
 });
 
