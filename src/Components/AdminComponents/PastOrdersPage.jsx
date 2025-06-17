@@ -7,7 +7,7 @@ const PastOrdersPage = () => {
 
     const getPastOrders = async () => {
         try {
-            let response = await axios.get(`https://${baseURL}/api/v1/admin/products/orders`, {withCredentials: true})
+            let response = await axios.get(`${baseURL}/api/v1/admin/products/orders`, {withCredentials: true})
             let orders = response.data.data;
 
             let filteredOrders = orders.filter((order)=> {
