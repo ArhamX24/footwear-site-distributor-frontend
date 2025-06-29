@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import CircularProgress from "@mui/material/CircularProgress";
-import { clearCart } from '../../Slice/CartSlice';
+import { clearCart, dealGrasped, removeItem } from '../../Slice/CartSlice';
 import { baseURL } from '../../Utils/URLS';
 
 const CartPage = () => {
@@ -46,9 +46,9 @@ const CartPage = () => {
       }
 
       dispatch(clearCart());
+      dispatch(dealGrasped(false))
 
     } catch (error) {
-      console.error(error)
       setLoading(false)
       Swal.fire({
         title: 'Error',
@@ -66,10 +66,10 @@ const CartPage = () => {
         <p className="text-gray-500 text-center">Your cart is empty.</p>
       ) : (
         <div className="space-y-4">
-          {cart.map((item, index) => {
+          {cart.map((item) => {
             const totalPrice = item.singlePrice * item.quantity;
             return (
-              <div key={index} className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-md">
+              <div key={item.productid} className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-md">
                 {/* Product Image */}
                 <img
                   src={item.productImg}
@@ -97,14 +97,27 @@ const CartPage = () => {
                 </div>
 
                 {/* Price Section */}
-                <div className="text-right">
-                  <p className="text-gray-700 font-semibold">
-                    ₹{item.singlePrice} / carton
-                  </p>
-                  <p className="text-gray-900 font-bold text-lg">
-                    Total: ₹{totalPrice}
-                  </p>
-                </div>
+               <div className="text-right">
+  <p className="text-gray-700 font-semibold">
+    ₹{item.singlePrice} / carton
+  </p>
+  <p className="text-gray-900 font-bold text-lg">
+    Total: ₹{totalPrice}
+  </p>
+  <div className="flex justify-end mt-1">
+    <button className="cursor-pointer" onClick={() => dispatch(removeItem(item))}>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        width="24"
+        height="24"
+        fill="#FF0000"
+      >
+        <path d="M17 6H22V8H20V21C20 21.5523 19.5523 22 19 22H5C4.44772 22 4 21.5523 4 21V8H2V6H7V3C7 2.44772 7.44772 2 8 2H16C16.5523 2 17 2.44772 17 3V6ZM18 8H6V20H18V8ZM13.4142 13.9997L15.182 15.7675L13.7678 17.1817L12 15.4139L10.2322 17.1817L8.81802 15.7675L10.5858 13.9997L8.81802 12.232L10.2322 10.8178L12 12.5855L13.7678 10.8178L15.182 12.232L13.4142 13.9997ZM9 4V6H15V4H9Z" />
+      </svg>
+    </button>
+  </div>
+</div>
               </div>
             );
           })}
@@ -150,10 +163,13 @@ const OrderConfirmationModal = ({ cart, onClose, onConfirm , loading}) => {
               className="flex items-center justify-between border-b py-2"
             >
               <div>
-                <h3 className="font-medium">{item.articlename || "No Name Provided"}</h3>
-                <p className="text-gray-600">{item.variants[0]}</p>
+                <h3 className="font-medium capitalize">{item.articlename || "No Name Provided"}</h3>
+                <p className="text-gray-600 capitalize">{item.variants[0]}</p>
                 <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                 <p className="text-sm text-gray-600">Price: ₹{item.singlePrice} / carton</p>
+                {
+                  item.dealClaimed && <p className='capitalize text-gray-600 text-sm'>You Got : <span className='text-gray-700 underline'>{item.dealReward}</span> On This Article</p>
+                }
               </div>
               <div className="font-semibold">₹{item.singlePrice * item.quantity}</div>
             </div>

@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import logo from "../../../public/logo.png";
 import { useDispatch } from 'react-redux';
 import { setIsLoggedIn, setUserRole } from '../../Slice/AuthSlice'; // Updated to only track role
+import { baseURL } from '../../Utils/URLS';
 
 const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -38,22 +39,19 @@ const LoginPage = () => {
 
         if (!response.data.result) {
           setError(response.data.message);
-          setIsLoading(false);
           return;
         }
 
         // ✅ Dispatch Redux role state
         dispatch(setUserRole(response.data.role));
-        dispatch(setIsLoggedIn(true))
 
         // ✅ Redirect based on role
         if (response.data.role === "admin") navigate('/secure/admin/dashboard');
         else if (response.data.role === "distributor") navigate('/dashboard');
 
-        setIsLoading(false);
         action.resetForm();
       } catch (error) {
-        setIsLoading(false);
+
         setError(error.response?.data?.message || "Login Failed. Try Again.");
       }
     }

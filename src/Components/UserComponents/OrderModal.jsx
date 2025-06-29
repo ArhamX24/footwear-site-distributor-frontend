@@ -3,7 +3,7 @@ import { useFormik } from "formik";
 import Swal from "sweetalert2";
 import { FaChevronDown, FaChevronUp } from "react-icons/fa"; // ✅ Import icons
 import { useDispatch } from "react-redux";
-import { addItem } from "../../Slice/CartSlice";
+import { addItem, dealGrasped } from "../../Slice/CartSlice";
 
 const OrderModal = ({ setPlaceOrderModal, selectedProductDetails }) => {
     const [selectedSizes, setSelectedSizes] = useState([]);
@@ -25,37 +25,48 @@ const OrderModal = ({ setPlaceOrderModal, selectedProductDetails }) => {
             quantity: "",
         },
         onSubmit: (values, action) => {
-            
-                let sortedSizesArr = selectedSizes.sort((a,b) => a - b);
-                let finalSizes = sortedSizesArr[0] + "X" + sortedSizesArr[sortedSizesArr.length - 1];
+        let sortedSizesArr = selectedSizes.sort((a, b) => a - b);
+        let finalSizes = sortedSizesArr[0] + "X" + sortedSizesArr[sortedSizesArr.length - 1];
+        let finalPrice = selectedProductDetails?.price * values.quantity;
 
-                let finalPrice = selectedProductDetails?.price * values.quantity;
+        const isDealClaimed =
+            selectedProductDetails?.indeal &&
+            selectedProductDetails?.deal &&
+            values.quantity >= selectedProductDetails.deal.minQuantity;
 
-                let data = new Object({
-                    productid: selectedProductDetails?._id,
-                    articlename: selectedProductDetails?.articleName,
-                    productImg: selectedProductDetails?.images[0],
-                    quantity: values.quantity,
-                    colors: selectedColors,
-                    sizes: finalSizes,
-                    price: finalPrice,
-                    singlePrice: selectedProductDetails?.price,
-                    indeal: selectedProductDetails?.indeal,
-                    variants: selectedProductDetails?.variants,
-                    deal: selectedProductDetails?.deal,
-                })
+        const data = {
+            productid: selectedProductDetails?._id,
+            articlename: selectedProductDetails?.articleName,
+            productImg: selectedProductDetails?.images[0],
+            quantity: values.quantity,
+            colors: selectedColors,
+            sizes: finalSizes,
+            price: finalPrice,
+            singlePrice: selectedProductDetails?.price,
+            indeal: selectedProductDetails?.indeal,
+            variants: selectedProductDetails?.variants,
+            ...(isDealClaimed && {
+            dealReward: selectedProductDetails.deal.reward,
+            dealClaimed: true
+            })
+        };
 
-                dispatch(addItem(data))
+        dispatch(addItem(data));
 
-                Swal.fire({
-                    title: "Success!",
-                    text: "Product Added To Cart Successfully!",
-                    icon: "success",
-                });
-                action.resetForm();
-                setSelectedColors([]);
-                setSelectedSizes([]);
-                setPlaceOrderModal(false);
+        if (isDealClaimed) {
+            dispatch(dealGrasped(selectedProductDetails._id));
+        }
+
+        Swal.fire({
+            title: "Success!",
+            text: "Product Added To Cart Successfully!",
+            icon: "success"
+        });
+
+        action.resetForm();
+        setSelectedColors([]);
+        setSelectedSizes([]);
+        setPlaceOrderModal(false);
         }
     });
 

@@ -34,7 +34,7 @@ let AppRouter = createBrowserRouter([
     element: <AuthWrapper allowedRole={"distributor"}><App /></AuthWrapper>,
     errorElement: <UserErrorPage />,
     children: [
-      { path: "", element: <Home /> }, // This may need to be "index"
+      { path: "", element: <App /> }, // This may need to be "index"
       { path: "dashboard", element: <ProductScreen /> },
       { path: "cart", element: <CartPage /> },
       { path: "*", element: <UserErrorPage /> }

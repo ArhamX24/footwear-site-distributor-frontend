@@ -12,31 +12,35 @@ function BootAuth() {
   const getRefreshEndpoint = () => "/api/v1/auth/refresh"; // ✅ Unified for both roles
 
   useEffect(() => {
-    (async () => {
-      try {
-        // ✅ First, attempt to get user details
-        const { data } = await api.get(getMeEndpoint());
-        if (data.role) {
-          dispatch(setUserRole(data.role)); // ✅ Ensure Redux updates correctly
-        } else {
-          throw new Error("Role not found, attempting refresh...");
-        }
-      } catch {
-        try {
-          // ✅ If user details fail, attempt refresh
-          await api.get(getRefreshEndpoint());
-          const { data } = await api.get(getMeEndpoint());
-          if (data.role) {
-            dispatch(setUserRole(data.role));
-          } else {
-            throw new Error("User role still undefined after refresh.");
-          }
-        } catch (error) {
-          console.error("Error refreshing token:", error);
-        }
+  (async () => {
+    try {
+      // First, attempt to get user details
+      const response = await api.get(getMeEndpoint());
+      const userDetails = response.data.data; // <-- nested user details
+      
+      if (userDetails?.role) {
+        dispatch(setUserRole(userDetails.role));
+      } else {
+        throw new Error("Role not found, attempting refresh...");
       }
-    })();
-  }, []); // ✅ Removed `userRole` dependency to prevent unnecessary re-renders
+    } catch {
+      try {
+        // If user details fail, attempt refresh
+        await api.get(getRefreshEndpoint());
+        const response = await api.get(getMeEndpoint());
+        const userDetails = response.data.data; // <-- nested user details
+        
+        if (userDetails?.role) {
+          dispatch(setUserRole(userDetails.role));
+        } else {
+          throw new Error("User role still undefined after refresh.");
+        }
+      } catch (error) {
+        console.error("Error refreshing token:", error);
+      }
+    }
+  })();
+}, []); // ✅ Removed `userRole` dependency to prevent unnecessary re-renders
 
   return null; // This component only runs logic, no UI needed
 }
