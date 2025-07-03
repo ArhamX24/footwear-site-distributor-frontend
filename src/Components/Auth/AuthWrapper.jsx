@@ -5,36 +5,39 @@ import axios from "axios";
 import { baseURL } from "../../Utils/URLS";
 
 const AuthWrapper = ({ allowedRole, children }) => {
-  const userRole = useSelector((store) => store.auth.userRole);
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+ const [isLoggedIn, setIsLoggedIn] = useState(false);
+ const [userRole, setUserRole] = useState('')
+const [loading, setLoading] = useState(true);
 
-  const getUser = async () => {
-    try {
-      let response = await axios.get(`${baseURL}/api/v1/auth/me`, {withCredentials: true})
-      if(response.data.data){
-        setIsLoggedIn(true)
-      }
-    } catch (error) {
-      setIsLoggedIn(false)
+const getUser = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/api/v1/auth/me`, {
+      withCredentials: true,
+    });
+    if (response.data.data) {
+      setIsLoggedIn(true);
+      setUserRole(response.data.data.role)
     }
-    
+  } catch (error) {
+    setIsLoggedIn(false);
+  } finally {
+    setLoading(false);
   }
+};
 
-  useEffect(()=>{
-    getUser()
-  },[])
+useEffect(() => {
+  getUser();
+}, []);
 
-  if (!isLoggedIn) return <div>Loading...</div>; // ✅ Avoid premature redirects
+if (loading) return <div>Loading...</div>;
 
-  return (
-    !isLoggedIn ? (
-      <Navigate to="/login" replace />
-    ) : userRole === allowedRole ? (
-      children || <Outlet /> // ✅ Supports nested routes
-    ) : (
-      <Navigate to="/login"/>
-    )
-  );
+return !isLoggedIn ? (
+  <Navigate to="/login" replace />
+) : userRole === allowedRole ? (
+  children || <Outlet />
+) : (
+  <Navigate to="/login" />
+);  
 };
 
 export default AuthWrapper;
