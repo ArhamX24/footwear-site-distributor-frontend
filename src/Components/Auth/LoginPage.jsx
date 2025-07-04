@@ -35,7 +35,7 @@ const LoginPage = () => {
         let { phoneNo, password } = values;
 
         // ✅ Send login request to unified login API
-        const response = await axios.post(`${baseURL}/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
+        const response = await axios.post(`/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
 
         if (!response.data.result) {
           setError(response.data.message);
@@ -51,7 +51,7 @@ const LoginPage = () => {
 
         action.resetForm();
       } catch (error) {
-
+        console.error(error)
         setError(error.response?.data?.message || "Login Failed. Try Again.");
       }
     }
