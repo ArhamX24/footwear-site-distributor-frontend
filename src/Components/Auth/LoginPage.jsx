@@ -38,6 +38,7 @@ const LoginPage = () => {
         const response = await axios.post(`/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
 
         if (!response.data.result) {
+          setIsLoading(false)
           setError(response.data.message);
           return;
         }
@@ -53,6 +54,8 @@ const LoginPage = () => {
       } catch (error) {
         console.error(error)
         setError(error.response?.data?.message || "Login Failed. Try Again.");
+      } finally {
+        setIsLoading(false)
       }
     }
   });
