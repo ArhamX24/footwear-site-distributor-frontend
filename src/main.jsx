@@ -20,25 +20,20 @@ import Store from './Store/Store.js'
 import AuthWrapper from './Components/Auth/AuthWrapper.jsx'
 import Unauthorized from './Components/Auth/Unauthorized.jsx'
 import BootAuth from './Components/Auth/BootAuth.jsx'
+import  {Navigate} from "react-router"
 
 let AppRouter = createBrowserRouter([
-  // {
-  //   path: "/",
-  //   element: <AuthWrapper><App />,</AuthWrapper> // ✅ Ensure there is a homepage at the root
-  //   errorElement: <UserErrorPage />
-  // },
   { path: "login", element: <LoginPage /> },
   { path: "/unauthorized", element: <Unauthorized/>},
   {
     path: "/",
-    element: <AuthWrapper allowedRole={"distributor"}><App /></AuthWrapper>,
+    element: <AuthWrapper allowedRole={"distributor"}><Home /></AuthWrapper>,
     errorElement: <UserErrorPage />,
     children: [
-      { path: "", element: <App /> }, // This may need to be "index"
-      { path: "dashboard", element: <ProductScreen /> },
-      { path: "cart", element: <CartPage /> },
-      { path: "*", element: <UserErrorPage /> }
-    ],
+    { index: true, element: <Navigate to="dashboard" replace /> },
+    { path: "dashboard", element: <ProductScreen /> },
+    { path: "cart", element: <CartPage /> },
+]
   },
   {
     path: "/secure/admin/",
