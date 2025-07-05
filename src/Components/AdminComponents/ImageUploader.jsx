@@ -18,6 +18,7 @@ const ImageUploader = ({ formik, setPreview }) => {
         accept="image/*"
         capture="environment"
         ref={cameraInputRef}
+        multiple
         className="hidden"
         onChange={handleFiles}
       />
@@ -26,6 +27,7 @@ const ImageUploader = ({ formik, setPreview }) => {
         accept="image/*"
         ref={galleryInputRef}
         className="hidden"
+        multiple
         onChange={handleFiles}
       />
 
