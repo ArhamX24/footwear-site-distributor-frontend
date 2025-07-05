@@ -92,9 +92,9 @@ const ProductScreen = () => {
 
       const getDealsImages = async () => {
         try {
-          let response = await axios.get(`${baseURL}/api/v1/distributor/deals/getimages`);
+          let response = await axios.get(`${baseURL}/api/v1/distributor/deals/get`);
           if(response.data.result){
-            setDealsImages(response.data.data)
+            setDealsImages(response.data.images)
           }
         } catch (error) {
           console.error(error.response?.data);
@@ -478,11 +478,11 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
 
         {/* Products Display with Infinite Scroll */}
         <main className="lg:w-4/5 w-full mx-auto lg:p-6 p-3">
-          <div>
+          {/* <div>
             {
               festivalImages && <FestivalGallery festivalImages={festivalImages}/>
             }
-          </div>
+          </div> */}
           {placeOrderModal ? (
             <OrderModal
               setPlaceOrderModal={setPlaceOrderModal}
