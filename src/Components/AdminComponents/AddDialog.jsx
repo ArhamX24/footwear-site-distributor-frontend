@@ -274,7 +274,6 @@ const AddDialog = ({ getProducts }) => {
                     name="images"
                     multiple
                     accept="image/*" 
-                    capture="environment"
                     className="hidden"
                     onChange={(event) => {
                       const files = Array.from(event.target.files);
@@ -282,6 +281,7 @@ const AddDialog = ({ getProducts }) => {
                       setPreview(files.map((file) => URL.createObjectURL(file)));
                     }}
                   />
+                  
                   <p className="text-sm text-black">
                     <span className="font-semibold">Click to upload</span> or drag
                     and drop
