@@ -4,6 +4,7 @@ import axios from "axios";
 import CircularProgress from "@mui/material/CircularProgress";
 import Swal from "sweetalert2";
 import { baseURL } from "../../Utils/URLS";
+import ImageUploader from "./ImageUploader";
 
 const AddDialog = ({ getProducts }) => {
   const [open, setOpen] = useState(false);
@@ -264,30 +265,8 @@ const AddDialog = ({ getProducts }) => {
 
               {/* Image Upload */}
               <div className="flex flex-col items-center justify-center w-full">
-                <label
-                  htmlFor="dropzone-file"
-                  className="flex flex-col items-center justify-center w-full h-36 border-2 border-gray-800 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
-                >
-                  <input
-                    id="dropzone-file"
-                    type="file"
-                    name="images"
-                    multiple
-                    accept="image/*" 
-                    className="hidden"
-                    onChange={(event) => {
-                      const files = Array.from(event.target.files);
-                      formik.setFieldValue("images", files);
-                      setPreview(files.map((file) => URL.createObjectURL(file)));
-                    }}
-                  />
-                  
-                  <p className="text-sm text-black">
-                    <span className="font-semibold">Click to upload</span> or drag
-                    and drop
-                  </p>
-                  <p className="text-xs text-black">SVG, PNG, JPG or GIF</p>
-                </label>
+                
+                <ImageUploader formik={formik} setPreview={setPreview}/>
               </div>
 
               {/* Image Preview */}
