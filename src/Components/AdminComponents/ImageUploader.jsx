@@ -5,9 +5,20 @@ const ImageUploader = ({ formik, setPreview }) => {
   const galleryInputRef = useRef(null);
 
   const handleFiles = (event) => {
-    const files = Array.from(event.target.files);
-    formik.setFieldValue("images", files);
-    setPreview(files.map((file) => URL.createObjectURL(file)));
+    const newFiles = Array.from(event.target.files);
+    const existingFiles = formik.values.images || [];
+
+    // Combine and deduplicate files
+    const combinedFiles = [...existingFiles, ...newFiles];
+    const uniqueFiles = Array.from(
+      new Map(combinedFiles.map(file => [`${file.name}-${file.size}`, file])).values()
+    );
+
+    formik.setFieldValue("images", uniqueFiles);
+    setPreview(uniqueFiles.map((file) => URL.createObjectURL(file)));
+
+    // Reset input to allow re-uploading the same file
+    event.target.value = null;
   };
 
   return (
@@ -26,8 +37,8 @@ const ImageUploader = ({ formik, setPreview }) => {
         type="file"
         accept="image/*"
         ref={galleryInputRef}
-        className="hidden"
         multiple
+        className="hidden"
         onChange={handleFiles}
       />
 
@@ -38,14 +49,14 @@ const ImageUploader = ({ formik, setPreview }) => {
           onClick={() => cameraInputRef.current.click()}
           className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md shadow"
         >
-         Take Photo
+          Take Photo
         </button>
         <button
           type="button"
           onClick={() => galleryInputRef.current.click()}
           className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md shadow"
         >
-           Choose from Gallery
+          Choose from Gallery
         </button>
       </div>
 
