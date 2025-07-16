@@ -1,10 +1,11 @@
 import { useState } from "react";
 
-const ProductCard = ({ product, setPlaceOrderModal, setSelectedProductDetails }) => {
+const ProductCard = ({ product, setPlaceOrderModal, setSelectedProductDetails, variant}) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false); // State for modal visibility
 
   // Handlers for Next & Previous
+
   const handlePrev = () => {
     if (!product.images || product.images.length === 0) return;
     setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
@@ -78,18 +79,9 @@ const ProductCard = ({ product, setPlaceOrderModal, setSelectedProductDetails })
 
       {/* Product Details */}
       <div className="p-2">
-        <h5 className="text-gray-800 capitalize">{product?.articleName}</h5>
-        <h5 className="text-gray-800 capitalize text-sm">{product?.variants ? product.variants[0] : ""}</h5>
-        {product?.discount ? (
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 line-through">₹ {product.price}</span>
-            <span className="text-lg font-bold text-gray-800">
-              ₹ {product.price - product.price * (product.discount / 100)}
-            </span>
-          </div>
-        ) : (
-          <h5 className="text-lg my-1 font-bold text-gray-800">₹ {product?.price}</h5>
-        )}
+        <h5 className="text-gray-900 capitalize text-center text-lg">{variant.name}</h5>
+        <h5 className="text-gray-800 capitalize">{product?.name}</h5>
+        <h5 className="text-gray-800 capitalize text-sm">{product?.gender}</h5>
       </div>
 
       {/* Add to Cart Button */}

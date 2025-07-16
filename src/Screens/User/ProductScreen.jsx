@@ -23,14 +23,11 @@ const ProductScreen = () => {
       const [dealsImages, setDealsImages] = useState(null)
       const [selectedArticle, setSelectedArticle] = useState('')
       const [loading, setLoading] = useState(false)
-      const [festivalImages, setFestivalImages] = useState(null)
       const [variantDropDown, setVariantDropDown] = useState(false)
 
-      // Hardcoded price filter remains unchanged.
-      const priceOptions = ["Under ₹100", "₹100 - ₹200", "₹200 - ₹300", "Above ₹300"];
       const categories = ["Gents", "Ladies", "Kids"]
 
-      let sideMenuOpen = useSelector((Store)=> Store.nav.isOpen)
+      // let sideMenuOpen = useSelector((Store)=> Store.nav.isOpen)
       let searchQuery = useSelector((Store)=> Store?.nav?.searchQuery)
 
      const getProducts = async () => {
@@ -79,17 +76,6 @@ const ProductScreen = () => {
         }
       };
 
-      const getFestivalImages = async () => {
-        try {
-          let response = await axios.get(`${baseURL}/api/v1/distributor/festival/get`);
-          if(response.data.result){
-            setFestivalImages(response.data.imageUrls);
-          }
-        } catch (error) {
-          console.error(error)
-        }
-      }
-
       const getDealsImages = async () => {
         try {
           let response = await axios.get(`${baseURL}/api/v1/distributor/deals/get`);
@@ -103,7 +89,7 @@ const ProductScreen = () => {
 
       const getArticleDetails = async () => {
         try {
-          let response = await axios.get(`${baseURL}/api/v1/distributor/products/details/get?articleName=${selectedArticle}`)
+          let response = await axios.get(`${baseURL}/api/v1/distributor/products/details/get?segment=${selectedArticle}`)
           if(response.data.result){
             setArticleDetails(response.data.data.variants)
           }
@@ -112,6 +98,7 @@ const ProductScreen = () => {
         }
       }
     
+
       // Toggle the dropdown for a given filter category.
       const toggleDropdown = (category) => {
         setOpenDropdown(openDropdown === category ? null : category);
@@ -124,33 +111,34 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
     let updatedFilterOptions = [...prev.filterOptions];
     const filterIndex = prev.filterNames.indexOf(filterName);
 
-    // 🔹 Special handling for price (single-value selection)
-    if (filterName === "price") {
-      if (isChecked) {
-        if (filterIndex !== -1) {
-          updatedFilterOptions[filterIndex] = [selectedOption];
-        } else {
-          updatedFilterNames.push(filterName);
-          updatedFilterOptions.push([selectedOption]);
-        }
-      } else if (filterIndex !== -1) {
-        updatedFilterNames.splice(filterIndex, 1);
-        updatedFilterOptions.splice(filterIndex, 1);
-      }
-      return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
-    }
+    // // 🔹 Special handling for price (single-value selection)
+    // if (filterName === "price") {
+    //   if (isChecked) {
+    //     if (filterIndex !== -1) {
+    //       updatedFilterOptions[filterIndex] = [selectedOption];
+    //     } else {
+    //       updatedFilterNames.push(filterName);
+    //       updatedFilterOptions.push([selectedOption]);
+    //     }
+    //   } else if (filterIndex !== -1) {
+    //     updatedFilterNames.splice(filterIndex, 1);
+    //     updatedFilterOptions.splice(filterIndex, 1);
+    //   }
+    //   return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
+    // }
 
     // 🔹 Special handling for articleName (single selection only)
-    if (filterName === "articleName") {
-      // Always remove any existing articleName filter first
-      const oldIndex = updatedFilterNames.indexOf("articleName");
+
+    if (filterName === "segment") {
+
+      const oldIndex = updatedFilterNames.indexOf("segment");
       if (oldIndex !== -1) {
         updatedFilterNames.splice(oldIndex, 1);
         updatedFilterOptions.splice(oldIndex, 1);
       }
 
       if (isChecked) {
-        updatedFilterNames.push("articleName");
+        updatedFilterNames.push("segment");
         updatedFilterOptions.push([selectedOption]);
         setSelectedArticle(selectedOption);
       } else {
@@ -188,14 +176,10 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
   });
 };
 
-      
-      
-    
       // Call products and filters only once.
       useEffect(() => {
         getFilters();
         getDealsImages();
-        getFestivalImages();
       }, []);
 
       useEffect(()=>{
@@ -207,282 +191,10 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
       }, [page, searchQuery, selectedFilters])
       
     
-      // Filter products based on selected filters whenever the filters or full products list changes.
 
   return (
     <div className="w-full flex min-h-screen">
-        {/* Sidebar */}
-        <aside className="hidden lg:block w-1/5 bg-gray-200 border-r border-gray-300 min-h-screen shadow-md p-4">
-          <div className="text-xl font-semibold mb-3 flex items-center justify-between">
-            Filters{" "}
-            <span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                <path d="M21 4V6H20L15 13.5V22H9V13.5L4 6H3V4H21ZM6.4037 6L11 12.8944V20H13V12.8944L17.5963 6H6.4037Z"></path>
-              </svg>
-            </span>
-          </div>
-          <div className="border-b mb-3"></div>
-
-          {/* Price Filter as Dropdown */}
-<div className="mb-3">
-  <p
-    className="flex items-center justify-between text-lg cursor-pointer font-medium px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300"
-    onClick={() => toggleDropdown("Price")}
-  >
-    Price
-    <span>
-      {openDropdown === "Price" ? (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-          <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z"></path>
-        </svg>
-      ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-          <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z"></path>
-        </svg>
-      )}
-    </span>
-  </p>
-  {openDropdown === "Price" && (
-    <div className="bg-gray-100 p-2 rounded-lg border">
-      {priceOptions.map((option) => {
-        const priceIndex = selectedFilters.filterNames.indexOf("price");
-        const isChecked =
-          priceIndex !== -1 &&
-          selectedFilters.filterOptions[priceIndex].includes(option);
-        return (
-          <label key={option} className="flex items-center gap-2 py-1">
-            <input
-              type="checkbox"
-              className="form-checkbox text-indigo-600"
-              checked={isChecked}
-              onChange={(e) => handleFilterChange("price", option, e.target.checked)}
-            />
-            <span className="capitalize">{option}</span>
-          </label>
-        );
-      })}
-    </div>
-  )}
-</div>
-
-          {/* Dynamic Filters (for Color, Type, Category) */}
-          {filters &&
-            Object.keys(filters)
-              .filter((key) => key !== "articles" && key !== "sizes") // Exclude sizes object from main listing
-              .map((category) => (
-                <div key={category} className="mb-3">
-                  <p
-                    className="flex items-center justify-between text-lg cursor-pointer font-medium px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300"
-                    onClick={() => toggleDropdown(category)}
-                  >
-                    <span className="capitalize">{category}</span>
-                    <span>
-                      {openDropdown === category ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                          <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z"></path>
-                        </svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                          <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z"></path>
-                        </svg>
-                      )}
-                    </span>
-                  </p>
-                  {openDropdown === category && (
-                    <div className="bg-gray-100 p-2 rounded-lg border">
-                      {filters[category].map((option) => (
-                        <label key={option} className="flex items-center gap-2 py-1">
-                        <input
-                          type="checkbox"
-                          name={`${category}`}
-                          className="form-checkbox text-indigo-600"
-                          checked={selectedFilters.filterNames.includes(category) && selectedFilters.filterOptions[selectedFilters.filterNames.indexOf(category)].includes(option)}
-                          onChange={(e) => handleFilterChange(category, option, e.target.checked)}
-                        />
-                        <span className="capitalize">{option}</span>
-                      </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-          <button
-            className="bg-gray-700 w-4/5 mt-2 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-all duration-300 shadow-md"
-            onClick={() => setSelectedFilters({filterNames: [],
-        filterOptions: [],})}
-          >
-            Reset Filters
-          </button>
-        </aside>
-
-        {sideMenuOpen ? (
-  <div
-    className={`w-2/3 h-screen fixed bg-gray-200 shadow-lg z-10 p-5 transition-transform duration-300 ease-in-out ${
-      sideMenuOpen ? "translate-x-0" : "-translate-x-full"
-    }`}
-    onClick={(e) => {
-      e.stopPropagation();
-      e.preventDefault();
-    }}
-  >
-
-    <aside className="lg:hidden block w-full bg-gray-200 border-r z-20 border-gray-300 min-h-screen shadow-md p-4 absolute top-0 left-0">
-  <div className="text-xl font-semibold mb-3 flex items-center justify-between">
-    Filters{" "}
-    <span>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        width="24"
-        height="24"
-        fill="currentColor"
-      >
-        <path d="M21 4V6H20L15 13.5V22H9V13.5L4 6H3V4H21ZM6.4037 6L11 12.8944V20H13V12.8944L17.5963 6H6.4037Z" />
-      </svg>
-    </span>
-  </div>
-  <div className="border-b mb-3"></div>
-
-  {/* Price Filter as Dropdown */}
-  <div className="mb-3">
-    <p
-      className="flex items-center justify-between text-lg cursor-pointer font-medium px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300"
-      onClick={() => toggleDropdown("Price")}
-    >
-      Price
-      <span>
-        {openDropdown === "Price" ? (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="currentColor"
-          >
-            <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z" />
-          </svg>
-        ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="currentColor"
-          >
-            <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z" />
-          </svg>
-        )}
-      </span>
-    </p>
-    {openDropdown === "Price" && (
-      <div className="bg-gray-100 p-2 rounded-lg border">
-        {priceOptions.map((option) => {
-          // Use consistent key "price" in state.
-          const priceIndex = selectedFilters.filterNames.indexOf("price");
-          const isChecked =
-            priceIndex !== -1 &&
-            selectedFilters.filterOptions[priceIndex].includes(option);
-          return (
-            <label key={option} className="flex items-center gap-2 py-1">
-              <input
-                type="checkbox"
-                className="form-checkbox text-indigo-600"
-                checked={isChecked}
-                onChange={(e) =>
-                  handleFilterChange("price", option, e.target.checked)
-                }
-              />
-              <span className="capitalize">{option}</span>
-            </label>
-          );
-        })}
-      </div>
-    )}
-  </div>
-
-  {/* Dynamic Filters for Other Categories */}
-  {filters &&
-    Object.keys(filters)
-      .filter((key) => key !== "articles" && key !== "sizes") // Exclude articles and sizes.
-      .map((category) => (
-        <div key={category} className="mb-3">
-          <p
-            className="flex items-center justify-between text-lg cursor-pointer font-medium px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 capitalize"
-            onClick={() => toggleDropdown(category)}
-          >
-            <span className="capitalize">{category}</span>
-            <span>
-              {openDropdown === category ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  width="18"
-                  height="18"
-                  fill="currentColor"
-                >
-                  <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z" />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  width="18"
-                  height="18"
-                  fill="currentColor"
-                >
-                  <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z" />
-                </svg>
-              )}
-            </span>
-          </p>
-          {openDropdown === category && (
-            <div className="bg-gray-100 p-2 rounded-lg border">
-              {filters[category].map((option) => (
-                <label key={option} className="flex items-center gap-2 py-1">
-                  <input
-                    type="checkbox"
-                    name={category}
-                    className="form-checkbox text-indigo-600"
-                    checked={
-                      selectedFilters.filterNames.includes(category) &&
-                      selectedFilters.filterOptions[
-                        selectedFilters.filterNames.indexOf(category)
-                      ].includes(option)
-                    }
-                    onChange={(e) =>
-                      handleFilterChange(category, option, e.target.checked)
-                    }
-                  />
-                  <span className="capitalize">{option}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-
-  <button
-    className="bg-gray-700 w-full mt-2 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-all duration-300 shadow-md"
-    onClick={() =>
-      setSelectedFilters({ filterNames: [], filterOptions: [] })
-    }
-  >
-    Reset Filters
-  </button>
-</aside>
-   
-  </div>
-) : (
-  ""
-)}
-
-        {/* Products Display with Infinite Scroll */}
-        <main className="lg:w-4/5 w-full mx-auto lg:p-6 p-3">
-          {/* <div>
-            {
-              festivalImages && <FestivalGallery festivalImages={festivalImages}/>
-            }
-          </div> */}
+        <main className="w-full mx-auto lg:p-6 p-3">
           {placeOrderModal ? (
             <OrderModal
               setPlaceOrderModal={setPlaceOrderModal}
@@ -493,14 +205,14 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
             ""
           )}
           <div className="md:w-11/12 w-full mx-auto flex items-center justify-between gap-x-2">
-  <div className="w-2/5 md:w-2/6 relative">
+  <div className="w-1/3 md:w-2/6 relative">
   <p
     className="flex items-center justify-between md:text-lg text-sm cursor-pointer font-medium px-2 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
-    onClick={() => toggleDropdown("Articlename")}
+    onClick={() => toggleDropdown("Segment")}
   >
-    Article Name
+    Segment
     <span>
-      {openDropdown === "Articlename" ? (
+      {openDropdown === "Segment" ? (
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -523,11 +235,11 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
       )}
     </span>
   </p>
-  {openDropdown === "Articlename" && (
+  {openDropdown === "Segment" && (
   <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full">
-    {filters?.articles?.map((option) => {
+    {filters?.segments?.map((option) => {
       const filterValue = option.toLowerCase();
-      const articleIndex = selectedFilters.filterNames.indexOf("articleName");
+      const articleIndex = selectedFilters.filterNames.indexOf("segment");
       const isChecked = filterValue === selectedArticle.toLowerCase()
       return (
         <label
@@ -539,7 +251,7 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
             className="form-checkbox text-indigo-600"
             checked={isChecked}
             onChange={(e) => {
-              handleFilterChange("articleName", filterValue, e.target.checked)
+              handleFilterChange("segment", filterValue, e.target.checked)
               setSelectedArticle(filterValue)
               setVariantDropDown(true)
             }
@@ -552,12 +264,12 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
   </div>
 )}
 </div>
-          <div className="w-1/4 md:w-2/6 relative">
+          <div className="w-1/3 md:w-2/6 relative">
                 <p
           className="flex items-center justify-between md:text-lg text-sm cursor-pointer font-medium px-2 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
           onClick={() => setVariantDropDown(false)}
           >
-          Variants
+          Category
           <span>
             {variantDropDown ? (
               <svg
@@ -589,7 +301,7 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
     ) : (
       articleDetails?.map((option) => {
         const filterValue = option.toLowerCase();
-        const variantIndex = selectedFilters.filterNames.indexOf("variants");
+        const variantIndex = selectedFilters.filterNames.indexOf("variant");
         const isChecked = variantIndex !== -1 && selectedFilters.filterOptions?.[variantIndex]?.includes(filterValue)
         return (
           <label
@@ -601,7 +313,7 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
               className="form-checkbox text-indigo-600"
               checked={isChecked}
               onChange={(e) => {
-                handleFilterChange("variants", filterValue, e.target.checked)
+                handleFilterChange("variant", filterValue, e.target.checked)
               }}
             />
             <span className="capitalize">{option}</span>
@@ -612,7 +324,7 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
   </div>
 )}
           </div>
-          <div className="w-1/4 md:w-2/6 relative">
+          <div className="w-1/3 md:w-2/6 relative">
                 <p
           className="flex items-center justify-between md:text-lg text-sm cursor-pointer font-medium px-2 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
           onClick={() => toggleDropdown("Gender")}
@@ -679,14 +391,25 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
           ) : allProducts?.length ? (
               <div>
               <div className="flex flex-wrap justify-around w-full">
-                {allProducts?.map((product) => (
-                  <ProductCard
-                  key={product?._id}
-                  product={product}
-                  setSelectedProductDetails={setSelectedProductDetails}
-                  setPlaceOrderModal={setPlaceOrderModal}
-                  />
-                ))}
+                {allProducts?.map((product) =>
+                  product.variants?.map((variant) =>
+                    variant.articles?.map((article) => (
+                      <ProductCard
+                        key={article._id}
+                        variant={variant}
+                        product={article}
+                        setSelectedProductDetails={() =>
+                          setSelectedProductDetails({
+                            product: article,
+                            variant: variant.name,
+                            segment: product.segment,
+                          })
+                        }
+                        setPlaceOrderModal={setPlaceOrderModal}
+/>
+                    ))
+                  )
+                )}
               </div>
               <div className="w-1/2 mx-auto flex justify-center items-center gap-2 mt-3">
               {[...Array(totalPages)].map((_, index) => (

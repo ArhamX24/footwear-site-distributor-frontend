@@ -16,8 +16,8 @@ const OrderModal = ({ setPlaceOrderModal, selectedProductDetails }) => {
     let reward = null
 
     if(selectedProductDetails?.indeal){
-        minCartonsForDeal = selectedProductDetails?.deal?.minQuantity
-        reward = selectedProductDetails?.deal?.reward;
+        minCartonsForDeal = selectedProductDetails?.product.deal?.minQuantity
+        reward = selectedProductDetails?.productproduct.deal?.reward;
     }
     
     const formik = useFormik({
@@ -27,26 +27,27 @@ const OrderModal = ({ setPlaceOrderModal, selectedProductDetails }) => {
         onSubmit: (values, action) => {
         let sortedSizesArr = selectedSizes.sort((a, b) => a - b);
         let finalSizes = sortedSizesArr[0] + "X" + sortedSizesArr[sortedSizesArr.length - 1];
-        let finalPrice = selectedProductDetails?.price * values.quantity;
+        let finalPrice = selectedProductDetails?.product.price * values.quantity;
 
         const isDealClaimed =
-            selectedProductDetails?.indeal &&
-            selectedProductDetails?.deal &&
-            values.quantity >= selectedProductDetails.deal.minQuantity;
+            selectedProductDetails?.product.indeal &&
+            selectedProductDetails?.product.deal &&
+            values.quantity >= selectedProductDetails.product.deal.minQuantity;
 
         const data = {
-            productid: selectedProductDetails?._id,
-            articlename: selectedProductDetails?.articleName,
-            productImg: selectedProductDetails?.images[0],
+            productid: selectedProductDetails?.product._id,
+            articlename: selectedProductDetails?.product.name,
+            variant: selectedProductDetails.variant,
+            segment: selectedProductDetails.segment,
+            productImg: selectedProductDetails?.product.images[0],
             quantity: values.quantity,
             colors: selectedColors,
             sizes: finalSizes,
             price: finalPrice,
-            singlePrice: selectedProductDetails?.price,
-            indeal: selectedProductDetails?.indeal,
-            variants: selectedProductDetails?.variants,
+            singlePrice: selectedProductDetails?.product.price,
+            indeal: selectedProductDetails?.product.indeal,
             ...(isDealClaimed && {
-            dealReward: selectedProductDetails.deal.reward,
+            dealReward: selectedProductDetails.product.deal.reward,
             dealClaimed: true
             })
         };
@@ -114,7 +115,7 @@ const OrderModal = ({ setPlaceOrderModal, selectedProductDetails }) => {
                             </div>
                             {showDropdown === "sizes" && (
                                 <div className="absolute left-0 right-0 mt-1 bg-white shadow-lg rounded border max-h-40 overflow-y-auto z-50">
-                                    {selectedProductDetails.sizes.map((size, index) => (
+                                    {selectedProductDetails.product.sizes.map((size, index) => (
                                         <div
                                             key={index}
                                             className={`p-2 cursor-pointer hover:bg-gray-200 ${selectedSizes.includes(size) ? "bg-indigo-200" : ""}`}
@@ -145,7 +146,7 @@ const OrderModal = ({ setPlaceOrderModal, selectedProductDetails }) => {
                             </div>
                             {showDropdown === "colors" && (
                                 <div className="absolute left-0 right-0 mt-1 bg-white shadow-lg rounded border max-h-40 overflow-y-auto z-50 capitalize">
-                                    {selectedProductDetails.colors.map((color, index) => (
+                                    {selectedProductDetails.product.colors.map((color, index) => (
                                         <div
                                             key={index}
                                             className={`p-2 cursor-pointer hover:bg-gray-200 ${selectedColors.includes(color) ? "bg-indigo-200" : ""}`}

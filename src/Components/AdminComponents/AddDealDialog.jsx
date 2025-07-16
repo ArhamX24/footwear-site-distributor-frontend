@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useFormik } from "formik";
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -7,21 +7,33 @@ import { baseURL } from "../../Utils/URLS";
 
 const AddDealDialog = ({ products }) => {
   const [open, setOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [productSearch, setProductSearch] = useState("");
+  const [articleSearch, setArticleSearch] = useState("");
+  const [selectedArticle, setSelectedArticle] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [preview, setPreview] = useState([]); // Image preview
-
   const today = new Date().toISOString().split("T")[0];
 
-  const handleOpen = useCallback(() => setOpen((prev) => !prev), []);
-  const handleSelectProduct = useCallback((product) => {
-    setSelectedProduct(product);
+  const handleOpen = useCallback(() => setOpen((o) => !o), []);
+  const handleSelectArticle = useCallback((article) => {
+    setSelectedArticle(article);
     setDropdownOpen(false);
-    setProductSearch(""); // Reset search when product is chosen
+    setArticleSearch("");
   }, []);
+
+ // 1) Now use `products` directly
+  const flattenedArticles = Array.isArray(products) ? products : [];
+
+  // 2) Filter that flat list by search term
+  const filteredArticles = useMemo(() => {
+    const term = articleSearch.trim().toLowerCase();
+    if (!term) return flattenedArticles;
+    return flattenedArticles.filter((a) =>
+      // adjust this to the actual field name your controller returns:
+      (a.name || a.articleName || "")
+        .toLowerCase()
+        .includes(term)
+    );
+  }, [articleSearch, flattenedArticles]);
 
   const formik = useFormik({
     initialValues: {
@@ -29,30 +41,25 @@ const AddDealDialog = ({ products }) => {
       endDate: "",
       noOfPurchase: "",
       reward: "",
-      images: [], // Added images field
+      images: [],
     },
     onSubmit: async (values, action) => {
+      if (!selectedArticle) {
+        Swal.fire("Select an article first", "", "warning");
+        return;
+      }
+
       try {
         setLoading(true);
-        setError("");
-
-        if (!selectedProduct) {
-          setError("Please select a product");
-          setLoading(false);
-          return;
-        }
-
         const formData = new FormData();
-        formData.append("articleId", selectedProduct?._id || "No ID");
-        formData.append("articleName", selectedProduct?.articleName || "No Name");
-        formData.append("start", values.startDate || "");
-        formData.append("end", values.endDate || "");
-        formData.append("noOfPurchase", values.noOfPurchase || ""); // ✅ No. of cartons required
-        formData.append("reward", values.reward || ""); // ✅ Reward field
-
-        values.images.forEach((image) => {
-          formData.append("images", image);
-        });
+        formData.append("articleId", selectedArticle._id);
+        formData.append("articleName", selectedArticle.name);
+        formData.append("variant", selectedArticle.variantName);
+        formData.append("start", values.startDate);
+        formData.append("end", values.endDate);
+        formData.append("noOfPurchase", values.noOfPurchase);
+        formData.append("reward", values.reward);
+        values.images.forEach((img) => formData.append("images", img));
 
         const response = await axios.post(
           `${baseURL}/api/v1/admin/deal/add`,
@@ -64,40 +71,20 @@ const AddDealDialog = ({ products }) => {
         );
 
         if (!response.data.result) {
-          setError(response.data.message);
-          setLoading(false);
-          return;
+          throw new Error(response.data.message);
         }
 
-        setLoading(false);
-        Swal.fire({
-          title: "Success!",
-          text: "Deal Added Successfully!",
-          icon: "success",
-        });
-
+        Swal.fire("Success!", "Deal Added Successfully!", "success");
         action.resetForm();
+        setSelectedArticle(null);
         setOpen(false);
-        setSelectedProduct(null);
-        setPreview([]);
-      } catch (error) {
-        console.error(error)
+      } catch (err) {
+        Swal.fire("Error", err.message || "Something went wrong", "error");
+      } finally {
         setLoading(false);
-        Swal.fire({
-          icon: "error",
-          title: "Oops...",
-          text: error?.response?.data?.message,
-        });
-
-        setError(error.response?.data?.message || "Something went wrong.");
       }
     },
   });
-
-  // Filter products based on search term
-  const filteredProducts = products?.filter((product) =>
-    product?.articleName?.toLowerCase()?.includes(productSearch.toLowerCase())
-  );
 
   return (
     <>
@@ -109,20 +96,29 @@ const AddDealDialog = ({ products }) => {
       </button>
 
       {open && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-900/50 z-10" onClick={() => setOpen(false)}>
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-gray-900/50 z-10"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="bg-white p-6 rounded-lg shadow-lg w-96"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2 className="text-xl font-bold mb-4">Add Deal</h2>
-
             <form onSubmit={formik.handleSubmit} className="space-y-4">
-              {/* Product Selection Dropdown */}
+              {/* Article Selection Dropdown */}
               <div className="relative w-full">
-                <label className="block text-sm font-medium">Select Product</label>
+                <label className="block text-sm font-medium">
+                  Select Article
+                </label>
                 <button
                   type="button"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  onClick={() => setDropdownOpen((o) => !o)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 flex items-center justify-between"
                 >
-                  {selectedProduct ? selectedProduct.articleName : "Choose a product"}
+                  {selectedArticle
+                    ? `${selectedArticle.name} (${selectedArticle.variantName})`
+                    : "Choose an article"}
                   <span className="ml-2">&#x25BC;</span>
                 </button>
 
@@ -131,67 +127,108 @@ const AddDealDialog = ({ products }) => {
                     <div className="p-2 border-b">
                       <input
                         type="text"
-                        placeholder="Search product..."
+                        placeholder="Search article..."
                         className="w-full border border-gray-300 rounded-md px-2 py-1"
-                        value={productSearch}
-                        onChange={(e) => setProductSearch(e.target.value)}
+                        value={articleSearch}
+                        onChange={(e) => setArticleSearch(e.target.value)}
                       />
                     </div>
-                    {filteredProducts && filteredProducts.length > 0 ? (
-                      filteredProducts.map((product, index) => (
+                    {filteredArticles.length > 0 ? (
+                      filteredArticles.map((article, idx) => (
                         <div
-                          key={index}
-                          onClick={() => handleSelectProduct(product)}
+                          key={`${article._id}-${idx}`}
+                          onClick={() => handleSelectArticle(article)}
                           className="flex items-center p-2 hover:bg-gray-100 cursor-pointer"
                         >
-                          <img src={product?.images[0]} alt={product.articleName} className="w-10 h-10 object-cover rounded-md mr-3" />
-                          <span>{product.articleName}</span>
+                          <img
+                            src={article.image || article.images?.[0]}
+                            alt={article.name}
+                            className="w-10 h-10 object-cover rounded-md mr-3"
+                          />
+                          <span className="capitalize">
+                            {article.name}
+                          </span>
                         </div>
                       ))
                     ) : (
-                      <div className="p-2 text-center text-sm text-gray-500">No products found.</div>
+                      <div className="p-2 text-center text-sm text-gray-500">
+                        No articles found.
+                      </div>
                     )}
                   </div>
                 )}
               </div>
 
-              {/* Start & End Date Inputs */}
+              {/* Dates, Purchases, Reward, Image Upload */}
               <div className="flex gap-4">
-                <input type="date" name="startDate" min={today} onChange={formik.handleChange} value={formik.values.startDate}
-                  className="w-1/2 border border-gray-300 rounded-md px-3 py-2" />
-
-                <input type="date" name="endDate" min={formik.values.startDate || today} onChange={formik.handleChange}
-                  value={formik.values.endDate} className="w-1/2 border border-gray-300 rounded-md px-3 py-2" />
+                <input
+                  type="date"
+                  name="startDate"
+                  min={today}
+                  onChange={formik.handleChange}
+                  value={formik.values.startDate}
+                  className="w-1/2 border border-gray-300 rounded-md px-3 py-2"
+                />
+                <input
+                  type="date"
+                  name="endDate"
+                  min={formik.values.startDate || today}
+                  onChange={formik.handleChange}
+                  value={formik.values.endDate}
+                  className="w-1/2 border border-gray-300 rounded-md px-3 py-2"
+                />
               </div>
 
-              {/* No. of Cartons Required */}
               <div>
-                <label className="block text-sm font-medium mb-1">Number of Cartons Required For Reward</label>
-                <input type="number" name="noOfPurchase" placeholder="e.g. 3" onChange={formik.handleChange} value={formik.values.noOfPurchase}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2" min="1" />
+                <label className="block text-sm font-medium mb-1">
+                  Number of Cartons Required For Reward
+                </label>
+                <input
+                  type="number"
+                  name="noOfPurchase"
+                  placeholder="e.g. 3"
+                  onChange={formik.handleChange}
+                  value={formik.values.noOfPurchase}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  min="1"
+                />
               </div>
 
-              {/* Reward */}
               <div>
-                <label className="block text-sm font-medium mb-1">Reward</label>
-                <input type="text" name="reward" placeholder="e.g., Free Fridge" onChange={formik.handleChange} value={formik.values.reward}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2" />
+                <label className="block text-sm font-medium mb-1">
+                  Reward
+                </label>
+                <input
+                  type="text"
+                  name="reward"
+                  placeholder="e.g., Free Fridge"
+                  onChange={formik.handleChange}
+                  value={formik.values.reward}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
               </div>
 
-              {/* Image Upload */}
               <div>
-                <label className="block text-sm font-medium mb-1">Upload Image Of Deal</label>
-                <input type="file" name="images" accept="image/*" className="w-full border px-3 py-2 rounded-md"
-                  onChange={(event) => {
-                    const files = Array.from(event.target.files);
+                <label className="block text-sm font-medium mb-1">
+                  Upload Image Of Deal
+                </label>
+                <input
+                  type="file"
+                  name="images"
+                  accept="image/*"
+                  className="w-full border px-3 py-2 rounded-md"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files);
                     formik.setFieldValue("images", files);
-                    setPreview(files.map((file) => URL.createObjectURL(file)));
-                  }} />
+                  }}
+                />
               </div>
 
-              {/* Submit Button */}
-              <button type="submit" className="bg-gray-700 text-white px-4 py-2 rounded-xl hover:bg-gray-600 transition duration-200 w-full"
-                disabled={loading}>
+              <button
+                type="submit"
+                className="bg-gray-700 text-white px-4 py-2 rounded-xl hover:bg-gray-600 transition duration-200 w-full"
+                disabled={loading}
+              >
                 {loading ? <CircularProgress size={24} color="inherit" /> : "Add Deal"}
               </button>
             </form>

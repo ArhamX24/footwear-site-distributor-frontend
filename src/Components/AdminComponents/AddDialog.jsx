@@ -17,24 +17,20 @@ const AddDialog = ({ getProducts }) => {
   const handleOpen = () => setOpen(!open);
 
   const formik = useFormik({
-    initialValues: {
-      name: "",
-      price: "",
-      category: "",
-      type: "",
-      variantName: "",
-      colors: "",
-      sizes: "",
-      images: [],
-    },
-    validate: (values) => {
-      const errors = {};
-      if (!values.name) errors.name = "Name is required";
-      if (!values.category) errors.category = "Category is required";
-      if (!values.price || values.price <= 0)
-        errors.price = "Enter a valid price";
-      return errors;
-    },
+  initialValues: {
+    segment: "",
+    variant: "",
+    articleName: "",
+    gender: "",
+    colors: "",
+    sizes: "",
+    images: [],
+  },
+  validate: (values) => {
+    const errors = {};
+    if (!values.segment) errors.segment = "Segment is required";
+    return errors;
+  },
     onSubmit: async (values, action) => {
       try {
         setLoading(true);
@@ -52,13 +48,12 @@ const AddDialog = ({ getProducts }) => {
           .map((size) => size.trim())
           .filter(Boolean);
 
-        formData.append("name", values.name);
-        formData.append("price", values.price);
-        formData.append("gender", values.category);
-        formData.append("type", values.type);
+        formData.append("segment", values.segment);
+        formData.append("gender", values.gender);
+        formData.append("articleName", values.articleName)
         colorsArr.forEach((color) => formData.append("colors", color));
         sizeArr.forEach((size) => formData.append("sizes", size));
-        formData.append("variant", values.variantName);
+        formData.append("variant", values.variant);
 
         // If the product has a variant, append the variant name.
         if (isVariant) {
@@ -146,25 +141,51 @@ const AddDialog = ({ getProducts }) => {
               {/* Name Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Article Name
+                  Segment
                 </label>
                 <input
                   type="text"
-                  name="name"
-                  placeholder="eg. Eva, PU"
-                  {...formik.getFieldProps("name")}
+                  name="segment"
+                  placeholder="eg. Hawaii, EVA"
+                  {...formik.getFieldProps('segment')}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
                 />
               </div>
 
-              {/* Category Select */}
+              <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Category
+                  </label>
+                  <input
+                    type="text"
+                    name="variant"
+                    placeholder="eg. 5-stud, Printed"
+                    {...formik.getFieldProps("variant")}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
+                  />
+                </div>
+
+              <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Article Name
+                  </label>
+                  <input
+                    type="text"
+                    name="articleName"
+                    placeholder="eg. Raja-01"
+                    {...formik.getFieldProps("articleName")}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
+                  />
+                </div>
+
+              {/* Gender Select */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Category
+                  Gender
                 </label>
                 <select
-                  name="category"
-                  {...formik.getFieldProps("category")}
+                  name="gender"
+                  {...formik.getFieldProps("gender")}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
                 >
                   <option value="">Select</option>
@@ -172,18 +193,6 @@ const AddDialog = ({ getProducts }) => {
                   <option value="ladies">Ladies</option>
                   <option value="kids">Kids</option>
                 </select>
-              </div>
-
-              {/* Price Input with updated placeholder */}
-              <div>
-                <input
-                  type="number"
-                  name="price"
-                  placeholder="Price per Carton"
-                  {...formik.getFieldProps("price")}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
-                  min="1"
-                />
               </div>
 
               {/* Colors Input */}
@@ -203,51 +212,6 @@ const AddDialog = ({ getProducts }) => {
                 />
               </div>
 
-              {/* Product Type Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Article Type
-                </label>
-                <input
-                  type="text"
-                  name="type"
-                  placeholder="eg. Shoes, Slippers, Sandals"
-                  {...formik.getFieldProps("type")}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
-                />
-              </div>
-
-              {/* Variant Checkbox Selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Does it have a variant?
-                </label>
-                <label className="inline-flex items-center mt-1">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox h-5 w-5 text-indigo-600"
-                    checked={isVariant}
-                    onChange={(e) => setIsVariant(e.target.checked)}
-                  />
-                  <span className="ml-2">Yes</span>
-                </label>
-              </div>
-
-              {/* Variant Input - Shown only if the checkbox is checked */}
-              {isVariant && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Variant Name
-                  </label>
-                  <input
-                    type="text"
-                    name="variantName"
-                    placeholder="eg. Hawaiii, 5-stud, Heel"
-                    {...formik.getFieldProps("variantName")}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
-                  />
-                </div>
-              )}
 
               {/* Sizes Input */}
               <div>

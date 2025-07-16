@@ -11,6 +11,7 @@ const CartPage = () => {
   const dispatch = useDispatch();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [loading, setLoading] = useState(false);
+
   
   // Opens the Order Confirmation modal.
   const handlePlaceOrderClick = () => {
@@ -98,12 +99,6 @@ const CartPage = () => {
 
                 {/* Price Section */}
                <div className="text-right">
-  <p className="text-gray-700 font-semibold">
-    ₹{item.singlePrice} / carton
-  </p>
-  <p className="text-gray-900 font-bold text-lg">
-    Total: ₹{totalPrice}
-  </p>
   <div className="flex justify-end mt-1">
     <button className="cursor-pointer" onClick={() => dispatch(removeItem(item))}>
       <svg
@@ -147,9 +142,7 @@ const CartPage = () => {
 };
 // Modal component to show order confirmation details
 const OrderConfirmationModal = ({ cart, onClose, onConfirm , loading}) => {
-  // Calculate total order price
-  const calculateTotal = () =>
-    cart.reduce((acc, item) => acc + item.singlePrice * item.quantity, 0);
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-800/50 bg-opacity-50">
@@ -164,21 +157,16 @@ const OrderConfirmationModal = ({ cart, onClose, onConfirm , loading}) => {
             >
               <div>
                 <h3 className="font-medium capitalize">{item.articlename || "No Name Provided"}</h3>
-                <p className="text-gray-600 capitalize">{item.variants[0]}</p>
-                <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                <p className="text-sm text-gray-600">Price: ₹{item.singlePrice} / carton</p>
+                <p className="text-sm text-gray-700">Cartons: {item.quantity}</p>
+                <p className="text-sm text-gray-700">Size: {item.sizes}</p>
                 {
                   item.dealClaimed && <p className='capitalize text-gray-600 text-sm'>You Got : <span className='text-gray-700 underline'>{item.dealReward}</span> On This Article</p>
                 }
               </div>
-              <div className="font-semibold">₹{item.singlePrice * item.quantity}</div>
             </div>
           ))}
         </div>
 
-        <div className="text-right font-bold text-lg mb-4">
-          Total: ₹{calculateTotal()}
-        </div>
 
         <div className="flex justify-end gap-4">
           <button 
