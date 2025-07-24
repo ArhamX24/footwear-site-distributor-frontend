@@ -90,7 +90,8 @@ const AddDealDialog = ({ products }) => {
     <>
       <button
         onClick={handleOpen}
-        className="bg-gray-700 text-white px-4 py-2 rounded-xl hover:bg-gray-800 ease-in-out duration-200"
+        className="bg-gray-700 text-white px-4 py-2 rounded-xl hover:bg-gray-800 ease-in-out duration-200 mt-2 md:mt-0
+        "
       >
         Add New Deal
       </button>

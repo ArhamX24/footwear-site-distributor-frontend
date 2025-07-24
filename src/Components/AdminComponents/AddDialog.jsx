@@ -13,6 +13,7 @@ const AddDialog = ({ getProducts }) => {
   const [preview, setPreview] = useState([]);
   // Use a boolean for the variant checkbox state:
   const [isVariant, setIsVariant] = useState(false);
+  const [allColorsAvailable, setAllColorsAvailable] = useState(false);
 
   const handleOpen = () => setOpen(!open);
 
@@ -195,22 +196,42 @@ const AddDialog = ({ getProducts }) => {
                 </select>
               </div>
 
-              {/* Colors Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Colors
-                </label>
-                <input
-                  type="text"
-                  name="colors"
-                  placeholder="eg. Red, Blue, Black"
-                  value={formik.values.colors}
-                  onChange={(e) => {
-                    formik.setFieldValue("colors", e.target.value.replace(/\s/g, ","));
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
-                />
-              </div>
+              {/* Colors Input with "All Colors Available" checkbox */}
+<div>
+  <label className="block text-sm font-medium text-gray-700">
+    Colors
+  </label>
+
+        {/* Input Box */}
+        <input
+          type="text"
+          name="colors"
+          placeholder="eg. Red, Blue, Black"
+          value={allColorsAvailable ? "All Colors" : formik.values.colors}
+          disabled={allColorsAvailable}
+          onChange={(e) => {
+            formik.setFieldValue("colors", e.target.value.replace(/\s/g, ","));
+          }}
+          className={`w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900 ${
+            allColorsAvailable ? "bg-gray-100 cursor-not-allowed" : ""
+          }`}
+        />
+
+        {/* Checkbox */}
+        <label className="inline-flex items-center mt-2 text-sm text-gray-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allColorsAvailable}
+            onChange={(e) => {
+              setAllColorsAvailable(e.target.checked);
+              const presetValue = e.target.checked ? "All Colors" : "";
+              formik.setFieldValue("colors", presetValue);
+            }}
+            className="mr-2"
+          />
+          All Colors Available
+        </label>
+      </div>
 
 
               {/* Sizes Input */}
@@ -252,6 +273,7 @@ const AddDialog = ({ getProducts }) => {
               {error && (
                 <p className="text-sm text-center text-red-400">{error}</p>
               )}
+
 
               {/* Submit Button */}
               <div className="mt-4 flex justify-end">

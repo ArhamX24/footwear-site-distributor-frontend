@@ -8,6 +8,7 @@ import Swal from "sweetalert2";
 import CircularProgress from "@mui/material/CircularProgress";
 import AddFestivleImageDialog from '../../Components/AdminComponents/AddFestivleImageDialog';
 import { baseURL } from '../../Utils/URLS';
+import AddProductsUsingExcel from '../../Components/AdminComponents/AddProductsUsingExcel';
 
 const AdminDashboard = () => {
   const [products, setProducts] = useState(null);
@@ -136,8 +137,8 @@ const handleViewOrder = async (id) => {
     
     {/* Completed & Pending Orders */}
     <div className='flex flex-col md:flex-row text-gray-700 gap-x-2'>
-      <span >Completed: <strong>{ordersStatus.completed}</strong></span>
-      <span >Pending: <strong>{ordersStatus.pending}</strong></span>
+      <span>Completed: <strong>{ordersStatus.completed}</strong></span>
+      <span>Pending: <strong>{ordersStatus.pending}</strong></span>
     </div>
   </div>
 </div>
@@ -146,6 +147,7 @@ const handleViewOrder = async (id) => {
         </div>
         <div className='w-11/12 mx-auto flex items-center justify-around flex-wrap mt-5'>
         <AddDialog getProducts={getProducts}/>
+        <AddProductsUsingExcel/>
         <AddDealDialog products={products}/>
         <AddDistributorDialog/>
         <AddFestivleImageDialog/>

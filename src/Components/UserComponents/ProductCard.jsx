@@ -37,29 +37,7 @@ const ProductCard = ({ product, setPlaceOrderModal, setSelectedProductDetails, v
           onClick={handleImageClick} // Opens zoomed view on click
         />
 
-        {/* Arrow Buttons */}
-        {product.images?.length > 1 && (
-          <>
-            <button
-              onClick={handlePrev}
-              className="absolute top-5/12 left-2 transform -translate-y-1/2 bg-gray-200 p-2 rounded-full cursor-pointer text-gray-800 hover:bg-gray-200 focus:outline-none"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-
-            {/* Right Arrow Button */}
-            <button
-              onClick={handleNext}
-              className="absolute top-5/12 right-2 transform -translate-y-1/2 bg-gray-200 p-2 rounded-full cursor-pointer text-gray-800 hover:bg-gray-200 focus:outline-none"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </>
-        )}
+       
 
         {/* Thumbnail Image Selector */}
         {product.images?.length > 1 && (
