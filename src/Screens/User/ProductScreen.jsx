@@ -411,17 +411,7 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
                   )
                 )}
               </div>
-              <div className="w-1/2 mx-auto flex justify-center items-center gap-2 mt-3">
-              {[...Array(totalPages)].map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setPage(index + 1)}
-                  className={`px-4 py-2 border rounded cursor-pointer ${page === index + 1 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-800"}`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-            </div>
+              
               </div>
           ) : (
             <p className="text-center text-gray-600">No products match the selected filters.</p>
