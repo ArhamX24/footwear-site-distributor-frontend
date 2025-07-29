@@ -24,6 +24,7 @@ const ProductScreen = () => {
       const [selectedArticle, setSelectedArticle] = useState('')
       const [loading, setLoading] = useState(false)
       const [variantDropDown, setVariantDropDown] = useState(false)
+      const [segmentDD, setSegmentDD] = useState(false)
 
       const categories = ["Gents", "Ladies", "Kids"]
 
@@ -208,7 +209,7 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
   <div className="w-1/3 md:w-2/6 relative">
   <p
     className="flex items-center justify-between md:text-lg text-sm cursor-pointer font-medium px-2 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
-    onClick={() => toggleDropdown("Segment")}
+    onClick={() => {toggleDropdown("Segment"), setSegmentDD(!segmentDD)}}
   >
     Segment
     <span>
@@ -236,38 +237,37 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
     </span>
   </p>
   {openDropdown === "Segment" && (
-  <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full px-4">
-    {filters?.segments?.map((option) => {
-      const filterValue = option.toLowerCase();
-      const articleIndex = selectedFilters.filterNames.indexOf("segment");
-      const isChecked = filterValue === selectedArticle.toLowerCase()
-      return (
-        <label
-          key={option}
-          className="flex items-center gap-2 py-1 cursor-pointer text-sm md:text-lg"
-        >
-          <input
-            type="checkbox"
-            className="form-checkbox text-indigo-600"
-            checked={isChecked}
-            onChange={(e) => {
-              handleFilterChange("segment", filterValue, e.target.checked)
-              setSelectedArticle(filterValue)
-              setVariantDropDown(true)
-            }
-            }
-          />
-          <span className="capitalize">{option}</span>
-        </label>
-      );
-    })}
-  </div>
+  <div className="bg-gray-100 p-2 rounded-lg border absolute z-20 lg:w-2/3 w-fit max-w-[95vw] shadow-md transition-all duration-200">
+  {filters?.segments?.map((option) => {
+    const filterValue = option.toLowerCase();
+    const articleIndex = selectedFilters.filterNames.indexOf("segment");
+    const isChecked = filterValue === selectedArticle.toLowerCase();
+    return (
+      <label
+        key={option}
+        className="flex items-center gap-2 py-2 cursor-pointer text-sm md:text-base lg:text-lg hover:text-indigo-700"
+      >
+        <input
+          type="checkbox"
+          className="form-checkbox text-indigo-600 accent-indigo-600 focus:ring-2 focus:ring-indigo-400"
+          checked={isChecked}
+          onChange={(e) => {
+            handleFilterChange("segment", filterValue, e.target.checked);
+            setSelectedArticle(filterValue);
+            setVariantDropDown(true);
+          }}
+        />
+        <span className="capitalize">{option}</span>
+      </label>
+    );
+  })}
+</div>
 )}
 </div>
           <div className="w-1/3 md:w-2/6 relative">
                 <p
-          className="flex items-center justify-between md:text-lg text-sm cursor-pointer font-medium px-2 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
-          onClick={() => setVariantDropDown(false)}
+          className="flex items-center justify-between md:text-lg text-sm cursor-pointer w-fit font-medium px-2 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+          onClick={() => {if(segmentDD == true){setVariantDropDown(!variantDropDown)}else{setVariantDropDown(false)}}}
           >
           Category
           <span>
