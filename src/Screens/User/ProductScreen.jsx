@@ -236,7 +236,7 @@ const handleFilterChange = (filterName, selectedOption, isChecked) => {
     </span>
   </p>
   {openDropdown === "Segment" && (
-  <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full">
+  <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full px-4">
     {filters?.segments?.map((option) => {
       const filterValue = option.toLowerCase();
       const articleIndex = selectedFilters.filterNames.indexOf("segment");
