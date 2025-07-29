@@ -147,7 +147,7 @@ const handleViewOrder = async (id) => {
         </div>
         <div className='w-11/12 mx-auto flex items-center justify-around flex-wrap mt-5'>
         <AddDialog getProducts={getProducts}/>
-        <AddProductsUsingExcel/>
+        {/* <AddProductsUsingExcel/> */}
         <AddDealDialog products={products}/>
         <AddDistributorDialog/>
         <AddFestivleImageDialog/>
