@@ -9,8 +9,6 @@ const QrWarehouseScanner = () => {
   const [event, setEvent] = useState('received');
   const [loading, setLoading] = useState(false);
 
-  let obj = {"productId":"688866f0d297cddce4c7f35e","productName":"cushon - 01","variant":"cushon","uniqueId":"e485d840-e15b-46da-b01e-3ac259581c2d","batchId":"e35fa3b4-6c28-4b4a-acb5-e12214fc8b4c","generatedAt":"2025-08-25T11:38:51.190Z","serialNumber":1,"purpose":"inventory","verifyUrl":"http://localhost:3000/verify/e485d840-e15b-46da-b01e-3ac259581c2d"}
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!scanResult) return;
@@ -68,13 +66,7 @@ const QrWarehouseScanner = () => {
         />
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-        <input
-          type="text"
-          value={`${scanResult.productName}`}
-          className="border border-gray-300 rounded px-3 py-2 capitalize"
-          placeholder="Scan result appears here"
-          readOnly
-        />
+        <p className='border border-gray-300 rounded px-3 py-2 capitalize'>{scanResult == '' ? "Scanned Result Will Appear Here" : scanResult.productName}</p>
         <button
           type="submit"
           className="bg-black text-white px-4 py-2 rounded hover:bg-gray-700 transition"
