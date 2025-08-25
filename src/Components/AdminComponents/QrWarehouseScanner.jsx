@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import QrScanner from 'react-qr-barcode-scanner';
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import { baseURL } from '../../Utils/URLS';
 
-const QrWarehouseScanner = () => {
+const QrWarehouseScanner = ({onScanSuccess}) => {
   const [scanResult, setScanResult] = useState('');
   const [event, setEvent] = useState('received');
   const [loading, setLoading] = useState(false);
@@ -54,8 +54,7 @@ const QrWarehouseScanner = () => {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md mt-8">
-        <p>{scanResult}</p>
-      <h2 className="text-xl font-bold mb-4">Warehouse QR Scanner</h2>
+      <h2 className="text-xl font-bold mb-4 text-center">QR Scanner</h2>
 
       {/* Event Buttons */}
       <div className="flex space-x-4 mb-4 justify-center">
@@ -108,7 +107,7 @@ const QrWarehouseScanner = () => {
       )}
 
       {/* Manual input for testing */}
-      <div className="mb-4">
+      {/* <div className="mb-4">
         <label className="block mb-1 font-semibold">Or enter QR code content manually (testing):</label>
         <textarea
           rows="4"
@@ -117,7 +116,8 @@ const QrWarehouseScanner = () => {
           className="w-full border border-gray-300 rounded px-3 py-2 resize-none"
           placeholder='Paste scanned QR JSON here'
         />
-      </div>
+      </div> */}
+
       {error && <p className="mb-2 text-red-600 font-semibold text-sm text-center">{error}</p>}
       <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
         <p className='border border-gray-300 rounded px-3 py-2 capitalize'>
