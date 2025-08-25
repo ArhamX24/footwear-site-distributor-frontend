@@ -39,6 +39,7 @@ const QrWarehouseScanner = () => {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md mt-8">
+        <h2>{scanResult}</h2>
       <h2 className="text-xl font-bold mb-4">Warehouse QR Scanner</h2>
       <div className="flex space-x-4 mb-4 justify-center">
         <button
