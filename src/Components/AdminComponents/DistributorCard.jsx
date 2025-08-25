@@ -1,6 +1,6 @@
 import axios from "axios";
 import Swal from "sweetalert2";
-import { FaTrash, FaEdit, FaSave, FaTimes } from "react-icons/fa";
+import { FaTrash, FaEdit, FaSave, FaTimes, FaPhone, FaUser, FaTruck, FaFileInvoice } from "react-icons/fa";
 import { useState } from "react";
 import { useFormik } from "formik";
 import { baseURL } from "../../Utils/URLS";
@@ -15,9 +15,11 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
         text: "You won't be able to revert this!",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: "#3085d6",
-        cancelButtonColor: "#d33",
+        confirmButtonColor: "#4B5563",
+        cancelButtonColor: "#EF4444",
         confirmButtonText: "Yes, delete it!",
+        background: "#1F2937",
+        color: "#F9FAFB",
       }).then(async (result) => {
         if (result.isConfirmed) {
           const response = await axios.delete(
@@ -29,6 +31,9 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
               title: "Deleted!",
               text: "Distributor has been deleted.",
               icon: "success",
+              background: "#1F2937",
+              color: "#F9FAFB",
+              confirmButtonColor: "#4B5563",
             });
             setIsDeleted((prev) => !prev); 
           }
@@ -39,6 +44,9 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
         icon: "error",
         title: "Oops...",
         text: `${error.response?.data?.message || "Something went wrong!"}`,
+        background: "#1F2937",
+        color: "#F9FAFB",
+        confirmButtonColor: "#4B5563",
       });
     }
   };
@@ -49,7 +57,7 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
       partyName: distributor?.partyName || "",
       transport: distributor?.transport || "",
     },
-    enableReinitialize: true, // ✅ Ensures data updates when modal opens
+    enableReinitialize: true,
     onSubmit: async (values) => {
       try {
         const response = await axios.patch(
@@ -63,6 +71,9 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
             title: "Updated!",
             text: "Distributor has been updated!",
             icon: "success",
+            background: "#1F2937",
+            color: "#F9FAFB",
+            confirmButtonColor: "#4B5563",
           });
           setIsUpdated(true);
           setUpdateModalOpen(false);
@@ -72,96 +83,164 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
           icon: "error",
           title: "Oops...",
           text: `${error.response?.data?.message || "Something went wrong!"}`,
+          background: "#1F2937",
+          color: "#F9FAFB",
+          confirmButtonColor: "#4B5563",
         });
       }
     },
   });
 
   return (
-    <div className="w-full h-fit lg:w-64 bg-gray-100 p-4 rounded-2xl shadow-lg flex flex-col justify-between my-3">
-      {/* Update Modal */}
-      {updateModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-800/50 z-50">
-          <div className="bg-white w-full max-w-md p-6 rounded-lg shadow-lg">
-            <h2 className="text-lg font-semibold mb-4">Update Distributor</h2>
-            <form onSubmit={formik.handleSubmit}>
-              {/* Bill No */}
-              <label className="block mb-3">
-                <span className="font-medium">Bill No:</span>
-                <input
-                  type="text"
-                  name="billNo"
-                  value={formik.values.billNo}
-                  onChange={formik.handleChange}
-                  className="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-indigo-500"
-                />
-              </label>
-
-              {/* Party Name */}
-              <label className="block mb-3">
-                <span className="font-medium">Party Name:</span>
-                <input
-                  type="text"
-                  name="partyName"
-                  value={formik.values.partyName}
-                  onChange={formik.handleChange}
-                  className="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-indigo-500"
-                />
-              </label>
-
-              {/* Transport */}
-              <label className="block mb-4">
-                <span className="font-medium">Transport:</span>
-                <input
-                  type="text"
-                  name="transport"
-                  value={formik.values.transport}
-                  onChange={formik.handleChange}
-                  className="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-indigo-500"
-                />
-              </label>
-
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-3 mt-4">
-                <button
-                  onClick={() => setUpdateModalOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all"
-                >
-                <FaTimes />  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all"
-                >
-                <FaSave />  Save Changes
-                </button>
-              </div>
-            </form>
+    <div className="group relative bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-gray-300 overflow-hidden">
+      {/* Header with gradient */}
+      <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-4 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <FaUser className="text-gray-200" />
+            <h3 className="text-lg font-bold truncate">
+              {distributor?.partyName || "No Name"}
+            </h3>
+          </div>
+          <div className="opacity-70 group-hover:opacity-100 transition-opacity">
+            <FaFileInvoice />
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Distributor Info */}
-      <div className="text-center mt-2">
-        <h3 className="text-lg font-bold text-gray-900">{distributor?.partyName || "No Name"}</h3>
-        <p className="text-sm text-gray-700">Phone No: {distributor?.phoneNo || "N/A"}</p>
+      {/* Content */}
+      <div className="p-4 space-y-3">
+        {/* Phone Number */}
+        <div className="flex items-center space-x-3 text-gray-700">
+          <FaPhone className="text-gray-500 text-sm" />
+          <span className="text-sm font-medium">
+            {distributor?.phoneNo || "N/A"}
+          </span>
+        </div>
+
+        {/* Bill Number */}
+        {distributor?.billNo && (
+          <div className="flex items-center space-x-3 text-gray-700">
+            <FaFileInvoice className="text-gray-500 text-sm" />
+            <span className="text-sm">Bill: {distributor.billNo}</span>
+          </div>
+        )}
+
+        {/* Transport */}
+        {distributor?.transport && (
+          <div className="flex items-center space-x-3 text-gray-700">
+            <FaTruck className="text-gray-500 text-sm" />
+            <span className="text-sm">Transport: {distributor.transport}</span>
+          </div>
+        )}
       </div>
 
       {/* Action Buttons */}
-      <div className="flex justify-center items-center mt-3 space-x-3">
-        <button
-          onClick={() => setUpdateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all"
-        >
-          <FaEdit /> Update
-        </button>
-        <button
-          onClick={() => handleDelete(distributor?._id)}
-          className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all"
-        >
-          <FaTrash /> Delete
-        </button>
+      <div className="px-4 pb-4">
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setUpdateModalOpen(true)}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 text-sm font-medium shadow-sm"
+          >
+            <FaEdit className="text-xs" />
+            Update
+          </button>
+          <button
+            onClick={() => handleDelete(distributor?._id)}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-200 text-sm font-medium shadow-sm"
+          >
+            <FaTrash className="text-xs" />
+            Delete
+          </button>
+        </div>
       </div>
+
+      {/* Update Modal */}
+      {updateModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-4 text-white">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <FaEdit />
+                Update Distributor
+              </h2>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              <form onSubmit={formik.handleSubmit} className="space-y-4">
+                {/* Bill No */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <FaFileInvoice className="text-gray-500" />
+                    Bill No:
+                  </label>
+                  <input
+                    type="text"
+                    name="billNo"
+                    value={formik.values.billNo}
+                    onChange={formik.handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all"
+                    placeholder="Enter bill number"
+                  />
+                </div>
+
+                {/* Party Name */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <FaUser className="text-gray-500" />
+                    Party Name:
+                  </label>
+                  <input
+                    type="text"
+                    name="partyName"
+                    value={formik.values.partyName}
+                    onChange={formik.handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all"
+                    placeholder="Enter party name"
+                  />
+                </div>
+
+                {/* Transport */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <FaTruck className="text-gray-500" />
+                    Transport:
+                  </label>
+                  <input
+                    type="text"
+                    name="transport"
+                    value={formik.values.transport}
+                    onChange={formik.handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all"
+                    placeholder="Enter transport details"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setUpdateModalOpen(false)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all font-medium"
+                  >
+                    <FaTimes />
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+                  >
+                    <FaSave />
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

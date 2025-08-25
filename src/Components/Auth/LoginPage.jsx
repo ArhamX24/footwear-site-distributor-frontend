@@ -35,7 +35,7 @@ const LoginPage = () => {
         let { phoneNo, password } = values;
 
         // ✅ Send login request to unified login API
-        const response = await axios.post(`/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
+        const response = await axios.post(`${baseURL}/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
 
         if (!response.data.result) {
           setIsLoading(false)

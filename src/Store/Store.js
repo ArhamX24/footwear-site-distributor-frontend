@@ -4,6 +4,7 @@ import { persistReducer, persistStore } from "redux-persist";
 import CartReducer from "../Slice/CartSlice";
 import NavReducer from "../Slice/NavSlice";
 import AuthReducer from "../Slice/AuthSlice";
+import QrReducer from "../Slice/QrSlice"
 
 // Persist only auth state (so login persists across refreshes)
 const authPersistConfig = {
@@ -18,7 +19,8 @@ const Store = configureStore({
     reducer: {
         cart: CartReducer,
         nav: NavReducer,
-        auth: persistedAuthReducer // Use persisted version of auth slice
+        auth: persistedAuthReducer, // Use persisted version of auth slice
+        qr: QrReducer
     }
 });
 

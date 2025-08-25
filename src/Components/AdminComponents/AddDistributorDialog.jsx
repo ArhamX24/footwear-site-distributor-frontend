@@ -81,16 +81,17 @@ const AddDistributorDialog = () => {
       </button>
 
       {open && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-900/50 z-10" onClick={()=>{setOpen(false)}}>
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-900/50 z-10">
         <div className="bg-white p-6 rounded-lg shadow-lg w-96 opacity-100" onClick={(e)=> {e.stopPropagation()}}>
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-xl font-bold text-blue-gray-900">Manage Distributors</h2>
-            </div>
-            <button onClick={handleOpen} className="text-gray-700">
-              {/* <XMarkIcon className="h-5 w-5" /> */}
-            </button>
-          </div>
+              <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">Add Distributor</h2>
+                    <button
+                      onClick={ ()=> setOpen(false)}
+                      className="text-gray-500 hover:text-gray-700 text-lg font-bold px-2 py rounded-full border"
+                    >
+                      ×
+                    </button>
+                  </div>
       
           <form onSubmit={formik.handleSubmit}>
             <div className="space-y-4">

@@ -99,13 +99,21 @@ const AddDealDialog = ({ products }) => {
       {open && (
         <div
           className="fixed inset-0 flex items-center justify-center bg-gray-900/50 z-10"
-          onClick={() => setOpen(false)}
         >
           <div
             className="bg-white p-6 rounded-lg shadow-lg w-96"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold mb-4">Add Deal</h2>
+            <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">Add Deal</h2>
+                    <button
+                      onClick={ ()=> setOpen(false)}
+                      className="text-gray-500 hover:text-gray-700 text-lg font-bold px-2 py rounded-full border"
+                    >
+                      ×
+                    </button>
+                  </div>
+            
             <form onSubmit={formik.handleSubmit} className="space-y-4">
               {/* Article Selection Dropdown */}
               <div className="relative w-full">

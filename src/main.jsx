@@ -5,10 +5,10 @@ import App from './App.jsx'
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
 import AdminPanel from './Screens/AdminPanel/AdminPanel.jsx'
 import AdminDashboard from "./Screens/AdminPanel/AdminDashboard.jsx"
-import AddDistributor from './Screens/AdminPanel/AddDistributor.jsx'
+import AddDistributor from './Screens/AdminPanel/ManageDistributors.jsx'
 import Home from './Screens/User/Home.jsx'
-import AddProduct from './Screens/AdminPanel/AddProduct.jsx'
-import AddDeal from './Screens/AdminPanel/AddDeal.jsx'
+import AddProduct from './Screens/AdminPanel/ManageArticles.jsx'
+import AddDeal from './Screens/AdminPanel/ManageDeals.jsx'
 import LoginPage from './Components/Auth/LoginPage.jsx'
 import ErrorPage from './Components/AdminComponents/ErrorPage.jsx'
 import UserErrorPage from './Components/UserComponents/UserErrorPage.jsx'
@@ -21,6 +21,8 @@ import AuthWrapper from './Components/Auth/AuthWrapper.jsx'
 import Unauthorized from './Components/Auth/Unauthorized.jsx'
 import BootAuth from './Components/Auth/BootAuth.jsx'
 import  {Navigate} from "react-router"
+import AllArticlesListed from './Components/AdminComponents/AllArticlesListed.jsx'
+import ManageInventory from './Components/AdminComponents/ManageInventory.jsx'
 
 let AppRouter = createBrowserRouter([
   { path: "login", element: <LoginPage /> },
@@ -45,6 +47,8 @@ let AppRouter = createBrowserRouter([
       { path: "product", element: <AddProduct /> },
       { path: "deal", element: <AddDeal /> },
       { path: "pastorders", element: <PastOrdersPage /> },
+      { path: "/secure/admin/product/viewarticles", element: <AllArticlesListed/>},
+      { path: "/secure/admin/product/manageinventory", element: <ManageInventory/>}
     ],
   },
 ]);

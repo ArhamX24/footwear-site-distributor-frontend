@@ -120,7 +120,7 @@ const AddDialog = ({ getProducts }) => {
     <>
       <button
         onClick={handleOpen}
-        className="bg-gray-700 text-white px-4 py-2 rounded-xl hover:bg-gray-800 transition duration-200"
+        className="bg-gray-700 text-white px-4 py-2 rounded-xl hover:bg-gray-800 transition duration-200 w-full"
       >
         Add New Article
       </button>
@@ -128,15 +128,20 @@ const AddDialog = ({ getProducts }) => {
       {open && (
         <div
           className="fixed inset-0 flex items-center justify-center bg-gray-900/50 z-10 p-4"
-          onClick={() => setOpen(false)}
         >
           <div
             className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Add Article
-            </h2>
+           <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">Add Article</h2>
+                    <button
+                      onClick={ ()=> setOpen(false)}
+                      className="text-gray-500 hover:text-gray-700 text-lg font-bold px-2 py rounded-full border"
+                    >
+                      ×
+                    </button>
+                  </div>
 
             <form onSubmit={formik.handleSubmit} className="space-y-4">
               {/* Name Input */}
