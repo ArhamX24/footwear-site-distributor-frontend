@@ -8,7 +8,8 @@ const QrWarehouseScanner = () => {
   const [scanResult, setScanResult] = useState('');
   const [event, setEvent] = useState('received');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('')
+  const [cameraActive, setCameraActive] = useState(false);
+  const [error, setError] = useState('');
 
   const parsedResult = useMemo(() => {
     try {
@@ -36,21 +37,27 @@ const QrWarehouseScanner = () => {
         } else if (event === 'shipped') {
           Swal.fire("Shipped!", "Product marked as shipped from inventory.", "success");
         }
+        setError('');
       } else {
         Swal.fire("Scan Failed", json.message || "Unknown error.", "error");
+        setError(json.message || 'Unknown error.');
       }
     } catch (err) {
-        setError(err.response.data)
-      Swal.fire("Error", err.message || "Network or server error.", "error");
+      setError(err.response?.data?.message || err.message || "Network or server error.");
+      Swal.fire("Error", error, "error");
     }
     setLoading(false);
+    // Optionally deactivate camera after scan
+    setCameraActive(false);
     setScanResult('');
   };
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md mt-8">
-        <p>{error}</p>
+        <p>{scanResult}</p>
       <h2 className="text-xl font-bold mb-4">Warehouse QR Scanner</h2>
+
+      {/* Event Buttons */}
       <div className="flex space-x-4 mb-4 justify-center">
         <button
           type="button"
@@ -67,15 +74,51 @@ const QrWarehouseScanner = () => {
           Ship
         </button>
       </div>
+
+      {/* Activate Camera Button */}
+      <div className="mb-4 text-center">
+        {!cameraActive ? (
+          <button
+            onClick={() => setCameraActive(true)}
+            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition"
+          >
+            Open Camera to Scan
+          </button>
+        ) : (
+          <button
+            onClick={() => setCameraActive(false)}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
+          >
+            Close Camera
+          </button>
+        )}
+      </div>
+
+      {/* QR Scanner (conditionally rendered) */}
+      {cameraActive && (
+        <div className="mb-4">
+          <QrScanner
+            onUpdate={(err, result) => {
+              if (result) setScanResult(result.text);
+              if (err) console.error(err);
+            }}
+            style={{ width: '100%' }}
+          />
+        </div>
+      )}
+
+      {/* Manual input for testing */}
       <div className="mb-4">
-        <QrScanner
-          onUpdate={(err, result) => {
-            if (result) setScanResult(result.text);
-            if (err) console.error(err);
-          }}
-          style={{ width: '100%' }}
+        <label className="block mb-1 font-semibold">Or enter QR code content manually (testing):</label>
+        <textarea
+          rows="4"
+          value={scanResult}
+          onChange={e => setScanResult(e.target.value)}
+          className="w-full border border-gray-300 rounded px-3 py-2 resize-none"
+          placeholder='Paste scanned QR JSON here'
         />
       </div>
+      {error && <p className="mb-2 text-red-600 font-semibold text-sm text-center">{error}</p>}
       <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
         <p className='border border-gray-300 rounded px-3 py-2 capitalize'>
           {parsedResult ? parsedResult.productName : "Scanned Result Will Appear Here"}
