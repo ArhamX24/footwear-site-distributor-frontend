@@ -9,6 +9,8 @@ const QrWarehouseScanner = () => {
   const [event, setEvent] = useState('received');
   const [loading, setLoading] = useState(false);
 
+  let obj = {"productId":"688866f0d297cddce4c7f35e","productName":"cushon - 01","variant":"cushon","uniqueId":"e485d840-e15b-46da-b01e-3ac259581c2d","batchId":"e35fa3b4-6c28-4b4a-acb5-e12214fc8b4c","generatedAt":"2025-08-25T11:38:51.190Z","serialNumber":1,"purpose":"inventory","verifyUrl":"http://localhost:3000/verify/e485d840-e15b-46da-b01e-3ac259581c2d"}
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!scanResult) return;
@@ -39,7 +41,6 @@ const QrWarehouseScanner = () => {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md mt-8">
-        <h2>{scanResult}</h2>
       <h2 className="text-xl font-bold mb-4">Warehouse QR Scanner</h2>
       <div className="flex space-x-4 mb-4 justify-center">
         <button
@@ -69,8 +70,8 @@ const QrWarehouseScanner = () => {
       <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
         <input
           type="text"
-          value={scanResult}
-          className="border border-gray-300 rounded px-3 py-2"
+          value={`${scanResult.productName}`}
+          className="border border-gray-300 rounded px-3 py-2 capitalize"
           placeholder="Scan result appears here"
           readOnly
         />
