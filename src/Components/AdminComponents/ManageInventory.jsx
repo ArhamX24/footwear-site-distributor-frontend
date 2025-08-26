@@ -168,7 +168,7 @@ const ManageInventory = () => {
                 {/* Tab Content */}
                 <div className="mt-4">
                   {selectedTab === 'overview' && (
-                    <div className="space-y-4">
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
                       {/* Article Breakdown */}
                       {selectedProduct.itemsByArticle && Object.keys(selectedProduct.itemsByArticle).length > 0 ? (
                         <div>
@@ -230,7 +230,6 @@ const ManageInventory = () => {
                                 <div className="flex justify-between items-start mb-2">
                                   <div>
                                     <h5 className="font-medium text-gray-800 capitalize">{item.articleName}</h5>
-                                    <p className="text-xs text-gray-500 capitalize">QR: {item.uniqueId}</p>
                                   </div>
                                   <span className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusColor(item.status)}`}>
                                     {item.status}
@@ -238,7 +237,6 @@ const ManageInventory = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                   <div className="capitalize">Received: {formatDate(item.receivedAt)}</div>
-                                  <div className="capitalize">By: {item.receivedBy?.userId || 'Unknown'}</div>
                                 </div>
                                 {item.receivedLocation?.address && (
                                   <div className="text-xs text-gray-600 mt-1 capitalize">

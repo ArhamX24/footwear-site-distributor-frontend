@@ -32,7 +32,7 @@ const QrWarehouseScanner = ({onScanSuccess}) => {
   const vibrationPatterns = {
     success: [200, 100, 200], // Long-short-long pattern for success
     error: [100, 50, 100, 50, 100], // Short bursts for error
-    scan: [100] // Single short vibration when QR is detected
+    scan: [150] // Single vibration when QR is detected
   };
 
   const handleSubmit = async (e) => {
@@ -48,7 +48,7 @@ const QrWarehouseScanner = ({onScanSuccess}) => {
       );
       const json = response.data;
       if (json.result) {
-        // Success vibration
+        // Success vibration on successful API response
         triggerVibration(vibrationPatterns.success);
         
         if (event === 'received') {
@@ -84,7 +84,7 @@ const QrWarehouseScanner = ({onScanSuccess}) => {
   // Enhanced QR detection with vibration
   const handleQRDetection = (err, result) => {
     if (result && result.text !== scanResult) {
-      // QR detected vibration
+      // QR detected vibration - vibrate immediately when QR is scanned
       triggerVibration(vibrationPatterns.scan);
       setScanResult(result.text);
     }
@@ -162,33 +162,6 @@ const QrWarehouseScanner = ({onScanSuccess}) => {
           {loading ? 'Processing...' : event === 'received' ? 'Mark as Received' : 'Mark as Shipped'}
         </button>
       </form>
-
-      {/* Vibration Test Buttons (Optional - for testing) */}
-      {('vibrate' in navigator) && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500 mb-2 text-center">Test Vibrations:</p>
-          <div className="flex justify-center space-x-2">
-            <button
-              onClick={() => triggerVibration(vibrationPatterns.scan)}
-              className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs hover:bg-gray-300"
-            >
-              Scan
-            </button>
-            <button
-              onClick={() => triggerVibration(vibrationPatterns.success)}
-              className="px-2 py-1 bg-green-200 text-green-600 rounded text-xs hover:bg-green-300"
-            >
-              Success
-            </button>
-            <button
-              onClick={() => triggerVibration(vibrationPatterns.error)}
-              className="px-2 py-1 bg-red-200 text-red-600 rounded text-xs hover:bg-red-300"
-            >
-              Error
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
