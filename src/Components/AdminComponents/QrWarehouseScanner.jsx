@@ -1,15 +1,17 @@
-import { useState, useMemo } from 'react';
-import QrScanner from 'react-qr-barcode-scanner';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import QrScanner from 'qr-scanner';
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import { baseURL } from '../../Utils/URLS';
 
-const QrWarehouseScanner = ({onScanSuccess}) => {
+const QrWarehouseScanner = ({ onScanSuccess }) => {
   const [scanResult, setScanResult] = useState('');
   const [event, setEvent] = useState('received');
   const [loading, setLoading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [error, setError] = useState('');
+  const videoRef = useRef(null);
+  const qrScannerRef = useRef(null);
 
   const parsedResult = useMemo(() => {
     try {
@@ -19,21 +21,58 @@ const QrWarehouseScanner = ({onScanSuccess}) => {
     }
   }, [scanResult]);
 
-  // Vibration function
   const triggerVibration = (pattern = [200]) => {
     if ('vibrate' in navigator) {
       navigator.vibrate(pattern);
-    } else {
-      console.log('Vibration not supported on this device');
     }
   };
 
-  // Success vibration patterns
   const vibrationPatterns = {
-    success: [200, 100, 200], // Long-short-long pattern for success
-    error: [100, 50, 100, 50, 100], // Short bursts for error
-    scan: [150] // Single vibration when QR is detected
+    success: [200, 100, 200],
+    error: [100, 50, 100, 50, 100],
+    scan: [150]
   };
+
+  const startScanner = async () => {
+    try {
+      if (videoRef.current && !qrScannerRef.current) {
+        qrScannerRef.current = new QrScanner(
+          videoRef.current,
+          (result) => {
+            triggerVibration(vibrationPatterns.scan);
+            setScanResult(result.data);
+          },
+          {
+            returnDetailedScanResult: true,
+            highlightScanRegion: true,
+            highlightCodeOutline: true,
+            maxScansPerSecond: 10, // High scan rate for fast detection
+          }
+        );
+        
+        await qrScannerRef.current.start();
+        setCameraActive(true);
+      }
+    } catch (err) {
+      setError('Camera access denied or not available');
+      console.error(err);
+    }
+  };
+
+  const stopScanner = () => {
+    if (qrScannerRef.current) {
+      qrScannerRef.current.stop();
+      qrScannerRef.current.destroy();
+      qrScannerRef.current = null;
+    }
+    setCameraActive(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopScanner();
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,8 +86,8 @@ const QrWarehouseScanner = ({onScanSuccess}) => {
         { event }
       );
       const json = response.data;
+      
       if (json.result) {
-        // Success vibration on successful API response
         triggerVibration(vibrationPatterns.success);
         
         if (event === 'received') {
@@ -58,49 +97,28 @@ const QrWarehouseScanner = ({onScanSuccess}) => {
         }
         setError('');
         
-        // Call the callback for parent component
         if (onScanSuccess) {
           onScanSuccess();
         }
       } else {
-        // Error vibration
         triggerVibration(vibrationPatterns.error);
         Swal.fire("Scan Failed", json.message || "Unknown error.", "error");
         setError(json.message || 'Unknown error.');
       }
     } catch (err) {
-      // Error vibration
       triggerVibration(vibrationPatterns.error);
       const errorMessage = err.response?.data?.message || err.message || "Network or server error.";
       setError(errorMessage);
       Swal.fire("Error", errorMessage, "error");
     }
     setLoading(false);
-    // Optionally deactivate camera after scan
-    setCameraActive(false);
+    stopScanner();
     setScanResult('');
-  };
-
-  // Enhanced QR detection with vibration
-  const handleQRDetection = (err, result) => {
-    if (result && result.text !== scanResult) {
-      // QR detected vibration - vibrate immediately when QR is scanned
-      triggerVibration(vibrationPatterns.scan);
-      setScanResult(result.text);
-    }
-    if (err) console.error(err);
   };
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md mt-8">
-      <h2 className="text-xl font-bold mb-4 text-center">QR Scanner</h2>
-
-      {/* Vibration Support Indicator */}
-      {!('vibrate' in navigator) && (
-        <div className="mb-4 p-2 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded text-sm text-center">
-          <span className="text-xs">⚠️ Vibration not supported on this device</span>
-        </div>
-      )}
+      <h2 className="text-xl font-bold mb-4 text-center">Fast QR Scanner</h2>
 
       {/* Event Buttons */}
       <div className="flex space-x-4 mb-4 justify-center">
@@ -120,36 +138,38 @@ const QrWarehouseScanner = ({onScanSuccess}) => {
         </button>
       </div>
 
-      {/* Activate Camera Button */}
+      {/* Camera Controls */}
       <div className="mb-4 text-center">
         {!cameraActive ? (
           <button
-            onClick={() => setCameraActive(true)}
+            onClick={startScanner}
             className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition"
           >
-            Open Camera to Scan
+           Open Scanner
           </button>
         ) : (
           <button
-            onClick={() => setCameraActive(false)}
+            onClick={stopScanner}
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
           >
-            Close Camera
+            Close Scanner
           </button>
         )}
       </div>
 
-      {/* QR Scanner (conditionally rendered) */}
+      {/* Video Element */}
       {cameraActive && (
-        <div className="mb-4">
-          <QrScanner
-            onUpdate={handleQRDetection}
-            style={{ width: '100%' }}
+        <div className="mb-4 relative">
+          <video
+            ref={videoRef}
+            className="w-full rounded-lg border-2 border-indigo-300"
+            style={{ maxHeight: '300px' }}
           />
         </div>
       )}
 
       {error && <p className="mb-2 text-red-600 font-semibold text-sm text-center">{error}</p>}
+      
       <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
         <p className='border border-gray-300 rounded px-3 py-2 capitalize'>
           {parsedResult ? parsedResult.productName : "Scanned Result Will Appear Here"}
