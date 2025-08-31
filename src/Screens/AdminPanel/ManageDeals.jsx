@@ -3,11 +3,13 @@ import axios from 'axios';
 import DealsCard from '../../Components/AdminComponents/DealsCard';
 import { baseURL } from '../../Utils/URLS';
 import { FaTag, FaSpinner, FaPercentage, FaClock, FaCalendarCheck } from 'react-icons/fa';
+import AddDealDialog from '../../Components/AdminComponents/AddDealDialog';
 
 const AddDeal = () => {
   const [deals, setDeals] = useState(null);
   const [isDeleted, setIsDeleted] = useState(false);
   const [isUpdated, setIsUpdated] = useState(false);
+  const [isAdded, setIsAdded] = useState(false); // Add this state
   const [loading, setLoading] = useState(true);
 
   const getDeals = async () => {
@@ -27,11 +29,12 @@ const AddDeal = () => {
 
   useEffect(() => {
     getDeals();
-    if (isDeleted || isUpdated) {
+    if (isDeleted || isUpdated || isAdded) { // Include isAdded
       setIsDeleted(false);
       setIsUpdated(false);
+      setIsAdded(false); // Reset isAdded
     }
-  }, [isDeleted, isUpdated]);
+  }, [isDeleted, isUpdated, isAdded]); // Add isAdded to dependencies
 
   useEffect(() => {
     getDeals();
@@ -72,21 +75,36 @@ const AddDeal = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header Section */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-3 rounded-full shadow-lg">
-              <FaTag className="text-2xl text-white" />
+        {/* Header Section with Action Button */}
+        <div className="mb-8">
+          {/* Title and Icon Row */}
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-3 rounded-full shadow-lg">
+                <FaTag className="text-2xl text-white" />
+              </div>
             </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              All Deals & Offers
+            </h1>
+            <div className="w-24 h-1 bg-gray-600 mx-auto rounded-full"></div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            All Deals & Offers
-          </h1>
-          <div className="w-24 h-1 bg-gray-600 mx-auto rounded-full"></div>
-          {stats && (
-            <p className="text-gray-600 mt-4">
-              Managing {stats.total} deal{stats.total !== 1 ? 's' : ''} • {stats.active} Active • {stats.expired} Expired
-            </p>
+
+          {/* Action Bar - Only show when deals exist */}
+          {stats && stats.total > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              {/* Stats Info */}
+              <div>
+                <p className="text-gray-600 text-center sm:text-left">
+                  Managing {stats.total} deal{stats.total !== 1 ? 's' : ''} • {stats.active} Active • {stats.expired} Expired
+                </p>
+              </div>
+              
+              {/* Add Deal Button - Only show when deals exist */}
+              <div className="flex justify-center sm:justify-end">
+                <AddDealDialog setIsAdded={setIsAdded} /> {/* Pass setIsAdded */}
+              </div>
+            </div>
           )}
         </div>
 
@@ -163,15 +181,16 @@ const AddDeal = () => {
                   No Deals Found
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  There are no deals or offers in your system yet.
+                  There are no deals or offers in your system yet. Start by creating your first deal.
                 </p>
-                <button className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium shadow-sm">
-                  Create First Deal
-                </button>
+                {/* Add Deal Dialog with empty state prop - Only in empty state */}
+                <div className="inline-block">
+                  <AddDealDialog isEmptyState={true} setIsAdded={setIsAdded} /> {/* Pass setIsAdded */}
+                </div>
               </div>
             ) : (
               /* Deals Grid */
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                 {deals.map((deal, idx) => (
                   <DealsCard
                     key={deal._id || idx}

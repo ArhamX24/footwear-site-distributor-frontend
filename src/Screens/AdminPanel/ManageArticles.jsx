@@ -35,7 +35,7 @@ const getProducts = async () => {
     <>
     {
       isQrModalOpen && <div className="fixed inset-0 flex items-center justify-center bg-gray-900/50 z-10 p-4 ">
-                        <QrModalContent products={products}/>
+                        <QrModalContent products={products} getProducts={getProducts}/>
                       </div>
     }
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">

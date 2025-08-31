@@ -76,8 +76,8 @@ const AddDistributorDialog = () => {
     <>
       <button 
         onClick={handleOpen} 
-        className="bg-gray-700 text-white px-4 py-2 rounded-xl hover:bg-gray-800 ease-in-out duration-200 mt-2 md:mt-0">
-        Register New Distributor
+        className="bg-gray-600 text-white px-4 py-2 hover:bg-gray-700 rounded-full border transition duration-200 w-full text-sm font-medium">
+       + Register New Distributor
       </button>
 
       {open && (

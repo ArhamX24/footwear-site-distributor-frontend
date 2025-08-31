@@ -68,8 +68,8 @@ const AddFestivleImageDialog = () => {
 
   return (
     <>
-      <button onClick={handleOpen} className="bg-gray-700 text-white px-4 py-2 mt-2 md:mt-0 rounded-xl hover:bg-gray-800 duration-200">
-        Add Festival Image
+      <button onClick={handleOpen} className="bg-gray-600 text-white px-4 py-2 hover:bg-gray-700 rounded-full border transition duration-200 w-full text-sm font-medium">
+       + Add Festival Image
       </button>
 
       {open && (

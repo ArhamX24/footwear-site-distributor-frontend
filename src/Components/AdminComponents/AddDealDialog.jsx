@@ -1,17 +1,18 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useFormik } from "formik";
 import axios from "axios";
 import Swal from "sweetalert2";
 import CircularProgress from "@mui/material/CircularProgress";
 import { baseURL } from "../../Utils/URLS";
 
-const AddDealDialog = ({ products }) => {
+const AddDealDialog = () => {
   const [open, setOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [articleSearch, setArticleSearch] = useState("");
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [loading, setLoading] = useState(false);
   const today = new Date().toISOString().split("T")[0];
+  const [products, setProducts] = useState(null)
 
   const handleOpen = useCallback(() => setOpen((o) => !o), []);
   const handleSelectArticle = useCallback((article) => {
@@ -20,6 +21,21 @@ const AddDealDialog = ({ products }) => {
     setArticleSearch("");
   }, []);
 
+  const getAllProducts = async () => {
+    try {
+      let response = await axios.get(
+        `${baseURL}/api/v1/admin/products/getproducts`
+      );
+      setProducts(response.data.data);
+    } catch (error) {
+      console.error(error.response?.data);
+    }
+  }
+  
+  useEffect(() => {
+    getAllProducts()
+  }, [])
+  
  // 1) Now use `products` directly
   const flattenedArticles = Array.isArray(products) ? products : [];
 
@@ -90,10 +106,10 @@ const AddDealDialog = ({ products }) => {
     <>
       <button
         onClick={handleOpen}
-        className="bg-gray-700 text-white px-4 py-2 rounded-xl hover:bg-gray-800 ease-in-out duration-200 mt-2 md:mt-0
+        className="bg-gray-600 text-white px-4 py-2 hover:bg-gray-700 rounded-full border transition duration-200 w-full text-sm font-medium
         "
       >
-        Add New Deal
+       + Add New Deal
       </button>
 
       {open && (
