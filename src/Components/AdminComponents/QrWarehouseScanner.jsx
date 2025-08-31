@@ -10,6 +10,7 @@ const QrWarehouseScanner = ({ onScanSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [error, setError] = useState('');
+  const [isInitializing, setIsInitializing] = useState(true);
   const videoRef = useRef(null);
   const qrScannerRef = useRef(null);
 
@@ -35,6 +36,7 @@ const QrWarehouseScanner = ({ onScanSuccess }) => {
 
   const startScanner = async () => {
     try {
+      setIsInitializing(true);
       if (videoRef.current && !qrScannerRef.current) {
         qrScannerRef.current = new QrScanner(
           videoRef.current,
@@ -46,16 +48,19 @@ const QrWarehouseScanner = ({ onScanSuccess }) => {
             returnDetailedScanResult: true,
             highlightScanRegion: true,
             highlightCodeOutline: true,
-            maxScansPerSecond: 10, // High scan rate for fast detection
+            maxScansPerSecond: 10,
           }
         );
         
         await qrScannerRef.current.start();
         setCameraActive(true);
+        setError('');
       }
     } catch (err) {
       setError('Camera access denied or not available');
       console.error(err);
+    } finally {
+      setIsInitializing(false);
     }
   };
 
@@ -68,11 +73,18 @@ const QrWarehouseScanner = ({ onScanSuccess }) => {
     setCameraActive(false);
   };
 
+  // Auto-start scanner when component mounts
   useEffect(() => {
+    // Small delay to ensure video element is ready
+    const timer = setTimeout(() => {
+      startScanner();
+    }, 100);
+
     return () => {
+      clearTimeout(timer);
       stopScanner();
     };
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,6 +112,15 @@ const QrWarehouseScanner = ({ onScanSuccess }) => {
         if (onScanSuccess) {
           onScanSuccess();
         }
+        
+        // Auto-restart scanner after successful scan
+        setTimeout(() => {
+          setScanResult('');
+          if (!cameraActive) {
+            startScanner();
+          }
+        }, 2000);
+        
       } else {
         triggerVibration(vibrationPatterns.error);
         Swal.fire("Scan Failed", json.message || "Unknown error.", "error");
@@ -110,10 +131,9 @@ const QrWarehouseScanner = ({ onScanSuccess }) => {
       const errorMessage = err.response?.data?.message || err.message || "Network or server error.";
       setError(errorMessage);
       Swal.fire("Error", errorMessage, "error");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    stopScanner();
-    setScanResult('');
   };
 
   return (
@@ -138,48 +158,88 @@ const QrWarehouseScanner = ({ onScanSuccess }) => {
         </button>
       </div>
 
-      {/* Camera Controls */}
+      {/* Scanner Status and Controls */}
       <div className="mb-4 text-center">
-        {!cameraActive ? (
+        {isInitializing ? (
+          <div className="flex items-center justify-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+            <span className="text-sm text-gray-600">Starting camera...</span>
+          </div>
+        ) : cameraActive ? (
+          <div className="flex items-center justify-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-green-600 font-medium">Scanner Active</span>
+            </div>
+            <button
+              onClick={stopScanner}
+              className="bg-red-600 text-white px-3 py-1 text-sm rounded hover:bg-red-700 transition"
+            >
+              Stop
+            </button>
+          </div>
+        ) : (
           <button
             onClick={startScanner}
             className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition"
           >
-           Open Scanner
-          </button>
-        ) : (
-          <button
-            onClick={stopScanner}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
-          >
-            Close Scanner
+            Restart Scanner
           </button>
         )}
       </div>
 
-      {/* Video Element */}
-      {cameraActive && (
-        <div className="mb-4 relative">
-          <video
-            ref={videoRef}
-            className="w-full rounded-lg border-2 border-indigo-300"
-            style={{ maxHeight: '300px' }}
-          />
+      {/* Video Element - Always rendered for auto-start */}
+      <div className="mb-4 relative">
+        <video
+          ref={videoRef}
+          className={`w-full rounded-lg border-2 transition-all duration-300 ${
+            cameraActive ? 'border-green-300' : 'border-gray-300'
+          }`}
+          style={{ 
+            maxHeight: '300px',
+            display: isInitializing || cameraActive ? 'block' : 'none'
+          }}
+        />
+        {!cameraActive && !isInitializing && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg border-2 border-gray-300">
+            <p className="text-gray-500 text-sm">Camera Stopped</p>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600 font-semibold text-sm text-center">{error}</p>
+          <button
+            onClick={startScanner}
+            className="mt-2 w-full bg-red-600 text-white px-3 py-1 text-sm rounded hover:bg-red-700 transition"
+          >
+            Retry Camera Access
+          </button>
         </div>
       )}
-
-      {error && <p className="mb-2 text-red-600 font-semibold text-sm text-center">{error}</p>}
       
       <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-        <p className='border border-gray-300 rounded px-3 py-2 capitalize'>
-          {parsedResult ? parsedResult.productName : "Scanned Result Will Appear Here"}
-        </p>
+        <div className="border border-gray-300 rounded px-3 py-2 bg-gray-50">
+          <p className="text-sm text-gray-600 mb-1">Scanned Product:</p>
+          <p className="font-medium capitalize">
+            {parsedResult ? parsedResult.productName : "Waiting for QR scan..."}
+          </p>
+        </div>
+        
         <button
           type="submit"
-          className="bg-black text-white px-4 py-2 rounded hover:bg-gray-700 transition"
+          className="bg-black text-white px-4 py-2 rounded hover:bg-gray-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
           disabled={!scanResult || loading}
         >
-          {loading ? 'Processing...' : event === 'received' ? 'Mark as Received' : 'Mark as Shipped'}
+          {loading ? (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Processing...</span>
+            </div>
+          ) : (
+            event === 'received' ? 'Mark as Received' : 'Mark as Shipped'
+          )}
         </button>
       </form>
     </div>
