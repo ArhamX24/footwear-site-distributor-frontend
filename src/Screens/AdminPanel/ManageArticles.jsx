@@ -10,6 +10,7 @@ const AddProduct = () => {
 
   const [products, setProducts] = useState(null)
   const [totalProducts, setTotalProducts] = useState(0)
+  const [inventoryDataCount, setInventoryDataCount] = useState(0)
 
   const dispatch = useDispatch();
   const isQrModalOpen = useSelector((Store)=> Store.qr.isOpen);
@@ -26,8 +27,23 @@ const getProducts = async () => {
     }
   };
 
+  const fetchAllInventoryData = async () => {
+    try {
+      const response = await axios.get(`${baseURL}/api/v1/admin/inventory/all`);
+      if (response.data.result) {
+        const data = response.data.data;
+
+        console.log(data.inventoryCount);
+        
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   useEffect(() => {
     getProducts()
+    fetchAllInventoryData()
   }, [])
   
 
@@ -59,8 +75,7 @@ const getProducts = async () => {
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-2xl font-bold text-gray-800">89</p>
-                <p className="text-gray-600 text-sm">QR Codes Generated</p>
+              <Link to={'qrdashboard'}><p className="text-l cursor-pointer">Click To Get QR Statstics</p></Link>
               </div>
             </div>
           </div>

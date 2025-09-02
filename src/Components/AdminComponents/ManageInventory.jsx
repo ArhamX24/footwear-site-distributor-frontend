@@ -9,12 +9,31 @@ const ManageInventory = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedTab, setSelectedTab] = useState('overview');
-  const [selectedArticleKey, setSelectedArticleKey] = useState(null); // New state for article selection
+  const [selectedArticleKey, setSelectedArticleKey] = useState(null);
+  
+  // ✅ Updated filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState('dateDesc');
+  const [showSortOptions, setShowSortOptions] = useState(false);
 
   // Fetch all inventory data on component mount
   useEffect(() => {
     fetchAllInventoryData();
   }, []);
+
+  // Apply search when searchQuery changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (selectedProduct && searchQuery !== '') {
+        applySearch();
+      } else if (selectedProduct && searchQuery === '') {
+        // Clear search
+        fetchProductInventory(selectedProduct.product._id);
+      }
+    }, 300); // Debounce search
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const fetchAllInventoryData = async () => {
     setLoading(true);
@@ -31,20 +50,54 @@ const ManageInventory = () => {
     setLoading(false);
   };
 
+  // ✅ Enhanced fetch with search and sort
   const fetchProductInventory = async (productId) => {
     setLoading(true);
     setError('');
-    setSelectedArticleKey(null); // Reset article selection when new product is selected
+    setSelectedArticleKey(null);
     try {
-      const response = await axios.get(`${baseURL}/api/v1/admin/inventory/${productId}`);
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (sortOption) params.append('sort', sortOption);
+      
+      const queryString = params.toString();
+      const url = `${baseURL}/api/v1/admin/inventory/${productId}${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await axios.get(url);
       if (response.data.result) {
         setSelectedProduct(response.data.data);
+        console.log('Fetched product data:', response.data.data);
       }
     } catch (err) {
       setError('Failed to fetch product inventory');
       console.error(err);
     }
     setLoading(false);
+  };
+
+  // ✅ Apply search function
+  const applySearch = () => {
+    if (selectedProduct) {
+      fetchProductInventory(selectedProduct.product._id);
+    }
+  };
+
+  // ✅ Apply sort function
+  const applySort = (newSortOption) => {
+    setSortOption(newSortOption);
+    setShowSortOptions(false);
+    if (selectedProduct) {
+      fetchProductInventory(selectedProduct.product._id);
+    }
+  };
+
+  // ✅ Clear search function
+  const clearSearch = () => {
+    setSearchQuery('');
+    if (selectedProduct) {
+      fetchProductInventory(selectedProduct.product._id);
+    }
   };
 
   const refreshInventory = () => {
@@ -81,52 +134,110 @@ const ManageInventory = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      'received': 'bg-green-100 text-green-800',
-      'in_stock': 'bg-blue-100 text-blue-800',
-      'reserved': 'bg-yellow-100 text-yellow-800',
-      'shipped': 'bg-gray-100 text-gray-800'
+      'manufactured': 'bg-blue-100 text-blue-800',
+      'in_warehouse': 'bg-green-100 text-green-800',
+      'shipped_to_distributor': 'bg-purple-100 text-purple-800',
+      'delivered': 'bg-gray-100 text-gray-800',
+      'damaged': 'bg-red-100 text-red-800',
+      'returned': 'bg-yellow-100 text-yellow-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  // Get statistics for selected article or overall product
+  // Get sort option display name
+  const getSortDisplayName = (option) => {
+    const options = {
+      'dateAsc': 'Date ↑',
+      'dateDesc': 'Date ↓',
+      'timeAsc': 'Time ↑',
+      'timeDesc': 'Time ↓'
+    };
+    return options[option] || 'Sort';
+  };
+
+  // ✅ Updated to show current status counts
   const getDisplayStatistics = () => {
     if (!selectedProduct) return null;
 
-    if (selectedArticleKey) {
-      // Filter items for the selected article
-      const articleItems = selectedProduct.inventoryItems?.filter(
-        item => item.articleName === selectedArticleKey
-      ) || [];
-
-      const statusCounts = {
-        received: articleItems.filter(item => item.status === 'received').length,
-        in_stock: articleItems.filter(item => item.status === 'in_stock').length,
-        reserved: articleItems.filter(item => item.status === 'reserved').length,
-        shipped: articleItems.filter(item => item.status === 'shipped').length
-      };
-
+    if (selectedArticleKey && selectedProduct.articleStatsByStatus) {
+      const articleStats = selectedProduct.articleStatsByStatus[selectedArticleKey] || {};
+      
       return {
         title: selectedArticleKey,
         isArticleView: true,
         stats: [
-          { label: 'Available', value: statusCounts.received + statusCounts.in_stock, color: 'text-green-600' },
-          { label: 'Received', value: statusCounts.received, color: 'text-green-600' },
-          { label: 'In Stock', value: statusCounts.in_stock, color: 'text-blue-600' },
-          { label: 'Shipped', value: statusCounts.shipped, color: 'text-gray-600' }
+          { 
+            label: 'Manufactured', 
+            value: articleStats.manufactured || 0, 
+            color: 'text-blue-600',
+            description: 'Items currently at manufactured status'
+          },
+          { 
+            label: 'In Warehouse', 
+            value: articleStats.in_warehouse || 0, 
+            color: 'text-green-600',
+            description: 'Items currently in warehouse'
+          },
+          { 
+            label: 'Shipped', 
+            value: articleStats.shipped_to_distributor || 0, 
+            color: 'text-purple-600',
+            description: 'Items shipped to distributors'
+          },
+          { 
+            label: 'Delivered', 
+            value: articleStats.delivered || 0, 
+            color: 'text-gray-600',
+            description: 'Items delivered'
+          }
         ]
       };
     } else {
-      // Overall product statistics
+      // ✅ Calculate current status counts for overall view
+      const currentStatusCounts = {
+        manufactured: 0,
+        in_warehouse: 0,
+        shipped_to_distributor: 0,
+        delivered: 0
+      };
+      
+      if (selectedProduct.inventoryItems) {
+        selectedProduct.inventoryItems.forEach(item => {
+          if (currentStatusCounts.hasOwnProperty(item.status)) {
+            currentStatusCounts[item.status]++;
+          }
+        });
+      }
+      
       return {
         title: selectedProduct.product.segment,
         subtitle: selectedProduct.product.title,
         isArticleView: false,
         stats: [
-          { label: 'Total Items', value: selectedProduct.inventoryCount, color: 'text-blue-600' },
-          { label: 'Available', value: selectedProduct.availableQuantity, color: 'text-green-600' },
-          { label: 'Shipped', value: selectedProduct.inventoryCount - selectedProduct.availableQuantity, color: 'text-yellow-600' },
-          { label: 'Article Types', value: Object.keys(selectedProduct.itemsByArticle || {}).length, color: 'text-purple-600' }
+          { 
+            label: 'Manufactured', 
+            value: currentStatusCounts.manufactured, 
+            color: 'text-blue-600',
+            description: 'Items currently at manufactured status'
+          },
+          { 
+            label: 'In Warehouse', 
+            value: currentStatusCounts.in_warehouse, 
+            color: 'text-green-600',
+            description: 'Items currently in warehouse'
+          },
+          { 
+            label: 'Shipped Out', 
+            value: currentStatusCounts.shipped_to_distributor, 
+            color: 'text-purple-600',
+            description: 'Items shipped to distributors'
+          },
+          { 
+            label: 'Delivered', 
+            value: currentStatusCounts.delivered, 
+            color: 'text-gray-600',
+            description: 'Items delivered'
+          }
         ]
       };
     }
@@ -146,7 +257,7 @@ const ManageInventory = () => {
       <div className="w-full mx-auto">
         <div className="grid grid-cols-1 gap-6 mb-6">
 
-          {/* Selected Product Details - Now Full Width */}
+          {/* Selected Product Details - Enhanced with Search & Sort */}
           <div className="bg-white rounded-xl shadow-lg p-6 w-full">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
@@ -160,15 +271,107 @@ const ManageInventory = () => {
                   </button>
                 )}
               </div>
-              {selectedProduct && (
-                <button 
-                  onClick={refreshInventory}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm transition-colors"
-                >
-                  Refresh
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedProduct && (
+                  <button 
+                    onClick={refreshInventory}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm transition-colors"
+                  >
+                    Refresh
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* ✅ Enhanced Search Bar and Filter */}
+            {selectedProduct && (
+              <div className="mb-6 relative">
+                <div className="flex items-center gap-2">
+                  {/* Search Input */}
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      placeholder="Search by article name or QR code..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-4 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          applySearch();
+                        }
+                      }}
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={clearSearch}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Sort Filter Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowSortOptions(!showSortOptions)}
+                      className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 14v5a1 1 0 01-1 1H11a1 1 0 01-1-1v-5L3.293 6.707A1 1 0 013 6V4z" />
+                      </svg>
+                      <span className="text-gray-700">{getSortDisplayName(sortOption)}</span>
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Sort Options Dropdown */}
+                    {showSortOptions && (
+                      <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                        <div className="py-1">
+                          <button
+                            onClick={() => applySort('dateDesc')}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${sortOption === 'dateDesc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                          >
+                            📅 Date (Newest First)
+                          </button>
+                          <button
+                            onClick={() => applySort('dateAsc')}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${sortOption === 'dateAsc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                          >
+                            📅 Date (Oldest First)
+                          </button>
+                          <button
+                            onClick={() => applySort('timeDesc')}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${sortOption === 'timeDesc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                          >
+                            🕐 Time (Latest First)
+                          </button>
+                          <button
+                            onClick={() => applySort('timeAsc')}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${sortOption === 'timeAsc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                          >
+                            🕐 Time (Earliest First)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Search/Filter Results Info */}
+                {selectedProduct.filters && (
+                  <div className="mt-2 text-xs text-gray-600">
+                    {searchQuery && `Search: "${searchQuery}" • `}
+                    Sort: {getSortDisplayName(sortOption)} • 
+                    Showing {selectedProduct.filters.totalItemsAfterFilter} of {selectedProduct.filters.totalItemsBeforeFilter} items
+                  </div>
+                )}
+              </div>
+            )}
             
             {loading && (
               <div className="flex justify-center items-center py-8">
@@ -185,30 +388,33 @@ const ManageInventory = () => {
 
             {selectedProduct ? (
               <div className="space-y-6 w-full">
-                {/* Product Summary - Enhanced with Dynamic Statistics */}
+                {/* Enhanced Product Summary with Dynamic Statistics */}
                 <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 p-6 rounded-lg">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-xl font-bold capitalize text-blue-800">
-                        {displayStats?.isArticleView ? 'Article Details' : displayStats?.title}
+                        {displayStats?.isArticleView ? 'Article Analytics' : displayStats?.title}
                       </h3>
                       <h4 className="text-lg font-medium capitalize text-blue-700">
                         {displayStats?.isArticleView ? displayStats?.title : displayStats?.subtitle}
                       </h4>
                     </div>
                     {displayStats?.isArticleView && (
-                      <div className="text-sm text-blue-700">
-                        Selected Article
+                      <div className="text-sm text-blue-700 bg-white/60 px-3 py-1 rounded-full">
+                        Article View
                       </div>
                     )}
                   </div>
                   
-                  {/* Dynamic Statistics Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
+                  {/* Enhanced Dynamic Statistics Grid with Status Tracking */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     {displayStats?.stats.map((stat, index) => (
-                      <div key={index} className="bg-white rounded-lg p-3 text-center">
-                        <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-                        <div className="text-sm text-gray-600">{stat.label}</div>
+                      <div key={index} className="bg-white rounded-lg p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                        <div className={`text-2xl font-bold ${stat.color} mb-1`}>{stat.value}</div>
+                        <div className="text-sm text-gray-600 font-medium">{stat.label}</div>
+                        {stat.description && (
+                          <div className="text-xs text-gray-500 mt-1">{stat.description}</div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -224,8 +430,8 @@ const ManageInventory = () => {
                 <div className="border-b border-gray-200">
                   <nav className="-mb-px flex space-x-8">
                     {[
-                      { key: 'overview', label: 'Overview', count: Object.keys(selectedProduct.itemsByArticle || {}).length },
-                      { key: 'items', label: 'Items', count: selectedProduct.inventoryCount },
+                      { key: 'overview', label: 'Articles', count: Object.keys(selectedProduct.itemsByArticle || {}).length },
+                      { key: 'items', label: 'All Items', count: selectedProduct.inventoryCount },
                     ].map((tab) => (
                       <button
                         key={tab.key}
@@ -247,13 +453,13 @@ const ManageInventory = () => {
                   </nav>
                 </div>
 
-                {/* Enhanced Tab Content */}
+                {/* Enhanced Tab Content with Status Information */}
                 <div className="mt-4">
                   {selectedTab === 'overview' && (
                     <div className="space-y-3 max-h-96 overflow-y-auto">
                       {selectedProduct.itemsByArticle && Object.keys(selectedProduct.itemsByArticle).length > 0 ? (
                         <div>
-                          <h4 className="font-semibold text-gray-800 mb-3 capitalize">Articles In Stock</h4>
+                          <h4 className="font-semibold text-gray-800 mb-3 capitalize">Articles Breakdown</h4>
                           {Object.entries(selectedProduct.itemsByArticle).map(([articleName, items]) => {
                             const sizesSet = new Set();
                             items.forEach(item => {
@@ -262,43 +468,66 @@ const ManageInventory = () => {
                             const sizesArr = Array.from(sizesSet);
                             const isSelected = selectedArticleKey === articleName;
                             
+                            // Get status counts for this specific article
+                            const articleStats = selectedProduct.articleStatsByStatus?.[articleName] || {};
+                            
                             return (
                               <div 
                                 key={articleName} 
                                 onClick={() => setSelectedArticleKey(articleName)}
-                                className={`cursor-pointer transition-all duration-200 p-3 rounded-lg mb-2 hover:shadow-md ${
-                                  isSelected ? 'bg-blue-100 border border-blue-300' : 'bg-gray-50 hover:bg-gray-100'
+                                className={`cursor-pointer transition-all duration-200 p-4 rounded-lg mb-3 hover:shadow-md ${
+                                  isSelected ? 'bg-blue-100 border border-blue-300 shadow-md' : 'bg-gray-50 hover:bg-gray-100'
                                 }`}
                               >
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium text-gray-700 capitalize">{articleName}</span>
+                                <div className="flex justify-between items-center mb-3">
+                                  <span className="font-medium text-gray-700 capitalize text-lg">{articleName}</span>
                                   <div className="flex items-center gap-2">
-                                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                                      {items.length} Items
+                                    <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                                      {items.length} Total
                                     </span>
                                     {isSelected && (
-                                      <span className="text-blue-600 text-xs">Selected</span>
+                                      <span className="text-blue-600 text-sm font-medium">• Selected</span>
                                     )}
                                   </div>
                                 </div>
-                                <div className="mt-2 flex flex-wrap gap-2 items-center text-sm text-gray-700">
-                                  <span className="font-medium capitalize">Sizes:</span>
-                                  <span className="ml-2 text-gray-600">{formatSizes(sizesArr)}</span>
+
+                                {/* ✅ Updated Status Breakdown with Current Counts */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
+                                    <div className="text-lg font-bold text-blue-600">{articleStats.manufactured || 0}</div>
+                                    <div className="text-xs text-blue-700">Manufactured</div>
+                                  </div>
+                                  <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-center">
+                                    <div className="text-lg font-bold text-green-600">{articleStats.in_warehouse || 0}</div>
+                                    <div className="text-xs text-green-700">In Warehouse</div>
+                                  </div>
+                                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 text-center">
+                                    <div className="text-lg font-bold text-purple-600">{articleStats.shipped_to_distributor || 0}</div>
+                                    <div className="text-xs text-purple-700">Shipped</div>
+                                  </div>
+                                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 text-center">
+                                    <div className="text-lg font-bold text-gray-600">{articleStats.delivered || 0}</div>
+                                    <div className="text-xs text-gray-700">Delivered</div>
+                                  </div>
                                 </div>
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                  {Array.from(new Set(items.map(item => item.status))).map(status => (
-                                    <span key={status} className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusColor(status)}`}>
-                                      {status}: {items.filter(item => item.status === status).length}
-                                    </span>
-                                  ))}
+
+                                <div className="flex flex-wrap gap-2 items-center text-sm text-gray-700">
+                                  <span className="font-medium">Sizes:</span>
+                                  <span className="text-gray-600 bg-white px-2 py-1 rounded">{formatSizes(sizesArr)}</span>
                                 </div>
                               </div>
                             );
                           })}
                         </div>
                       ) : (
-                        <div className="text-center py-4 text-gray-500">
-                          <p className="capitalize">No Items In Inventory</p>
+                        <div className="text-center py-8 text-gray-500">
+                          <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-2M4 13h2m0 0V9a2 2 0 012-2h2m0 0V6a2 2 0 012-2h2.586a1 1 0 01.707.293l2.414 2.414A1 1 0 0116 7v2m-2 2h2" />
+                            </svg>
+                          </div>
+                          <p className="text-lg">No Items In Inventory</p>
+                          <p className="text-sm">Scan QR codes to add items</p>
                         </div>
                       )}
                     </div>
@@ -349,8 +578,8 @@ const ManageInventory = () => {
                                       </p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusColor(item.status)}`}>
-                                        {item.status}
+                                      <span className={`px-2 py-1 rounded-full text-xs capitalize font-medium ${getStatusColor(item.status)}`}>
+                                        {item.status.replace('_', ' ')}
                                       </span>
                                       {isSelected && (
                                         <span className="text-blue-600 text-xs">Selected</span>
@@ -358,18 +587,9 @@ const ManageInventory = () => {
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                    <div className="capitalize">Received: {formatDate(item.receivedAt)}</div>
+                                    <div>Manufactured: {formatDate(item.manufacturedAt)}</div>
+                                    <div>Received: {formatDate(item.receivedAt)}</div>
                                   </div>
-                                  {item.receivedLocation?.address && (
-                                    <div className="text-xs text-gray-600 mt-1 capitalize">
-                                      Location: {item.receivedLocation.address}
-                                    </div>
-                                  )}
-                                  {item.notes && (
-                                    <div className="text-xs text-gray-600 mt-1 italic capitalize">
-                                      Notes: {item.notes}
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -377,7 +597,13 @@ const ManageInventory = () => {
                         })
                       ) : (
                         <div className="text-center py-8 text-gray-500">
-                          <p className="capitalize">No Individual Items Found</p>
+                          <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-2M4 13h2m0 0V9a2 2 0 012-2h2m0 0V6a2 2 0 012-2h2.586a1 1 0 01.707.293l2.414 2.414A1 1 0 0116 7v2m-2 2h2" />
+                            </svg>
+                          </div>
+                          <p className="text-lg">No Individual Items Found</p>
+                          <p className="text-sm">Items will appear here after scanning</p>
                         </div>
                       )}
                     </div>
@@ -389,16 +615,16 @@ const ManageInventory = () => {
                 <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-2M4 13h2m0 0V9a2 2 0 012-2h2m0 0V6a2 2 0 012-2h2.586a1 1 0 01.707.293l2.414 2.414A1 1 0 0116 7v2m-2 2h2" />
                 </svg>
-                <p className="text-lg capitalize">No Product Selected</p>
-                <p className="text-sm capitalize">Scan A QR Code To View Product Details</p>
+                <p className="text-lg">No Product Selected</p>
+                <p className="text-sm">Scan A QR Code To View Product Details</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Inventory Overview - Full Width */}
+        {/* Inventory Overview - Enhanced with Status Display */}
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4 capitalize">Inventory Overview</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Inventory Overview</h2>
           
           {inventoryData.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -414,11 +640,11 @@ const ManageInventory = () => {
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div>
                       <div className="text-xl font-bold text-blue-600">{item.inventoryCount}</div>
-                      <p className="text-xs text-gray-500 capitalize">Total</p>
+                      <p className="text-xs text-gray-500">Total</p>
                     </div>
                     <div>
                       <div className="text-xl font-bold text-green-600">{item.availableQuantity}</div>
-                      <p className="text-xs text-gray-500 capitalize">Available</p>
+                      <p className="text-xs text-gray-500">Available</p>
                     </div>
                   </div>
                   
@@ -426,14 +652,14 @@ const ManageInventory = () => {
                     <div className="flex flex-wrap gap-1 mb-2">
                       {Object.entries(item.statusBreakdown).map(([status, count]) => (
                         <span key={status} className={`px-1 py-0.5 rounded text-xs capitalize ${getStatusColor(status)}`}>
-                          {status}: {count}
+                          {status.replace('_', ' ')}: {count}
                         </span>
                       ))}
                     </div>
                   )}
                   
                   {item.lastUpdated && (
-                    <p className="text-xs text-gray-400 capitalize">
+                    <p className="text-xs text-gray-400">
                       Updated: {formatDate(item.lastUpdated)}
                     </p>
                   )}
@@ -442,10 +668,10 @@ const ManageInventory = () => {
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              <p className="capitalize">No Inventory Data Available</p>
+              <p>No Inventory Data Available</p>
               <button 
                 onClick={fetchAllInventoryData}
-                className="mt-2 bg-gray-700 text-white hover:bg-gray-800 px-4 py-2 rounded-lg transition-colors capitalize"
+                className="mt-2 bg-gray-700 text-white hover:bg-gray-800 px-4 py-2 rounded-lg transition-colors"
               >
                 Refresh Inventory
               </button>
@@ -453,6 +679,14 @@ const ManageInventory = () => {
           )}
         </div>
       </div>
+
+      {/* Click outside handler for sort dropdown */}
+      {showSortOptions && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowSortOptions(false)}
+        />
+      )}
     </div>
   );
 };

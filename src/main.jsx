@@ -23,6 +23,7 @@ import BootAuth from './Components/Auth/BootAuth.jsx'
 import  {Navigate} from "react-router"
 import AllArticlesListed from './Components/AdminComponents/AllArticlesListed.jsx'
 import ManageInventory from './Components/AdminComponents/ManageInventory.jsx'
+import QRStatisticsDashboard from './Components/AdminComponents/QRStatisticsDashboard.jsx'
 
 let AppRouter = createBrowserRouter([
   { path: "login", element: <LoginPage /> },
@@ -48,7 +49,8 @@ let AppRouter = createBrowserRouter([
       { path: "deal", element: <AddDeal /> },
       { path: "pastorders", element: <PastOrdersPage /> },
       { path: "/secure/admin/product/viewarticles", element: <AllArticlesListed/>},
-      { path: "/secure/admin/product/manageinventory", element: <ManageInventory/>}
+      { path: "/secure/admin/product/manageinventory", element: <ManageInventory/>},
+      { path: "/secure/admin/product/qrdashboard", element: <QRStatisticsDashboard/>}
     ],
   },
 ]);
