@@ -1,34 +1,47 @@
-import axios from "axios";
-import { baseURL } from "../../Utils/URLS";
+// Components/Auth/api.js - Axios configuration with interceptors
+import axios from 'axios';
+import { baseURL } from '../../Utils/URLS';
 
 const api = axios.create({
-    baseURL: `${baseURL}`, // ✅ Unified base for both admin & distributor
-    withCredentials: true
+  baseURL: baseURL,
+  withCredentials: true,
 });
 
-const refreshURL = "/api/v1/auth/refresh"; // ✅ Single endpoint for refresh
+// Request interceptor
+api.interceptors.request.use(
+  (config) => {
+    console.log('🌐 API Request:', config.method?.toUpperCase(), config.url);
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
+// Response interceptor
 api.interceptors.response.use(
-    res => res,
-    async (err) => {
-        const original = err.config;
+  (response) => {
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
 
-        // ✅ Automatically refresh token when access token expires
-        if (err.response?.status === 401 && !original._retry) {
-            original._retry = true;
-            try {
-                await axios.get(refreshURL, {
-                    baseURL: api.defaults.baseURL,
-                    withCredentials: true
-                });
-                return api(original); // Retry original request after refresh
-            } catch {
-                return Promise.reject(err); // Let app handle failed refresh
-            }
-        }
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
 
-        return Promise.reject(err);
+      try {
+        // Try to refresh token
+        await api.get('/api/v1/auth/refresh');
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed, redirect to login
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
     }
+
+    return Promise.reject(error);
+  }
 );
 
 export default api;

@@ -1,48 +1,75 @@
+// ✅ CORRECTED BootAuth.jsx - Always validate with backend
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import api from "./api";
-import { setUserRole } from "../../Slice/AuthSlice";
+import { setUserRole, setIsLoggedIn, setAuthLoading } from "../../Slice/AuthSlice";
 
 function BootAuth() {
   const dispatch = useDispatch();
-  const userRole = useSelector((Store) => Store.auth.userRole);
-
-  // Function to determine correct API paths
-  const getMeEndpoint = () => "/api/v1/auth/me"; // ✅ Unified for both roles
-  const getRefreshEndpoint = () => "/api/v1/auth/refresh"; // ✅ Unified for both roles
+  
+  const getMeEndpoint = () => "/api/v1/auth/me";
+  const getRefreshEndpoint = () => "/api/v1/auth/refresh";
 
   useEffect(() => {
-  (async () => {
-    try {
-      // First, attempt to get user details
-      const response = await api.get(getMeEndpoint());
-      const userDetails = response.data.data; // <-- nested user details
+    console.log("🚀 BootAuth: Starting authentication check");
+    
+    // ✅ ALWAYS validate with backend - don't trust Redux Persist alone
+    const validateAuthentication = async () => {
+      console.log("🔵 BootAuth: Setting loading to TRUE");
+      dispatch(setAuthLoading(true));
       
-      if (userDetails?.role) {
-        dispatch(setUserRole(userDetails.role));
-      } else {
-        throw new Error("Role not found, attempting refresh...");
-      }
-    } catch {
       try {
-        // If user details fail, attempt refresh
-        await api.get(getRefreshEndpoint());
+        console.log("🔵 BootAuth: Making /me request to validate tokens...");
         const response = await api.get(getMeEndpoint());
-        const userDetails = response.data.data; // <-- nested user details
+        console.log("✅ BootAuth: /me SUCCESS:", response.data);
         
-        if (userDetails?.role) {
-          dispatch(setUserRole(userDetails.role));
+        if (response.data.result && response.data.data?.role) {
+          console.log("✅ BootAuth: Tokens valid, user authenticated with role:", response.data.data.role);
+          dispatch(setUserRole(response.data.data.role));
+          dispatch(setIsLoggedIn(true));
         } else {
-          throw new Error("User role still undefined after refresh.");
+          console.log("❌ BootAuth: Invalid /me response, trying refresh...");
+          throw new Error("Invalid response structure");
         }
-      } catch (error) {
-        console.error("Error refreshing token:", error);
+      } catch (meError) {
+        console.log("❌ BootAuth: /me FAILED:", meError.response?.status);
+        console.error(meError)
+        
+        try {
+          console.log("🔄 BootAuth: Trying refresh token...");
+          const refreshResponse = await api.get(getRefreshEndpoint());
+          console.log("✅ BootAuth: Refresh SUCCESS:", refreshResponse.data);
+          
+          if (refreshResponse.data.result) {
+            console.log("🔄 BootAuth: Refresh successful, trying /me again...");
+            const meResponse = await api.get(getMeEndpoint());
+            
+            if (meResponse.data.result && meResponse.data.data?.role) {
+              console.log("✅ BootAuth: User authenticated after refresh with role:", meResponse.data.data.role);
+              dispatch(setUserRole(meResponse.data.data.role));
+              dispatch(setIsLoggedIn(true));
+            } else {
+              throw new Error("Invalid response after refresh");
+            }
+          } else {
+            throw new Error("Refresh failed");
+          }
+        } catch (refreshError) {
+          console.log("❌ BootAuth: Both /me and refresh FAILED - user not authenticated");
+          console.error(refreshError)
+          dispatch(setUserRole(""));
+          dispatch(setIsLoggedIn(false));
+        }
+      } finally {
+        console.log("🏁 BootAuth: Setting loading to FALSE - validation complete");
+        dispatch(setAuthLoading(false));
       }
-    }
-  })();
-}, []); // ✅ Removed `userRole` dependency to prevent unnecessary re-renders
+    };
 
-  return null; // This component only runs logic, no UI needed
+    validateAuthentication();
+  }, [dispatch]); // Only depend on dispatch
+
+  return null;
 }
 
 export default BootAuth;

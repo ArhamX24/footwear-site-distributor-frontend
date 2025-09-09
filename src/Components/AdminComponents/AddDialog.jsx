@@ -220,7 +220,7 @@ const AddDialog = ({ getProducts }) => {
                 )}
               </div>
 
-              {/* Colors Input */}
+              {/* Colors Input
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Colors
@@ -251,10 +251,10 @@ const AddDialog = ({ getProducts }) => {
                   />
                   All Colors Available
                 </label>
-              </div>
+              </div> */}
 
               {/* Sizes Input */}
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Sizes
                 </label>
@@ -268,7 +268,7 @@ const AddDialog = ({ getProducts }) => {
                   }}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 />
-              </div>
+              </div> */}
 
               {/* Image Upload */}
               <div>

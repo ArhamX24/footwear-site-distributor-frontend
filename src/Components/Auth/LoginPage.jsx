@@ -5,7 +5,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../public/logo.png";
 import { useDispatch } from 'react-redux';
-import { setIsLoggedIn, setUserRole } from '../../Slice/AuthSlice'; // Updated to only track role
+import { setIsLoggedIn, setUserRole } from '../../Slice/AuthSlice';
 import { baseURL } from '../../Utils/URLS';
 
 const LoginPage = () => {
@@ -22,43 +22,53 @@ const LoginPage = () => {
     setEyeOpen(!eyeOpen);
   };
 
-  const formik = useFormik({
-    initialValues: {
-      phoneNo: "",
-      password: "",
-    },
-    onSubmit: async (values, action) => {
-      try {
-        setIsLoading(true);
-        setError('');
+// Components/Auth/LoginPage.jsx (Updated onSubmit function)
+const formik = useFormik({
+  initialValues: {
+    phoneNo: "",
+    password: "",
+  },
+  onSubmit: async (values, action) => {
+    try {
+      setIsLoading(true);
+      setError('');
 
-        let { phoneNo, password } = values;
+      let { phoneNo, password } = values;
 
-        // ✅ Send login request to unified login API
-        const response = await axios.post(`${baseURL}/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
+      const response = await axios.post(`${baseURL}/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
 
-        if (!response.data.result) {
-          setIsLoading(false)
-          setError(response.data.message);
-          return;
-        }
-
-        // ✅ Dispatch Redux role state
-        dispatch(setUserRole(response.data.role));
-
-        // ✅ Redirect based on role
-        if (response.data.role === "admin") navigate('/secure/admin/dashboard');
-        else if (response.data.role === "distributor") navigate('/dashboard');
-
-        action.resetForm();
-      } catch (error) {
-        console.error(error)
-        setError(error.response?.data?.message || "Login Failed. Try Again.");
-      } finally {
+      if (!response.data.result) {
         setIsLoading(false)
+        setError(response.data.message);
+        return;
       }
+
+      // ✅ Dispatch BOTH Redux states
+      dispatch(setUserRole(response.data.role));
+      dispatch(setIsLoggedIn(true));
+
+      // ✅ ENHANCED: Redirect based on all user roles
+      const roleRedirects = {
+        'admin': '/secure/admin/dashboard',
+        'distributor': '/dashboard',
+        'contractor': '/secure/contractor/qrgenerator',
+        'warehouse_inspector': '/secure/warehousemanager/scanner',
+        'shipment_manager': '/secure/shipment/scanner'
+      };
+
+      const redirectTo = roleRedirects[response.data.role] || '/dashboard';
+      navigate(redirectTo);
+
+      action.resetForm();
+    } catch (error) {
+      console.error(error)
+      setError(error.response?.data?.message || "Login Failed. Try Again.");
+    } finally {
+      setIsLoading(false)
     }
-  });
+  }
+});
+
 
   useEffect(() => {
     inputRef.current.focus();

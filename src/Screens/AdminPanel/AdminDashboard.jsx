@@ -1,27 +1,22 @@
-import React, { useContext, useState, useEffect } from 'react'
+import {useState, useEffect } from 'react'
 import Smallcard from '../../Components/AdminComponents/Smallcard'
 import AddDialog from '../../Components/AdminComponents/AddDialog'
-import AddDealDialog from '../../Components/AdminComponents/AddDealDialog';
-import AddDistributorDialog from '../../Components/AdminComponents/AddDistributorDialog';
 import axios from 'axios';
 import Swal from "sweetalert2";
 import CircularProgress from "@mui/material/CircularProgress";
 import AddFestivleImageDialog from '../../Components/AdminComponents/AddFestivleImageDialog';
 import { baseURL } from '../../Utils/URLS';
 import AddProductsUsingExcel from '../../Components/AdminComponents/AddProductsUsingExcel';
-import QrWarehouseScanner from '../../Components/AdminComponents/QrWarehouseScanner';
 
 const AdminDashboard = () => {
   const [products, setProducts] = useState(null);
   const [distributors, setDistributors] = useState(null);
   const [orders, setOrders] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [viewOrderModal, setViewOrderModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [ordersStatus, setOrdersStatus] = useState({ pending: 0, completed: 0 });
   const [totalProducts, setTotalProducts] = useState(null)
-  const [showQRScanner, setShowQRScanner] = useState(false)
 
   const getProducts = async () => {
     try {
@@ -175,66 +170,8 @@ const handleViewOrder = async (id) => {
         <AddFestivleImageDialog />
       </div>
     </div>
-
-    {/* Right Column - QR Scanner (1/4 width on large screens) */}
   </div>
 </div>
-    <div className="lg:w-1/2 mx-auto w-11/12 mb-5">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 h-full">
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" className="text-blue-600">
-                  <path d="M3 3H9V9H3V3ZM15 3H21V9H15V3ZM3 15H9V21H3V15ZM13 13H15V15H13V13ZM13 17H15V19H13V17ZM13 21H15V23H13V21ZM17 13H19V15H17V13ZM17 17H19V19H17V17ZM17 21H19V23H17V21ZM21 13H23V15H21V13ZM21 17H23V19H21V17ZM21 21H23V23H21V21Z"></path>
-                </svg>
-              </div>
-              <h4 className="text-sm font-semibold text-gray-900">QR Scanner</h4>
-            </div>
-          </div>
-          
-          {/* Scanner Preview */}
-          <div className="flex-1 bg-gray-50 rounded-lg p-3 min-h-[100px] flex flex-col items-center justify-center">
-            <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center mb-2">
-              <svg  onClick={() => setShowQRScanner(true)} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" className="text-gray-500">
-                <path d="M3 3H9V9H3V3ZM15 3H21V9H15V3ZM3 15H9V21H3V15ZM13 13H15V15H13V13ZM13 17H15V19H13V17ZM13 21H15V23H13V21ZM17 13H19V15H17V13ZM17 17H19V19H17V17ZM17 21H19V23H17V21ZM21 13H23V15H21V13ZM21 17H23V19H21V17ZM21 21H23V23H21V21Z"></path>
-              </svg>
-            </div>
-            <p className="text-xs text-gray-500 text-center mb-2" onClick={() => setShowQRScanner(true)}>Quick QR Scan</p>
-            <button 
-              className="text-blue-600 hover:text-blue-700 text-xs font-medium transition-colors duration-200"
-                            onClick={() => setShowQRScanner(true)}
-            >
-              Launch Scanner →
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-{/* QR Scanner Modal */}
-{showQRScanner && (
-  <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
-    <div className="bg-white w-full max-w-2xl mx-4 rounded-xl shadow-2xl border border-gray-200">
-      <div className="flex items-center justify-between p-6 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-900">QR Code Scanner</h2>
-        <button
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-          onClick={() => setShowQRScanner(false)}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" className="text-gray-400">
-            <path d="M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z"></path>
-          </svg>
-        </button>
-      </div>
-      <div className="p-6">
-        <QrWarehouseScanner />
-      </div>
-    </div>
-  </div>
-)}
-
 
       {/* Recent Orders Section */}
       <div className='w-11/12 mx-auto'>

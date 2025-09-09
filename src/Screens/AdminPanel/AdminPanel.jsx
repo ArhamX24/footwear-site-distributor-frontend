@@ -1,5 +1,4 @@
-import React, { useState } from 'react'
-import MenuIcon from "@mui/icons-material/Menu"
+import { useState } from 'react'
 import Sidebar from '../../Components/AdminComponents/Sidebar'
 import { Link, Outlet } from 'react-router'
 import logo from "../../../public/logo.png"
