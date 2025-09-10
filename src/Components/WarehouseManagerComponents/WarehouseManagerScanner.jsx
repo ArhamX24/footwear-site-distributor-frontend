@@ -185,7 +185,6 @@ const WarehouseManagerScanner = () => {
         throw new Error(response.data.message);
       }
     } catch (error) {
-      console.error('Scan processing error:', error);
       const msg = error.response?.data?.message || error.message || 'Failed to process scan';
       Swal.fire('Error', msg, 'error');
     }

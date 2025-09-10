@@ -45,7 +45,6 @@ const ShipmentScanner = () => {
         setDistributors(response.data.data || []);
       }
     } catch (error) {
-      console.error('Error fetching distributors:', error);
       Swal.fire('Error', 'Failed to fetch distributors', 'error');
     }
   };
@@ -69,7 +68,6 @@ const ShipmentScanner = () => {
 
       setScannerInstance(scanner);
     } catch (error) {
-      console.error('Scanner initialization error:', error);
       Swal.fire('Error', 'Failed to initialize QR scanner', 'error');
     }
   };
@@ -92,7 +90,7 @@ const ShipmentScanner = () => {
       await handleScanSuccess(qrCodeResult);
       html5QrCode.clear();
     } catch (error) {
-      console.error('File scan error:', error);
+
       let errorMessage = 'Failed to scan QR code from image';
       if (error.message.includes('No QR code found')) {
         errorMessage = 'No QR code found in the uploaded image. Please try another image.';
@@ -173,7 +171,6 @@ const ShipmentScanner = () => {
       }
 
     } catch (error) {
-      console.error('Scan processing error:', error);
       let errorMessage = 'Failed to process scan';
       
       if (error.response?.data?.message) {
@@ -279,7 +276,6 @@ const ShipmentScanner = () => {
       stopScanning();
 
     } catch (error) {
-      console.error('Shipment creation error:', error);
       Swal.fire('Error', error.response?.data?.message || 'Failed to create shipment', 'error');
     } finally {
       setLoading(false);

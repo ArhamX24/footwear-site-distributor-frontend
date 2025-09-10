@@ -267,7 +267,6 @@ const QRModalContent = ({ products, getProducts }) => {
       printWindow.focus();
 
     } catch (err) {
-      console.error('Print error:', err);
       Swal.fire("Error", "Failed to open print window", "error");
     } finally {
       setPrintLoading(false);

@@ -49,7 +49,7 @@ const QRGenerator = () => {
   const qrFormik = useFormik({
     initialValues: { 
       articleName: "",
-      articleId: "", // ✅ Add articleId field
+      articleId: "",
       colors: "",
       sizes: "", 
       numberOfQRs: ""
@@ -78,7 +78,7 @@ const QRGenerator = () => {
         setGeneratedQRs([]);
         
         const requestData = {
-          articleId: values.articleId, // ✅ Include articleId
+          articleId: values.articleId,
           articleName: values.articleName.trim(),
           colors: values.colors.split(',').map(c => c.trim()).filter(c => c),
           sizes: values.sizes.split(',').map(s => s.trim()).filter(s => s),
@@ -120,12 +120,10 @@ const QRGenerator = () => {
   // ✅ Handle article selection from dropdown
   const handleArticleSelection = (event, newValue) => {
     if (newValue && typeof newValue === 'object') {
-      // Selected an existing article
       setSelectedArticle(newValue);
       qrFormik.setFieldValue('articleName', newValue.articleName);
       qrFormik.setFieldValue('articleId', newValue.articleId.toString());
       
-      // ✅ Auto-populate colors and sizes from selected article
       if (newValue.colors && newValue.colors.length > 0) {
         qrFormik.setFieldValue('colors', newValue.colors.join(', '));
       }
@@ -133,16 +131,15 @@ const QRGenerator = () => {
         qrFormik.setFieldValue('sizes', newValue.sizes.join(', '));
       }
     } else if (typeof newValue === 'string') {
-      // Custom input
       setSelectedArticle(null);
       qrFormik.setFieldValue('articleName', newValue);
-      qrFormik.setFieldValue('articleId', ''); // Clear articleId for custom
+      qrFormik.setFieldValue('articleId', '');
       qrFormik.setFieldValue('colors', '');
       qrFormik.setFieldValue('sizes', '');
     }
   };
 
-  // Rest of your handlers remain the same...
+  // ✅ Download QR codes as ZIP
   const handleDownload = useCallback(async () => {
     if (generatedQRs.length === 0) {
       Swal.fire("No QR codes to download", "", "warning");
@@ -192,7 +189,180 @@ const QRGenerator = () => {
     }
   }, [generatedQRs, qrFormik.values, selectedArticle]);
 
-  // Other handlers remain the same (handlePrint, handleGenerateReceipt)...
+  // ✅ Print QR codes
+  const handlePrint = useCallback(() => {
+    if (generatedQRs.length === 0) {
+      Swal.fire("No QR codes to print", "", "warning");
+      return;
+    }
+
+    try {
+      setPrintLoading(true);
+      
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      
+      if (!printWindow) {
+        Swal.fire("Error", "Please allow popups to use the print feature", "error");
+        return;
+      }
+
+      const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>QR Codes - ${qrFormik.values.articleName}</title>
+          <style>
+            @media print {
+              body { margin: 0; padding: 20px; }
+              .no-print { display: none !important; }
+              .page-break { page-break-after: always; }
+            }
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              background: white;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #333;
+              padding-bottom: 20px;
+            }
+            .qr-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 30px;
+              margin-bottom: 30px;
+            }
+            .qr-item {
+              border: 2px solid #333;
+              border-radius: 12px;
+              padding: 20px;
+              text-align: center;
+              background: white;
+              page-break-inside: avoid;
+            }
+            .qr-item img {
+              width: 200px;
+              height: 240px;
+              margin: 15px auto;
+              display: block;
+              border: 1px solid #ddd;
+            }
+            .print-buttons {
+              text-align: center;
+              margin: 20px 0;
+            }
+            .print-btn {
+              background: #007bff;
+              color: white;
+              border: none;
+              padding: 15px 30px;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 16px;
+              margin: 0 10px;
+            }
+            @page {
+              margin: 0.5in;
+              size: A4;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>QR Code Labels</h1>
+            <p><strong>Article:</strong> ${qrFormik.values.articleName}</p>
+            <p><strong>Total Cartons:</strong> ${generatedQRs.length}</p>
+            <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+          </div>
+          
+          <div class="print-buttons no-print">
+            <button class="print-btn" onclick="window.print()">🖨️ Print Labels</button>
+            <button class="print-btn" style="background: #6c757d;" onclick="window.close()">❌ Close</button>
+          </div>
+          
+          <div class="qr-grid">
+            ${generatedQRs.map((qr, index) => `
+              <div class="qr-item">
+                <img src="${qr.qrCodeImage}" alt="QR Code ${index + 1}" />
+              </div>
+            `).join('')}
+          </div>
+          
+          <script>
+            window.focus();
+          </script>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+
+    } catch (err) {
+      console.error('Print error:', err);
+      Swal.fire("Error", "Failed to open print window", "error");
+    } finally {
+      setPrintLoading(false);
+    }
+  }, [generatedQRs, qrFormik.values]);
+
+  // ✅ Generate receipt PDF
+  const handleGenerateReceipt = useCallback(async () => {
+    if (generatedQRs.length === 0) {
+      Swal.fire("No QR codes to generate receipt for", "", "warning");
+      return;
+    }
+    
+    try {
+      setReceiptLoading(true);
+      
+      const sizesArray = qrFormik.values.sizes.split(',').map(s => s.trim());
+      const sizesFormatted = sizesArray.length > 1 
+        ? [sizesArray[0], sizesArray[sizesArray.length - 1]]
+        : sizesArray;
+      
+      const response = await axios.post(
+        `${baseURL}/api/v1/contractor/qr/receipt`,
+        {
+          qrCodes: generatedQRs,
+          articleInfo: {
+            articleId: selectedArticle?.articleId,
+            savedAsArticleName: qrFormik.values.articleName,
+            contractorInput: qrFormik.values.articleName,
+            colors: qrFormik.values.colors.split(',').map(c => c.trim()),
+            sizes: sizesFormatted,
+            numberOfQRs: generatedQRs.length
+          }
+        },
+        {
+          withCredentials: true,
+          responseType: "blob",
+        }
+      );
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `QR_Receipt_${qrFormik.values.articleName.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      Swal.fire("Success!", "QR receipt downloaded successfully!", "success");
+    } catch (err) {
+      Swal.fire("Error", "Failed to generate receipt", "error");
+    } finally {
+      setReceiptLoading(false);
+    }
+  }, [generatedQRs, qrFormik.values, selectedArticle]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -418,11 +588,102 @@ const QRGenerator = () => {
           </form>
         </div>
 
-        {/* Results Section - Keep your existing results section */}
+        {/* ✅ RESULTS SECTION - This was missing in your code */}
         {generatedQRs.length > 0 && (
-          // Your existing results JSX...
           <div className="bg-white rounded-lg shadow-md p-6">
-            {/* Keep your existing results display code */}
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full">
+                <span className="text-green-600 mr-2">✅</span>
+                <span className="font-semibold">
+                  {generatedQRs.length} QR Code Labels Generated!
+                </span>
+              </div>
+            </div>
+            
+            {/* ✅ ACTION BUTTONS - Download, Print, Receipt */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <button
+                onClick={handleDownload}
+                className="flex items-center justify-center bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 transition duration-200 disabled:bg-green-400 font-medium"
+                disabled={downloadLoading}
+              >
+                {downloadLoading ? (
+                  <>
+                    <CircularProgress size={20} color="inherit" className="mr-2" />
+                    Preparing ZIP...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">📦</span>
+                    Download as ZIP
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handlePrint}
+                className="flex items-center justify-center bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition duration-200 disabled:bg-blue-400 font-medium"
+                disabled={printLoading}
+              >
+                {printLoading ? (
+                  <>
+                    <CircularProgress size={20} color="inherit" className="mr-2" />
+                    Opening Print...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">🖨️</span>
+                    Print Labels
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleGenerateReceipt}
+                className="flex items-center justify-center bg-purple-600 text-white px-6 py-4 rounded-lg hover:bg-purple-700 transition duration-200 disabled:bg-purple-400 font-medium"
+                disabled={receiptLoading}
+              >
+                {receiptLoading ? (
+                  <>
+                    <CircularProgress size={20} color="inherit" className="mr-2" />
+                    Generating Receipt...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">📄</span>
+                    Generate Receipt
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* ✅ PREVIEW SECTION */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                📋 QR Code Preview (First 4)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {generatedQRs.slice(0, 4).map((qr, index) => (
+                  <div key={index} className="border-2 border-gray-300 rounded-lg p-3 bg-white shadow-sm">
+                    <img 
+                      src={qr.qrCodeImage} 
+                      alt={`QR ${index + 1}`} 
+                      className="w-full h-40 mx-auto border border-gray-200 rounded object-contain"
+                    />
+                    <div className="text-center text-sm text-gray-600 mt-2">
+                      Carton #{qr.cartonNumber || index + 1}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {generatedQRs.length > 4 && (
+                <div className="text-center mt-4">
+                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                    + {generatedQRs.length - 4} more labels available for download/print
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -25,10 +25,8 @@ const QRStatisticsDashboard = () => {
       const queryString = params.toString();
       const url = `${baseURL}/api/v1/admin/qr/statistics${queryString ? `?${queryString}` : ''}`;
       
-      console.log('Fetching from URL:', url);
       
       const response = await axios.get(url);
-      console.log('API Response:', response.data);
       
       if (response.data.result) {
         setStatistics(response.data.data);
@@ -37,7 +35,6 @@ const QRStatisticsDashboard = () => {
       }
     } catch (err) {
       setError(`Failed to fetch QR statistics: ${err.response?.data?.message || err.message}`);
-      console.error('API Error:', err);
     }
     setLoading(false);
   };

@@ -44,7 +44,6 @@ const ProductCard = ({ product, setIsDeleted, setIsUpdated }) => {
         });
       }
     } catch (err) {
-      console.error(err);
       Swal.fire({
         title: "Error",
         text: "Unable to delete. Try again later.",

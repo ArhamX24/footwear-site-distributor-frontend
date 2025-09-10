@@ -25,7 +25,6 @@ const ManageInventory = () => {
         setError('Failed to fetch inventory data');
       }
     } catch (err) {
-      console.error('Error fetching inventory:', err);
       setError('Failed to load inventory data');
     } finally {
       setLoading(false);
