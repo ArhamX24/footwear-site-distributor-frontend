@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import QrScanner from 'qr-scanner';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -7,7 +7,6 @@ import { baseURL } from '../../Utils/URLS';
 const WarehouseManagerScanner = () => {
   const [scannedItems, setScannedItems] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
-  const [scannerInstance, setScannerInstance] = useState(null);
   const [cameraPermission, setCameraPermission] = useState(null);
   const [inventoryStats, setInventoryStats] = useState({
     totalReceived: 0,
@@ -17,24 +16,75 @@ const WarehouseManagerScanner = () => {
   const [loading, setLoading] = useState(false);
   const [scanMode, setScanMode] = useState('camera');
   const videoRef = useRef(null);
+  const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
+  
+  // ✅ Use refs to prevent stale closures
+  const scannedItemsRef = useRef([]);
+  
+  // ✅ Update ref whenever scannedItems changes
+  useEffect(() => {
+    scannedItemsRef.current = scannedItems;
+  }, [scannedItems]);
 
   useEffect(() => {
     fetchInventoryStats();
   }, []);
 
+  // ✅ Fixed useEffect - prevents re-initialization
   useEffect(() => {
-    if (isScanning && !scannerInstance && scanMode === 'camera') {
+    if (isScanning && videoRef.current && !scannerRef.current && scanMode === 'camera') {
       initializeScanner();
     }
+    
+    // ✅ Cleanup on unmount or when stopping
     return () => {
-      if (scannerInstance) {
-        scannerInstance.stop();
-        scannerInstance.destroy();
-        setScannerInstance(null);
+      if (scannerRef.current && !isScanning) {
+        cleanupScanner();
       }
     };
-  }, [isScanning, scanMode]);
+  }, [isScanning, scanMode]); // ✅ Removed dependencies that cause re-renders
+
+  const initializeScanner = async () => {
+    try {
+      const scanner = new QrScanner(
+        videoRef.current,
+        (result) => {
+          // ✅ Use the callback without dependencies to prevent stale closures
+          handleScanSuccess(result.data);
+        },
+        {
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+          preferredCamera: 'environment',
+          maxScansPerSecond: 1, // ✅ Limit scan rate to prevent rapid re-scans
+        }
+      );
+
+      await scanner.start();
+      scannerRef.current = scanner;
+      setCameraPermission('granted');
+    } catch (error) {
+      console.error('Scanner initialization error:', error);
+      setCameraPermission('denied');
+      setIsScanning(false);
+      
+      Swal.fire({
+        title: 'Camera Access Required',
+        text: 'Please allow camera access to scan QR codes.',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+    }
+  };
+
+  const cleanupScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop();
+      scannerRef.current.destroy();
+      scannerRef.current = null;
+    }
+  };
 
   const fetchInventoryStats = async () => {
     try {
@@ -47,81 +97,8 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-  const initializeScanner = async () => {
-    try {
-      if (!videoRef.current) {
-        throw new Error('Video element not found');
-      }
-
-      const scanner = new QrScanner(
-        videoRef.current,
-        (result) => handleScanSuccess(result.data),
-        {
-          returnDetailedScanResult: true,
-          highlightScanRegion: true,
-          highlightCodeOutline: true,
-          preferredCamera: 'environment', // Use back camera
-          maxScansPerSecond: 5,
-        }
-      );
-
-      await scanner.start();
-      setScannerInstance(scanner);
-      setCameraPermission('granted');
-    } catch (error) {
-      console.error('Scanner initialization error:', error);
-      setIsScanning(false);
-      setCameraPermission('denied');
-      
-      Swal.fire({
-        title: 'Camera Access Required',
-        html: `
-          <p>Camera access is needed to scan QR codes.</p>
-          <p>Please:</p>
-          <ol style="text-align: left; margin: 10px 0;">
-            <li>Click "Allow" when your browser asks for camera permission</li>
-            <li>If you clicked "Block", click the camera icon in your browser's address bar</li>
-            <li>Select "Allow" for camera access</li>
-            <li>Refresh the page and try again</li>
-          </ol>
-        `,
-        icon: 'info',
-        confirmButtonText: 'I understand'
-      });
-    }
-  };
-
-  const handleFileInputChange = async (e) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) {
-      Swal.fire('Error', 'No file selected', 'error');
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      for (const file of files) {
-        try {
-          const result = await QrScanner.scanImage(file, {
-            returnDetailedScanResult: true,
-          });
-          await handleScanSuccess(result.data);
-        } catch (scanErr) {
-          console.warn('Scan failed for file:', file.name, scanErr);
-          Swal.fire('Warning', `Could not scan QR code from ${file.name}`, 'warning');
-        }
-      }
-    } catch (err) {
-      console.warn('Bulk file scan error:', err);
-      Swal.fire('Error', 'Failed while scanning selected images', 'error');
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      setLoading(false);
-    }
-  };
-
-  const handleScanSuccess = async (decodedText) => {
+  // ✅ Use useCallback to prevent function recreation on every render
+  const handleScanSuccess = useCallback(async (decodedText) => {
     try {
       let qrData;
       try {
@@ -131,7 +108,8 @@ const WarehouseManagerScanner = () => {
         return;
       }
 
-      const alreadyScanned = scannedItems.find((item) => item.uniqueId === qrData.uniqueId);
+      // ✅ Use ref to check for duplicates to prevent stale closure issues
+      const alreadyScanned = scannedItemsRef.current.find((item) => item.uniqueId === qrData.uniqueId);
       if (alreadyScanned) {
         Swal.fire('Warning', 'This carton has already been received!', 'warning');
         return;
@@ -178,12 +156,16 @@ const WarehouseManagerScanner = () => {
 
         const qualityEmoji = qualityCheck.passed ? '✅' : '⚠️';
         const qualityText = qualityCheck.passed ? 'Good Condition' : 'Quality Issue Noted';
+        
+        // ✅ Show success message without stopping scanner
         Swal.fire({
           icon: qualityCheck.passed ? 'success' : 'warning',
           title: `${qualityEmoji} Carton Received!`,
           text: `${newItem.articleName} - Carton ${newItem.cartonNumber} (${qualityText})`,
           timer: 2000,
-          showConfirmButton: false
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end'
         });
       } else {
         throw new Error(response.data.message);
@@ -192,9 +174,14 @@ const WarehouseManagerScanner = () => {
       const msg = error.response?.data?.message || error.message || 'Failed to process scan';
       Swal.fire('Error', msg, 'error');
     }
-  };
+  }, []); // ✅ Empty dependency array
 
   const checkItemQuality = async (qrData) => {
+    // ✅ Pause scanner during quality check to prevent multiple scans
+    if (scannerRef.current) {
+      scannerRef.current.stop();
+    }
+
     const result = await Swal.fire({
       title: 'Quality Check',
       html: `
@@ -220,14 +207,51 @@ const WarehouseManagerScanner = () => {
       showCancelButton: true,
       confirmButtonText: 'Confirm Receipt',
       cancelButtonText: 'Cancel Scan',
+      allowOutsideClick: false,
       preConfirm: () => {
         const qualityRadio = document.querySelector('input[name="quality"]:checked');
         const notes = document.getElementById('quality-notes').value;
         return { passed: qualityRadio?.value === 'good', condition: qualityRadio?.value || 'good', notes };
       }
     });
+
+    // ✅ Resume scanner after quality check
+    if (scannerRef.current && isScanning) {
+      scannerRef.current.start();
+    }
+
     if (result.isConfirmed) return result.value;
     throw new Error('Quality check cancelled');
+  };
+
+  const handleFileInputChange = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      Swal.fire('Error', 'No file selected', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      for (const file of files) {
+        try {
+          const result = await QrScanner.scanImage(file, {
+            returnDetailedScanResult: true,
+          });
+          await handleScanSuccess(result.data);
+        } catch (scanErr) {
+          console.warn('Scan failed for file:', file.name, scanErr);
+          Swal.fire('Warning', `Could not scan QR code from ${file.name}`, 'warning');
+        }
+      }
+    } catch (err) {
+      console.warn('Bulk file scan error:', err);
+      Swal.fire('Error', 'Failed while scanning selected images', 'error');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setLoading(false);
+    }
   };
 
   const startScanning = () => {
@@ -235,11 +259,7 @@ const WarehouseManagerScanner = () => {
   };
 
   const stopScanning = () => {
-    if (scannerInstance) {
-      scannerInstance.stop();
-      scannerInstance.destroy();
-      setScannerInstance(null);
-    }
+    cleanupScanner();
     setIsScanning(false);
   };
 
