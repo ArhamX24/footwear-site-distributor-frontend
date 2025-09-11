@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import QrScanner from 'qr-scanner';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -18,46 +18,36 @@ const WarehouseManagerScanner = () => {
   const videoRef = useRef(null);
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
-  
-  // ✅ Use refs to prevent stale closures
-  const scannedItemsRef = useRef([]);
-  
-  // ✅ Update ref whenever scannedItems changes
-  useEffect(() => {
-    scannedItemsRef.current = scannedItems;
-  }, [scannedItems]);
 
   useEffect(() => {
     fetchInventoryStats();
   }, []);
 
-  // ✅ Fixed useEffect - prevents re-initialization
+  // ✅ Fixed useEffect - only initialize when needed, proper cleanup
   useEffect(() => {
     if (isScanning && videoRef.current && !scannerRef.current && scanMode === 'camera') {
       initializeScanner();
     }
     
-    // ✅ Cleanup on unmount or when stopping
     return () => {
+      // Only cleanup if we're stopping scanning
       if (scannerRef.current && !isScanning) {
         cleanupScanner();
       }
     };
-  }, [isScanning, scanMode]); // ✅ Removed dependencies that cause re-renders
+  }, [isScanning, scanMode]);
 
   const initializeScanner = async () => {
     try {
       const scanner = new QrScanner(
         videoRef.current,
-        (result) => {
-          // ✅ Use the callback without dependencies to prevent stale closures
-          handleScanSuccess(result.data);
-        },
+        // ✅ Pass the function reference directly - no arrow function wrapper
+        handleScanSuccess,
         {
           highlightScanRegion: true,
           highlightCodeOutline: true,
           preferredCamera: 'environment',
-          maxScansPerSecond: 1, // ✅ Limit scan rate to prevent rapid re-scans
+          maxScansPerSecond: 1,
         }
       );
 
@@ -97,8 +87,8 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-  // ✅ Use useCallback to prevent function recreation on every render
-  const handleScanSuccess = useCallback(async (decodedText) => {
+  // ✅ Fixed handleScanSuccess - stable function reference
+  const handleScanSuccess = async (decodedText) => {
     try {
       let qrData;
       try {
@@ -108,12 +98,21 @@ const WarehouseManagerScanner = () => {
         return;
       }
 
-      // ✅ Use ref to check for duplicates to prevent stale closure issues
-      const alreadyScanned = scannedItemsRef.current.find((item) => item.uniqueId === qrData.uniqueId);
-      if (alreadyScanned) {
-        Swal.fire('Warning', 'This carton has already been received!', 'warning');
-        return;
-      }
+      // ✅ Use setState callback to get current state instead of ref
+      const shouldProceed = await new Promise((resolve) => {
+        setScannedItems((currentItems) => {
+          const alreadyScanned = currentItems.find((item) => item.uniqueId === qrData.uniqueId);
+          if (alreadyScanned) {
+            Swal.fire('Warning', 'This carton has already been received!', 'warning');
+            resolve(false);
+            return currentItems; // No change
+          }
+          resolve(true);
+          return currentItems; // No change
+        });
+      });
+
+      if (!shouldProceed) return;
 
       if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
         Swal.fire('Error', 'Invalid QR code format', 'error');
@@ -157,7 +156,6 @@ const WarehouseManagerScanner = () => {
         const qualityEmoji = qualityCheck.passed ? '✅' : '⚠️';
         const qualityText = qualityCheck.passed ? 'Good Condition' : 'Quality Issue Noted';
         
-        // ✅ Show success message without stopping scanner
         Swal.fire({
           icon: qualityCheck.passed ? 'success' : 'warning',
           title: `${qualityEmoji} Carton Received!`,
@@ -174,10 +172,10 @@ const WarehouseManagerScanner = () => {
       const msg = error.response?.data?.message || error.message || 'Failed to process scan';
       Swal.fire('Error', msg, 'error');
     }
-  }, []); // ✅ Empty dependency array
+  };
 
   const checkItemQuality = async (qrData) => {
-    // ✅ Pause scanner during quality check to prevent multiple scans
+    // ✅ Pause scanner during quality check
     if (scannerRef.current) {
       scannerRef.current.stop();
     }
@@ -217,7 +215,7 @@ const WarehouseManagerScanner = () => {
 
     // ✅ Resume scanner after quality check
     if (scannerRef.current && isScanning) {
-      scannerRef.current.start();
+      await scannerRef.current.start();
     }
 
     if (result.isConfirmed) return result.value;

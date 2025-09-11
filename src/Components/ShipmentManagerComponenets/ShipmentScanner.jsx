@@ -22,12 +22,14 @@ const ShipmentScanner = () => {
     fetchDistributors();
   }, []);
 
+  // ✅ Fixed useEffect - prevents unnecessary reinitializations
   useEffect(() => {
-    if (isScanning && scanMethod === 'camera' && !scannerInstance) {
+    if (isScanning && scanMethod === 'camera' && !scannerInstance && videoRef.current) {
       initializeScanner();
     }
+    
     return () => {
-      if (scannerInstance) {
+      if (scannerInstance && !isScanning) {
         scannerInstance.stop();
         scannerInstance.destroy();
         setScannerInstance(null);
@@ -57,12 +59,13 @@ const ShipmentScanner = () => {
 
       const scanner = new QrScanner(
         videoRef.current,
-        (result) => handleScanSuccess(result.data),
+        // ✅ Pass function reference directly
+        handleScanSuccess,
         {
           returnDetailedScanResult: true,
           highlightScanRegion: true,
           highlightCodeOutline: true,
-          preferredCamera: 'environment', // Use back camera
+          preferredCamera: 'environment',
           maxScansPerSecond: 5,
         }
       );
@@ -90,6 +93,110 @@ const ShipmentScanner = () => {
         icon: 'info',
         confirmButtonText: 'I understand'
       });
+    }
+  };
+
+  // ✅ Fixed handleScanSuccess - stable function reference
+  const handleScanSuccess = async (decodedText) => {
+    try {
+      let qrData;
+      try {
+        qrData = JSON.parse(decodedText);
+      } catch {
+        Swal.fire('Error', 'Invalid QR code content (not JSON)', 'error');
+        return;
+      }
+
+      // ✅ Use setState callback to check for duplicates
+      const shouldProceed = await new Promise((resolve) => {
+        setScannedItems((currentItems) => {
+          const alreadyScanned = currentItems.find(item => item.uniqueId === qrData.uniqueId);
+          if (alreadyScanned) {
+            Swal.fire('Warning', 'This carton has already been scanned!', 'warning');
+            resolve(false);
+            return currentItems;
+          }
+          resolve(true);
+          return currentItems;
+        });
+      });
+
+      if (!shouldProceed) return;
+
+      // Validate QR code format
+      if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
+        Swal.fire('Error', 'Invalid QR code format', 'error');
+        return;
+      }
+
+      // ✅ Get current distributor info when needed
+      let currentDistributor;
+      setSelectedDistributor((current) => {
+        currentDistributor = current;
+        return current;
+      });
+
+      let currentDistributors;
+      setDistributors((current) => {
+        currentDistributors = current;
+        return current;
+      });
+
+      const response = await axios.post(
+        `${baseURL}/api/v1/shipment/scan/${qrData.uniqueId}`,
+        {
+          event: 'shipped',
+          scannedBy: {
+            userType: 'shipment_manager'
+          },
+          distributorDetails: {
+            distributorId: currentDistributor,
+            distributorName: currentDistributors.find(d => d._id === currentDistributor)?.distributorDetails?.partyName || 
+                           currentDistributors.find(d => d._id === currentDistributor)?.name || ''
+          },
+          trackingNumber: `TRACK_${Date.now()}`,
+          notes: 'Scanned for shipment to distributor'
+        },
+        {
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+
+      if (response.data.result) {
+        const newItem = {
+          uniqueId: qrData.uniqueId,
+          articleName: qrData.articleName || qrData.contractorInput?.articleName,
+          colors: qrData.contractorInput?.colors || qrData.colors,
+          sizes: qrData.contractorInput?.sizes || qrData.sizes,
+          cartonNumber: qrData.contractorInput?.cartonNumber || qrData.cartonNumber,
+          scannedAt: new Date().toLocaleTimeString(),
+          status: 'shipped'
+        };
+
+        setScannedItems(prev => [...prev, newItem]);
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Carton Scanned!',
+          text: `${newItem.articleName} - Carton ${newItem.cartonNumber}`,
+          timer: 1500,
+          showConfirmButton: false
+        });
+      } else {
+        throw new Error(response.data.message);
+      }
+
+    } catch (error) {
+      let errorMessage = 'Failed to process scan';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Swal.fire('Error', errorMessage, 'error');
     }
   };
 
@@ -122,83 +229,6 @@ const ShipmentScanner = () => {
     } finally {
       setUploadLoading(false);
       event.target.value = '';
-    }
-  };
-
-  const handleScanSuccess = async (decodedText) => {
-    try {
-      const qrData = JSON.parse(decodedText);
-      
-      // Check if item is already scanned
-      const alreadyScanned = scannedItems.find(item => item.uniqueId === qrData.uniqueId);
-      if (alreadyScanned) {
-        Swal.fire('Warning', 'This carton has already been scanned!', 'warning');
-        return;
-      }
-
-      // Validate QR code format
-      if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
-        Swal.fire('Error', 'Invalid QR code format', 'error');
-        return;
-      }
-
-      const response = await axios.post(
-        `${baseURL}/api/v1/shipment/scan/${qrData.uniqueId}`,
-        {
-          event: 'shipped',
-          scannedBy: {
-            userType: 'shipment_manager'
-          },
-          distributorDetails: {
-            distributorId: selectedDistributor,
-            distributorName: distributors.find(d => d._id === selectedDistributor)?.distributorDetails?.partyName || 
-                           distributors.find(d => d._id === selectedDistributor)?.name || ''
-          },
-          trackingNumber: `TRACK_${Date.now()}`,
-          notes: 'Scanned for shipment to distributor'
-        },
-        {
-          withCredentials: true,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-
-      if (response.data.result) {
-        // Add to scanned items list
-        const newItem = {
-          uniqueId: qrData.uniqueId,
-          articleName: qrData.articleName || qrData.contractorInput?.articleName,
-          colors: qrData.contractorInput?.colors || qrData.colors,
-          sizes: qrData.contractorInput?.sizes || qrData.sizes,
-          cartonNumber: qrData.contractorInput?.cartonNumber || qrData.cartonNumber,
-          scannedAt: new Date().toLocaleTimeString(),
-          status: 'shipped'
-        };
-
-        setScannedItems(prev => [...prev, newItem]);
-        
-        // Success feedback
-        Swal.fire({
-          icon: 'success',
-          title: 'Carton Scanned!',
-          text: `${newItem.articleName} - Carton ${newItem.cartonNumber}`,
-          timer: 1500,
-          showConfirmButton: false
-        });
-      } else {
-        throw new Error(response.data.message);
-      }
-
-    } catch (error) {
-      let errorMessage = 'Failed to process scan';
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      Swal.fire('Error', errorMessage, 'error');
     }
   };
 
