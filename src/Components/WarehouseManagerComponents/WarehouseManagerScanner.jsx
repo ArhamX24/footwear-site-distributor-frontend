@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import QrScanner from 'qr-scanner';
+import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
+import jsQR from 'jsqr';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { baseURL } from '../../Utils/URLS';
@@ -15,7 +16,6 @@ const WarehouseManagerScanner = () => {
   });
   const [loading, setLoading] = useState(false);
   const [scanMode, setScanMode] = useState('camera');
-  const videoRef = useRef(null);
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -23,67 +23,156 @@ const WarehouseManagerScanner = () => {
     fetchInventoryStats();
   }, []);
 
-  // ✅ Enhanced useEffect with better debugging
   useEffect(() => {
-    console.log('useEffect triggered:', { isScanning, scanMode, videoElement: !!videoRef.current, scannerExists: !!scannerRef.current });
+    console.log('useEffect triggered:', { isScanning, scanMode });
     
-    if (isScanning && videoRef.current && !scannerRef.current && scanMode === 'camera') {
+    if (isScanning && scanMode === 'camera') {
       initializeScanner();
     }
     
     return () => {
-      if (scannerRef.current && !isScanning) {
-        cleanupScanner();
-      }
+      cleanupScanner();
     };
   }, [isScanning, scanMode]);
 
-  // ✅ Enhanced scanner initialization with better error handling and debugging
+  // ✅ Helper function to process image and extract QR data using canvas
+  const processImageForQR = async (file) => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Set canvas size to image size
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // Draw image on canvas
+        ctx.drawImage(img, 0, 0);
+        
+        // Get image data
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        try {
+          // Try jsQR first
+          const result = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+          });
+          
+          if (result) {
+            console.log('✅ jsQR successfully decoded:', result.data);
+            resolve(result.data);
+            return;
+          }
+          
+          // If jsQR fails, try with inversion
+          const resultInverted = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "attemptBoth",
+          });
+          
+          if (resultInverted) {
+            console.log('✅ jsQR with inversion successfully decoded:', resultInverted.data);
+            resolve(resultInverted.data);
+            return;
+          }
+          
+          // If still no result, try with enhanced contrast
+          const enhancedImageData = enhanceImageContrast(imageData);
+          const resultEnhanced = jsQR(enhancedImageData.data, enhancedImageData.width, enhancedImageData.height, {
+            inversionAttempts: "attemptBoth",
+          });
+          
+          if (resultEnhanced) {
+            console.log('✅ jsQR with enhanced contrast decoded:', resultEnhanced.data);
+            resolve(resultEnhanced.data);
+            return;
+          }
+          
+          reject(new Error('No QR code found in image'));
+          
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      img.onerror = () => {
+        reject(new Error('Failed to load image'));
+      };
+      
+      // Load the image
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // ✅ Helper function to enhance image contrast
+  const enhanceImageContrast = (imageData) => {
+    const data = new Uint8ClampedArray(imageData.data);
+    const factor = 1.5; // Contrast enhancement factor
+    
+    for (let i = 0; i < data.length; i += 4) {
+      // Apply contrast enhancement to RGB channels
+      data[i] = Math.min(255, Math.max(0, (data[i] - 128) * factor + 128));     // Red
+      data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - 128) * factor + 128)); // Green  
+      data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - 128) * factor + 128)); // Blue
+      // Alpha channel remains unchanged
+    }
+    
+    return new ImageData(data, imageData.width, imageData.height);
+  };
+
+  // ✅ Initialize camera scanner (keep existing html5-qrcode for camera)
   const initializeScanner = async () => {
     try {
-      console.log('Initializing scanner...');
+      console.log('Initializing Html5QrcodeScanner...');
       
-      if (!videoRef.current) {
-        throw new Error('Video element not available');
+      if (scannerRef.current) {
+        cleanupScanner();
       }
 
-      // Check if QrScanner has camera support
-      const hasCamera = await QrScanner.hasCamera();
-      console.log('Camera available:', hasCamera);
-      
-      if (!hasCamera) {
-        throw new Error('No camera found on this device');
-      }
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+        disableFlip: false,
+        videoConstraints: {
+          facingMode: "environment"
+        }
+      };
 
-      const scanner = new QrScanner(
-        videoRef.current,
-        (result) => {
-          console.log('Raw scan result:', result);
-          // Handle both string and object results
-          const data = result.data || result;
-          handleScanSuccess(data);
+      const scanner = new Html5QrcodeScanner(
+        "qr-scanner-container",
+        config,
+        false
+      );
+
+      scanner.render(
+        (decodedText, decodedResult) => {
+          console.log('✅ Camera QR Code scanned:', decodedText);
+          handleScanSuccess(decodedText);
         },
-        {
-          highlightScanRegion: true,
-          highlightCodeOutline: true,
-          preferredCamera: 'environment',
-          maxScansPerSecond: 1,
-          returnDetailedScanResult: true,
+        (error) => {
+          if (error.includes('No QR code found')) {
+            return;
+          }
+          console.warn('QR scan error:', error);
         }
       );
 
-      console.log('Starting scanner...');
-      await scanner.start();
       scannerRef.current = scanner;
       setCameraPermission('granted');
-      console.log('Scanner started successfully');
+      console.log('Html5QrcodeScanner initialized successfully');
+
     } catch (error) {
-      console.error('Scanner initialization detailed error:', error);
+      console.error('Scanner initialization error:', error);
       setCameraPermission('denied');
       setIsScanning(false);
       
       Swal.fire({
-        title: 'Scanner Error',
+        title: 'Camera Scanner Error',
         html: `
           <p>Failed to initialize camera scanner:</p>
           <p><strong>Error:</strong> ${error.message}</p>
@@ -92,7 +181,6 @@ const WarehouseManagerScanner = () => {
             <li>Camera permissions are granted</li>
             <li>You're using HTTPS or localhost</li>
             <li>No other app is using the camera</li>
-            <li>Your browser supports camera access</li>
             <li>Try refreshing the page</li>
           </ul>
         `,
@@ -106,12 +194,16 @@ const WarehouseManagerScanner = () => {
     console.log('Cleaning up scanner...');
     if (scannerRef.current) {
       try {
-        scannerRef.current.stop();
-        scannerRef.current.destroy();
+        scannerRef.current.clear();
+        scannerRef.current = null;
+        
+        const container = document.getElementById('qr-scanner-container');
+        if (container) {
+          container.innerHTML = '';
+        }
       } catch (error) {
         console.error('Error during scanner cleanup:', error);
       }
-      scannerRef.current = null;
     }
   };
 
@@ -126,132 +218,182 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-  // ✅ Enhanced handleScanSuccess with comprehensive debugging and error handling
- const handleScanSuccess = async (decodedText) => {
-  console.log('=== QR SCAN DEBUG ===');
-  console.log('Raw decoded text:', decodedText);
-  console.log('Type:', typeof decodedText);
-  
-  try {
-    let qrData;
+  const handleScanSuccess = async (decodedText) => {
+    console.log('=== QR SCAN DEBUG ===');
+    console.log('Raw decoded text:', decodedText);
+    console.log('Type:', typeof decodedText);
     
-    if (typeof decodedText === 'object' && decodedText.data) {
-      decodedText = decodedText.data;
+    if (scannerRef.current && scanMode === 'camera') {
+      try {
+        await scannerRef.current.pause();
+      } catch (error) {
+        console.warn('Could not pause scanner:', error);
+      }
     }
     
     try {
-      if (typeof decodedText === 'string') {
-        const trimmed = decodedText.trim();
-        console.log('Trimmed content:', trimmed);
-        
-        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-          qrData = JSON.parse(trimmed);
-          console.log('Parsed QR data:', qrData);
-          console.log('UniqueId from QR:', qrData.uniqueId);
+      let qrData;
+      
+      try {
+        if (typeof decodedText === 'string') {
+          const trimmed = decodedText.trim();
+          console.log('Trimmed content:', trimmed);
+          
+          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            qrData = JSON.parse(trimmed);
+            console.log('Parsed QR data:', qrData);
+            console.log('UniqueId from QR:', qrData.uniqueId);
+          } else {
+            console.log('Non-JSON QR Content:', decodedText);
+            Swal.fire({
+              title: 'Invalid QR Code',
+              html: `
+                <p>This QR code doesn't contain JSON data.</p>
+                <p><strong>Content found:</strong></p>
+                <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
+              `,
+              icon: 'warning',
+              confirmButtonText: 'OK'
+            });
+            
+            if (scannerRef.current && scanMode === 'camera') {
+              await scannerRef.current.resume();
+            }
+            return;
+          }
         } else {
-          console.log('Non-JSON QR Content:', decodedText);
-          Swal.fire({
-            title: 'Invalid QR Code',
-            html: `
-              <p>This QR code doesn't contain JSON data.</p>
-              <p><strong>Content found:</strong></p>
-              <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
-            `,
-            icon: 'warning',
-            confirmButtonText: 'OK'
-          });
-          return;
+          qrData = decodedText;
+          console.log('Object QR data:', qrData);
         }
-      } else {
-        qrData = decodedText;
-        console.log('Object QR data:', qrData);
+      } catch (jsonError) {
+        console.error('JSON Parse Error:', jsonError);
+        Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error');
+        
+        if (scannerRef.current && scanMode === 'camera') {
+          await scannerRef.current.resume();
+        }
+        return;
       }
-    } catch (jsonError) {
-      console.error('JSON Parse Error:', jsonError);
-      Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error');
-      return;
-    }
 
-    // ✅ CRITICAL: Log the uniqueId being sent to backend
-    console.log('Sending uniqueId to backend:', qrData.uniqueId);
-    
-    // Check for duplicates
-    const shouldProceed = await new Promise((resolve) => {
-      setScannedItems((currentItems) => {
-        const alreadyScanned = currentItems.find((item) => item.uniqueId === qrData.uniqueId);
-        if (alreadyScanned) {
-          Swal.fire('Warning', 'This carton has already been received!', 'warning');
-          resolve(false);
+      const shouldProceed = await new Promise((resolve) => {
+        setScannedItems((currentItems) => {
+          const alreadyScanned = currentItems.find((item) => item.uniqueId === qrData.uniqueId);
+          if (alreadyScanned) {
+            Swal.fire('Warning', 'This carton has already been received!', 'warning');
+            resolve(false);
+            return currentItems;
+          }
+          resolve(true);
           return currentItems;
+        });
+      });
+
+      if (!shouldProceed) {
+        if (scannerRef.current && scanMode === 'camera') {
+          await scannerRef.current.resume();
         }
-        resolve(true);
-        return currentItems;
-      });
-    });
+        return;
+      }
 
-    if (!shouldProceed) return;
+      if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
+        console.error('Missing required fields:', qrData);
+        Swal.fire({
+          title: 'Invalid QR Code Data',
+          html: `
+            <p>QR code is missing required information:</p>
+            <ul style="text-align: left; margin: 10px 0;">
+              <li>Unique ID: ${qrData.uniqueId ? '✅' : '❌ Missing'}</li>
+              <li>Article Name: ${(qrData.articleName || qrData.contractorInput?.articleName) ? '✅' : '❌ Missing'}</li>
+            </ul>
+          `,
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+        
+        if (scannerRef.current && scanMode === 'camera') {
+          await scannerRef.current.resume();
+        }
+        return;
+      }
 
-    if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
-      console.error('Missing required fields:', qrData);
-      Swal.fire({
-        title: 'Invalid QR Code Data',
-        html: `
-          <p>QR code is missing required information:</p>
-          <ul style="text-align: left; margin: 10px 0;">
-            <li>Unique ID: ${qrData.uniqueId ? '✅' : '❌ Missing'}</li>
-            <li>Article Name: ${(qrData.articleName || qrData.contractorInput?.articleName) ? '✅' : '❌ Missing'}</li>
-          </ul>
-        `,
-        icon: 'error',
-        confirmButtonText: 'OK'
-      });
-      return;
+      console.log('Sending uniqueId to backend:', qrData.uniqueId);
+      
+      const qualityCheck = await checkItemQuality(qrData);
+
+      console.log('Making API call to:', `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`);
+      
+      const response = await axios.post(
+        `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`,
+        {
+          event: 'received',
+          scannedBy: { userType: 'warehouse_inspector' },
+          location: 'Main Warehouse',
+          qualityCheck,
+          notes: `Received at warehouse on ${new Date().toLocaleString()}`
+        },
+        { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
+      );
+
+      console.log('Backend response:', response.data);
+
+      if (response.data.result) {
+        const newItem = {
+          uniqueId: qrData.uniqueId,
+          articleName: qrData.articleName || qrData.contractorInput?.articleName,
+          colors: qrData.contractorInput?.colors || qrData.colors,
+          sizes: qrData.contractorInput?.sizes || qrData.sizes,
+          cartonNumber: qrData.contractorInput?.cartonNumber || qrData.cartonNumber,
+          scannedAt: new Date().toLocaleTimeString(),
+          status: 'received',
+          qualityStatus: qualityCheck.passed ? 'good' : 'damaged',
+          qualityNotes: qualityCheck.notes || ''
+        };
+
+        console.log('Adding new item:', newItem);
+        setScannedItems((prev) => [...prev, newItem]);
+        setInventoryStats((prev) => ({
+          ...prev,
+          totalReceived: prev.totalReceived + 1,
+          todayReceived: prev.todayReceived + 1
+        }));
+
+        const qualityEmoji = qualityCheck.passed ? '✅' : '⚠️';
+        const qualityText = qualityCheck.passed ? 'Good Condition' : 'Quality Issue Noted';
+        
+        Swal.fire({
+          icon: qualityCheck.passed ? 'success' : 'warning',
+          title: `${qualityEmoji} Carton Received!`,
+          text: `${newItem.articleName} - Carton ${newItem.cartonNumber} (${qualityText})`,
+          timer: 2000,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end'
+        });
+      } else {
+        throw new Error(response.data.message || 'Server returned failure');
+      }
+
+      if (scannerRef.current && scanMode === 'camera') {
+        await scannerRef.current.resume();
+      }
+      
+    } catch (error) {
+      console.error('=== QR SCAN ERROR ===');
+      console.error('Error details:', error);
+      console.error('Response data:', error.response?.data);
+      console.error('Status:', error.response?.status);
+      
+      const msg = error.response?.data?.message || error.message || 'Failed to process scan';
+      Swal.fire('Error', `Scan failed: ${msg}`, 'error');
+      
+      if (scannerRef.current && scanMode === 'camera') {
+        await scannerRef.current.resume();
+      }
     }
-
-    const qualityCheck = await checkItemQuality(qrData);
-
-    console.log('Making API call to:', `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`);
-    
-    const response = await axios.post(
-      `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`,
-      {
-        event: 'received',
-        scannedBy: { userType: 'warehouse_inspector' },
-        location: 'Main Warehouse',
-        qualityCheck,
-        notes: `Received at warehouse on ${new Date().toLocaleString()}`
-      },
-      { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
-    );
-
-    console.log('Backend response:', response.data);
-    
-    // Rest of your existing code...
-    
-  } catch (error) {
-    console.error('=== QR SCAN ERROR ===');
-    console.error('Error details:', error);
-    console.error('Response data:', error.response?.data);
-    console.error('Status:', error.response?.status);
-    
-    const msg = error.response?.data?.message || error.message || 'Failed to process scan';
-    Swal.fire('Error', `Scan failed: ${msg}`, 'error');
-  }
-};
-
+  };
 
   const checkItemQuality = async (qrData) => {
     console.log('Starting quality check dialog...');
-    
-    // Pause scanner during quality check
-    if (scannerRef.current) {
-      try {
-        scannerRef.current.stop();
-        console.log('Scanner paused for quality check');
-      } catch (error) {
-        console.error('Error pausing scanner:', error);
-      }
-    }
 
     const result = await Swal.fire({
       title: 'Quality Check',
@@ -286,16 +428,6 @@ const WarehouseManagerScanner = () => {
       }
     });
 
-    // Resume scanner after quality check
-    if (scannerRef.current && isScanning) {
-      try {
-        await scannerRef.current.start();
-        console.log('Scanner resumed after quality check');
-      } catch (error) {
-        console.error('Error resuming scanner:', error);
-      }
-    }
-
     if (result.isConfirmed) {
       console.log('Quality check result:', result.value);
       return result.value;
@@ -303,7 +435,7 @@ const WarehouseManagerScanner = () => {
     throw new Error('Quality check cancelled');
   };
 
-  // ✅ Enhanced file upload handler with better debugging
+  // ✅ Enhanced file upload handler with multiple fallback methods
   const handleFileInputChange = async (e) => {
     const files = e.target.files;
     console.log('File input changed, files:', files?.length || 0);
@@ -321,20 +453,68 @@ const WarehouseManagerScanner = () => {
         try {
           console.log('Scanning file:', file.name, file.type, file.size);
           
-          // Enhanced file scanning with better options
-          const result = await QrScanner.scanImage(file, {
-            returnDetailedScanResult: true,
-            scanRegion: null // Scan entire image
-          });
+          let scanResult = null;
+          let scanMethod = '';
+
+          // ✅ Method 1: Try jsQR with canvas processing first (most reliable)
+          try {
+            console.log('Trying jsQR method...');
+            scanResult = await processImageForQR(file);
+            scanMethod = 'jsQR';
+            console.log('✅ jsQR method successful');
+          } catch (jsQrError) {
+            console.log('jsQR method failed:', jsQrError.message);
+            
+            // ✅ Method 2: Try html5-qrcode as fallback
+            try {
+              console.log('Trying html5-qrcode fallback...');
+              const html5QrCode = new Html5Qrcode("temp-scanner");
+              
+              try {
+                const result = await html5QrCode.scanFile(file, true);
+                scanResult = result;
+                scanMethod = 'html5-qrcode';
+                console.log('✅ html5-qrcode fallback successful');
+              } finally {
+                try {
+                  await html5QrCode.clear();
+                } catch (clearError) {
+                  console.warn('Error clearing temp scanner:', clearError);
+                }
+              }
+            } catch (html5Error) {
+              console.log('html5-qrcode fallback also failed:', html5Error.message);
+              throw new Error(`All scan methods failed. jsQR: ${jsQrError.message}, html5-qrcode: ${html5Error.message}`);
+            }
+          }
+
+          if (scanResult) {
+            console.log(`✅ QR scan successful using ${scanMethod}:`, scanResult);
+            await handleScanSuccess(scanResult);
+          } else {
+            throw new Error('No QR code could be decoded from the image');
+          }
           
-          console.log('File scan result:', result);
-          // Handle both data property and direct result
-          const data = result.data || result;
-          await handleScanSuccess(data);
         } catch (scanErr) {
           console.error('Scan failed for file:', file.name, scanErr);
+          
           let errorMessage = `Could not scan QR code from ${file.name}`;
-          Swal.fire('Warning', errorMessage, 'warning');
+          if (scanErr.message.includes('No QR code found')) {
+            errorMessage += '\n\n• No QR code detected in the image';
+            errorMessage += '\n• Make sure the image is clear and well-lit';
+            errorMessage += '\n• Try taking a new photo with better focus';
+          } else if (scanErr.message.includes('All scan methods failed')) {
+            errorMessage += '\n\n• Multiple scan methods attempted';
+            errorMessage += '\n• The QR code might be damaged or corrupted';
+            errorMessage += '\n• Try generating a new QR code';
+          }
+          
+          Swal.fire({
+            title: 'QR Scan Failed',
+            html: `<p>${errorMessage.replace(/\n/g, '<br>')}</p>`,
+            icon: 'warning',
+            confirmButtonText: 'OK'
+          });
         }
       }
     } catch (err) {
@@ -415,7 +595,6 @@ Report generated by Warehouse Management System
     }));
   };
 
-  // ✅ Logout function
   const handleLogout = async () => {
     try {
       const result = await Swal.fire({
@@ -429,7 +608,6 @@ Report generated by Warehouse Management System
       });
 
       if (result.isConfirmed) {
-        // Clean up scanner before logout
         if (scannerRef.current) {
           cleanupScanner();
           setIsScanning(false);
@@ -459,7 +637,7 @@ Report generated by Warehouse Management System
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header - same as before */}
         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div className="mb-4 sm:mb-0">
@@ -482,7 +660,6 @@ Report generated by Warehouse Management System
               )}
             </div>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-              {/* Logout Button */}
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 font-medium flex items-center justify-center"
@@ -508,7 +685,6 @@ Report generated by Warehouse Management System
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-0">📱 QR Scanner</h2>
 
-              {/* Scan Mode Toggle */}
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => {
@@ -535,7 +711,6 @@ Report generated by Warehouse Management System
               </div>
             </div>
 
-            {/* Scanner Controls */}
             <div className="mb-4">
               {scanMode === 'camera' ? (
                 !isScanning ? (
@@ -579,39 +754,35 @@ Report generated by Warehouse Management System
                       <>📁 Upload QR Code Image(s)</>
                     )}
                   </label>
-                  <div className="text-xs text-gray-500 mt-2 text-center">Supports JPG, PNG, WEBP; you can select multiple images</div>
+                  <div className="text-xs text-gray-500 mt-2 text-center">
+                    Supports JPG, PNG, WEBP • Multiple fallback scanners for better accuracy
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Scanner Display */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] sm:min-h-[350px] flex items-center justify-center">
               {scanMode === 'camera' && isScanning ? (
-                <video
-                  ref={videoRef}
-                  className="w-full h-full max-w-sm max-h-80 object-cover rounded-lg"
-                  style={{ transform: 'scaleX(-1)' }}
-                  playsInline
-                  muted
-                />
+                <div id="qr-scanner-container" className="w-full h-full"></div>
               ) : scanMode === 'upload' ? (
                 <div className="text-center py-12">
                   <div className="text-4xl sm:text-6xl mb-4">📁</div>
                   <p className="text-gray-500">Upload QR Code Image(s)</p>
-                  <p className="text-sm text-gray-400 mt-2">Click the button above to select files</p>
+                  <p className="text-sm text-gray-400 mt-2">Advanced multi-scanner processing for better results</p>
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <div className="text-4xl sm:text-6xl mb-4">📦</div>
                   <p className="text-gray-500">Scanner ready for carton receipt</p>
                   <p className="text-sm text-gray-400">
-                    {scanMode === 'camera' ? 'Click "Start Scanner" to begin - camera permission will be requested' : 'Switch to Camera mode to use live scanner'}
+                    {scanMode === 'camera' ? 'Click "Start Scanner" to begin' : 'Switch to Camera mode to use live scanner'}
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Debug Panel (remove in production) */}
+            <div id="temp-scanner" style={{ display: 'none' }}></div>
+
             {process.env.NODE_ENV === 'development' && (
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
                 <strong>Debug Info:</strong>
@@ -623,7 +794,7 @@ Report generated by Warehouse Management System
             )}
           </div>
 
-          {/* Right Panel - Received Items */}
+          {/* Right Panel - Received Items (same as before) */}
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-0">📋 Received Items</h2>
