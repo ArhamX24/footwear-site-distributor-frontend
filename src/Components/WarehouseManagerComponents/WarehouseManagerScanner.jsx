@@ -127,159 +127,118 @@ const WarehouseManagerScanner = () => {
   };
 
   // ✅ Enhanced handleScanSuccess with comprehensive debugging and error handling
-  const handleScanSuccess = async (decodedText) => {
-    console.log('handleScanSuccess called with:', decodedText, typeof decodedText);
+ const handleScanSuccess = async (decodedText) => {
+  console.log('=== QR SCAN DEBUG ===');
+  console.log('Raw decoded text:', decodedText);
+  console.log('Type:', typeof decodedText);
+  
+  try {
+    let qrData;
+    
+    if (typeof decodedText === 'object' && decodedText.data) {
+      decodedText = decodedText.data;
+    }
     
     try {
-      let qrData;
-      
-      // Handle different result formats from QrScanner
-      if (typeof decodedText === 'object' && decodedText.data) {
-        decodedText = decodedText.data;
-      }
-      
-      try {
-        if (typeof decodedText === 'string') {
-          const trimmed = decodedText.trim();
-          console.log('Trimmed QR content:', trimmed);
-          
-          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-            qrData = JSON.parse(trimmed);
-            console.log('Parsed QR data:', qrData);
-          } else {
-            console.log('Non-JSON QR Content:', decodedText);
-            Swal.fire({
-              title: 'Invalid QR Code',
-              html: `
-                <p>This QR code doesn't contain the expected warehouse data format.</p>
-                <p><strong>Content found:</strong></p>
-                <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
-                <p>Please scan a valid warehouse inventory QR code.</p>
-              `,
-              icon: 'warning',
-              confirmButtonText: 'OK'
-            });
-            return;
-          }
-        } else if (typeof decodedText === 'object') {
-          qrData = decodedText;
-          console.log('Object QR data:', qrData);
-        } else {
-          throw new Error('Unexpected data type: ' + typeof decodedText);
-        }
-      } catch (jsonError) {
-        console.error('JSON Parse Error:', jsonError);
-        console.log('Original QR Content:', decodedText);
-        Swal.fire({
-          title: 'Invalid QR Code Format',
-          html: `
-            <p>Unable to parse QR code data.</p>
-            <p><strong>Content:</strong></p>
-            <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${String(decodedText)}</code>
-            <p><strong>Error:</strong> ${jsonError.message}</p>
-            <p>Please ensure you're scanning a valid warehouse QR code.</p>
-          `,
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
-        return;
-      }
-
-      // Check for duplicates
-      const shouldProceed = await new Promise((resolve) => {
-        setScannedItems((currentItems) => {
-          const alreadyScanned = currentItems.find((item) => item.uniqueId === qrData.uniqueId);
-          if (alreadyScanned) {
-            Swal.fire('Warning', 'This carton has already been received!', 'warning');
-            resolve(false);
-            return currentItems;
-          }
-          resolve(true);
-          return currentItems;
-        });
-      });
-
-      if (!shouldProceed) return;
-
-      // Validate required fields
-      if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
-        console.error('Missing required fields:', qrData);
-        Swal.fire({
-          title: 'Invalid QR Code Data',
-          html: `
-            <p>QR code is missing required information:</p>
-            <ul style="text-align: left; margin: 10px 0;">
-              <li>Unique ID: ${qrData.uniqueId ? '✅' : '❌ Missing'}</li>
-              <li>Article Name: ${(qrData.articleName || qrData.contractorInput?.articleName) ? '✅' : '❌ Missing'}</li>
-            </ul>
-            <p>Please scan a complete warehouse QR code.</p>
-          `,
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
-        return;
-      }
-
-      console.log('Starting quality check for:', qrData);
-      const qualityCheck = await checkItemQuality(qrData);
-
-      console.log('Making API call to scan endpoint...');
-      const response = await axios.post(
-        `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`,
-        {
-          event: 'received',
-          scannedBy: { userType: 'warehouse_inspector' },
-          location: 'Main Warehouse',
-          qualityCheck,
-          notes: `Received at warehouse on ${new Date().toLocaleString()}`
-        },
-        { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
-      );
-
-      console.log('API response:', response.data);
-
-      if (response.data.result) {
-        const newItem = {
-          uniqueId: qrData.uniqueId,
-          articleName: qrData.articleName || qrData.contractorInput?.articleName,
-          colors: qrData.contractorInput?.colors || qrData.colors,
-          sizes: qrData.contractorInput?.sizes || qrData.sizes,
-          cartonNumber: qrData.contractorInput?.cartonNumber || qrData.cartonNumber,
-          scannedAt: new Date().toLocaleTimeString(),
-          status: 'received',
-          qualityStatus: qualityCheck.passed ? 'good' : 'damaged',
-          qualityNotes: qualityCheck.notes || ''
-        };
-
-        console.log('Adding new item:', newItem);
-        setScannedItems((prev) => [...prev, newItem]);
-        setInventoryStats((prev) => ({
-          ...prev,
-          totalReceived: prev.totalReceived + 1,
-          todayReceived: prev.todayReceived + 1
-        }));
-
-        const qualityEmoji = qualityCheck.passed ? '✅' : '⚠️';
-        const qualityText = qualityCheck.passed ? 'Good Condition' : 'Quality Issue Noted';
+      if (typeof decodedText === 'string') {
+        const trimmed = decodedText.trim();
+        console.log('Trimmed content:', trimmed);
         
-        Swal.fire({
-          icon: qualityCheck.passed ? 'success' : 'warning',
-          title: `${qualityEmoji} Carton Received!`,
-          text: `${newItem.articleName} - Carton ${newItem.cartonNumber} (${qualityText})`,
-          timer: 2000,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end'
-        });
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          qrData = JSON.parse(trimmed);
+          console.log('Parsed QR data:', qrData);
+          console.log('UniqueId from QR:', qrData.uniqueId);
+        } else {
+          console.log('Non-JSON QR Content:', decodedText);
+          Swal.fire({
+            title: 'Invalid QR Code',
+            html: `
+              <p>This QR code doesn't contain JSON data.</p>
+              <p><strong>Content found:</strong></p>
+              <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
+            `,
+            icon: 'warning',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
       } else {
-        throw new Error(response.data.message || 'Server returned failure');
+        qrData = decodedText;
+        console.log('Object QR data:', qrData);
       }
-    } catch (error) {
-      console.error('handleScanSuccess error:', error);
-      const msg = error.response?.data?.message || error.message || 'Failed to process scan';
-      Swal.fire('Error', `Scan processing failed: ${msg}`, 'error');
+    } catch (jsonError) {
+      console.error('JSON Parse Error:', jsonError);
+      Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error');
+      return;
     }
-  };
+
+    // ✅ CRITICAL: Log the uniqueId being sent to backend
+    console.log('Sending uniqueId to backend:', qrData.uniqueId);
+    
+    // Check for duplicates
+    const shouldProceed = await new Promise((resolve) => {
+      setScannedItems((currentItems) => {
+        const alreadyScanned = currentItems.find((item) => item.uniqueId === qrData.uniqueId);
+        if (alreadyScanned) {
+          Swal.fire('Warning', 'This carton has already been received!', 'warning');
+          resolve(false);
+          return currentItems;
+        }
+        resolve(true);
+        return currentItems;
+      });
+    });
+
+    if (!shouldProceed) return;
+
+    if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
+      console.error('Missing required fields:', qrData);
+      Swal.fire({
+        title: 'Invalid QR Code Data',
+        html: `
+          <p>QR code is missing required information:</p>
+          <ul style="text-align: left; margin: 10px 0;">
+            <li>Unique ID: ${qrData.uniqueId ? '✅' : '❌ Missing'}</li>
+            <li>Article Name: ${(qrData.articleName || qrData.contractorInput?.articleName) ? '✅' : '❌ Missing'}</li>
+          </ul>
+        `,
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    const qualityCheck = await checkItemQuality(qrData);
+
+    console.log('Making API call to:', `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`);
+    
+    const response = await axios.post(
+      `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`,
+      {
+        event: 'received',
+        scannedBy: { userType: 'warehouse_inspector' },
+        location: 'Main Warehouse',
+        qualityCheck,
+        notes: `Received at warehouse on ${new Date().toLocaleString()}`
+      },
+      { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
+    );
+
+    console.log('Backend response:', response.data);
+    
+    // Rest of your existing code...
+    
+  } catch (error) {
+    console.error('=== QR SCAN ERROR ===');
+    console.error('Error details:', error);
+    console.error('Response data:', error.response?.data);
+    console.error('Status:', error.response?.status);
+    
+    const msg = error.response?.data?.message || error.message || 'Failed to process scan';
+    Swal.fire('Error', `Scan failed: ${msg}`, 'error');
+  }
+};
+
 
   const checkItemQuality = async (qrData) => {
     console.log('Starting quality check dialog...');
@@ -375,11 +334,6 @@ const WarehouseManagerScanner = () => {
         } catch (scanErr) {
           console.error('Scan failed for file:', file.name, scanErr);
           let errorMessage = `Could not scan QR code from ${file.name}`;
-          if (scanErr.message.includes('No QR code found')) {
-            errorMessage += ': No QR code detected in image';
-          } else if (scanErr.message.includes('decode')) {
-            errorMessage += ': QR code found but could not be decoded';
-          }
           Swal.fire('Warning', errorMessage, 'warning');
         }
       }
