@@ -18,10 +18,10 @@ const ShipmentScanner = () => {
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Fetch distributors and check camera permission on mount
+  // Fetch distributors on mount - REMOVED camera permission check
   useEffect(() => {
     fetchDistributors();
-    checkCameraPermission(); // Check permission on component mount
+    // Don't check camera permission on mount - wait for user interaction
   }, []);
 
   // Initialize scanner when scanning starts
@@ -37,31 +37,7 @@ const ShipmentScanner = () => {
     };
   }, [isScanning, scanMethod]);
 
-  // Check and request camera permission
-  const checkCameraPermission = async () => {
-    try {
-      // Check if permission is already granted
-      const permission = await navigator.permissions.query({ name: 'camera' });
-      setCameraPermission(permission.state);
-      
-      // Listen for permission changes
-      permission.onchange = () => {
-        setCameraPermission(permission.state);
-      };
-    } catch (error) {
-      console.warn('Permission API not supported:', error);
-      // Fallback: try to access camera directly
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(track => track.stop()); // Stop immediately
-        setCameraPermission('granted');
-      } catch (err) {
-        setCameraPermission('denied');
-      }
-    }
-  };
-
-  // Request camera permission explicitly
+  // Request camera permission explicitly when user wants to scan
   const requestCameraPermission = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -86,7 +62,8 @@ const ShipmentScanner = () => {
           <p>Camera access is needed to scan QR codes.</p>
           <p>Please:</p>
           <ol style="text-align: left; margin: 10px 0;">
-            <li>Click the camera icon in your browser's address bar</li>
+            <li>Click "Allow" when your browser asks for camera permission</li>
+            <li>If you clicked "Block", click the camera icon in your browser's address bar</li>
             <li>Select "Allow" for camera access</li>
             <li>Refresh the page and try again</li>
           </ol>
@@ -114,13 +91,11 @@ const ShipmentScanner = () => {
 
   const initializeScanner = async () => {
     try {
-      // Ensure camera permission is granted first
-      if (cameraPermission !== 'granted') {
-        const hasPermission = await requestCameraPermission();
-        if (!hasPermission) {
-          setIsScanning(false);
-          return;
-        }
+      // Always request permission first when initializing scanner
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) {
+        setIsScanning(false);
+        return;
       }
 
       const scanner = new Html5QrcodeScanner(
@@ -130,11 +105,14 @@ const ShipmentScanner = () => {
           qrbox: { width: 300, height: 300 },
           aspectRatio: 1.0,
           rememberLastUsedCamera: true, // Remember last used camera
-          disableFlip: true,
+          disableFlip: false, // Allow flip for better scanning
           showTorchButtonIfSupported: true, // Show flashlight if available
           showZoomSliderIfSupported: true, // Show zoom if available
           defaultZoomValueIfSupported: 2, // Default zoom level
-          supportedScanTypes: [0, 1, 2] // Support QR codes and barcodes
+          supportedScanTypes: [0, 1, 2], // Support QR codes and barcodes
+          videoConstraints: {
+            facingMode: 'environment' // Use back camera
+          }
         },
         false
       );
@@ -143,7 +121,7 @@ const ShipmentScanner = () => {
         (decodedText) => handleScanSuccess(decodedText),
         (error) => {
           // Only log actual errors, not per-frame scan failures
-          if (error && !error.includes('No QR code found')) {
+          if (error && !error.includes('No QR code found') && !error.includes('NotFoundException')) {
             console.warn('Scanner error:', error);
           }
         }
@@ -153,7 +131,7 @@ const ShipmentScanner = () => {
     } catch (error) {
       console.error('Scanner initialization error:', error);
       setIsScanning(false);
-      Swal.fire('Error', 'Failed to initialize QR scanner. Please check camera permissions.', 'error');
+      Swal.fire('Error', 'Failed to initialize QR scanner. Please make sure you granted camera permission.', 'error');
     }
   };
 
@@ -267,18 +245,13 @@ const ShipmentScanner = () => {
     }
   };
 
-  // Updated start scanning method
-  const startScanning = async () => {
+  // Updated start scanning method - this will always request permission
+  const startScanning = () => {
     if (!selectedDistributor) {
       Swal.fire('Warning', 'Please select a distributor first', 'warning');
       return;
     }
-
-    if (cameraPermission === 'denied') {
-      await requestCameraPermission();
-    } else {
-      setIsScanning(true);
-    }
+    setIsScanning(true); // This will trigger the useEffect which calls initializeScanner
   };
 
   const stopScanning = () => {
@@ -518,18 +491,14 @@ const ShipmentScanner = () => {
                 !isScanning ? (
                   <button
                     onClick={startScanning}
-                    disabled={cameraPermission === 'denied' || !selectedDistributor}
+                    disabled={!selectedDistributor}
                     className={`w-full px-4 py-3 rounded-lg transition duration-200 font-medium ${
-                      cameraPermission === 'denied'
-                        ? 'bg-red-100 text-red-600 cursor-not-allowed'
-                        : !selectedDistributor
+                      !selectedDistributor
                         ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
                   >
-                    {cameraPermission === 'denied' 
-                      ? '❌ Camera Access Denied - Click to Enable' 
-                      : !selectedDistributor
+                    {!selectedDistributor
                       ? '🔒 Select Distributor First'
                       : '📱 Start Camera Scanner'}
                   </button>
@@ -581,7 +550,7 @@ const ShipmentScanner = () => {
                   </p>
                   <p className="text-sm text-gray-400 mt-2">
                     {scanMethod === 'camera' 
-                      ? 'Select distributor first, then click "Start Camera Scanner"'
+                      ? 'Select distributor first, then click "Start Camera Scanner" - camera permission will be requested'
                       : 'Supports JPG, PNG, and other image formats'
                     }
                   </p>
