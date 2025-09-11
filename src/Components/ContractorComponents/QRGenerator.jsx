@@ -45,6 +45,26 @@ const QRGenerator = () => {
     }
   };
 
+  // ✅ NEW: Handle space to comma conversion
+  const handleSpaceToComma = (event, fieldName) => {
+    if (event.key === ' ') {
+      event.preventDefault();
+      const currentValue = qrFormik.values[fieldName];
+      const lastChar = currentValue.slice(-1);
+      
+      // Only add comma if the last character isn't already a comma or space
+      if (currentValue.trim() && lastChar !== ',' && lastChar !== ' ') {
+        qrFormik.setFieldValue(fieldName, currentValue + ', ');
+      }
+    }
+  };
+
+  // ✅ NEW: Handle input change for colors/sizes
+  const handleInputChange = (event, fieldName) => {
+    const value = event.target.value;
+    qrFormik.setFieldValue(fieldName, value);
+  };
+
   // ✅ Updated form with article ID support
   const qrFormik = useFormik({
     initialValues: { 
@@ -117,25 +137,18 @@ const QRGenerator = () => {
     },
   });
 
-  // ✅ Handle article selection from dropdown
+  // ✅ UPDATED: Handle article selection from dropdown - No auto-filling
   const handleArticleSelection = (event, newValue) => {
     if (newValue && typeof newValue === 'object') {
       setSelectedArticle(newValue);
       qrFormik.setFieldValue('articleName', newValue.articleName);
       qrFormik.setFieldValue('articleId', newValue.articleId.toString());
       
-      if (newValue.colors && newValue.colors.length > 0) {
-        qrFormik.setFieldValue('colors', newValue.colors.join(', '));
-      }
-      if (newValue.sizes && newValue.sizes.length > 0) {
-        qrFormik.setFieldValue('sizes', newValue.sizes.join(', '));
-      }
+      // ❌ REMOVED: Auto-filling colors and sizes
     } else if (typeof newValue === 'string') {
       setSelectedArticle(null);
       qrFormik.setFieldValue('articleName', newValue);
       qrFormik.setFieldValue('articleId', '');
-      qrFormik.setFieldValue('colors', '');
-      qrFormik.setFieldValue('sizes', '');
     }
   };
 
@@ -373,9 +386,6 @@ const QRGenerator = () => {
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
               QR Code Label Generator
             </h1>
-            <p className="text-gray-600">
-              Generate professional QR code labels for your cartons
-            </p>
           </div>
 
           {/* ✅ Updated form with article dropdown */}
@@ -504,17 +514,13 @@ const QRGenerator = () => {
                 
                 <div className="text-xs text-gray-500 mt-2">
                   {!useCustomArticle 
-                    ? `${articles.length} existing articles available. Selecting an article will auto-populate colors and sizes.`
+                    ? `${articles.length} existing articles available. You'll need to manually enter colors and sizes.`
                     : "Enter a completely new article name that will be added to the system."
                   }
-                  {selectedArticle && (
-                    <div className="mt-1 text-blue-600">
-                      Selected: {selectedArticle.articleName} (ID: {selectedArticle.articleId})
-                    </div>
-                  )}
                 </div>
               </div>
 
+              {/* ✅ UPDATED: Colors input with space-to-comma */}
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">
                   Colors <span className="text-red-500">*</span>
@@ -522,16 +528,15 @@ const QRGenerator = () => {
                 <input
                   type="text"
                   name="colors"
-                  placeholder="e.g., Red, Blue, Green"
-                  onChange={qrFormik.handleChange}
+                  placeholder="e.g., Red, Blue)"
+                  onChange={(e) => handleInputChange(e, 'colors')}
+                  onKeyDown={(e) => handleSpaceToComma(e, 'colors')}
                   value={qrFormik.values.colors}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                <div className="text-xs text-gray-500 mt-1">
-                  {selectedArticle ? "Auto-populated from selected article" : "Separate multiple colors with commas"}
-                </div>
               </div>
 
+              {/* ✅ UPDATED: Sizes input with space-to-comma */}
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">
                   Sizes <span className="text-red-500">*</span>
@@ -539,14 +544,12 @@ const QRGenerator = () => {
                 <input
                   type="text"
                   name="sizes"
-                  placeholder="e.g., 3,5 (will show as 3X5)"
-                  onChange={qrFormik.handleChange}
+                  placeholder="e.g. 3, 4, 5"
+                  onChange={(e) => handleInputChange(e, 'sizes')}
+                  onKeyDown={(e) => handleSpaceToComma(e, 'sizes')}
                   value={qrFormik.values.sizes}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                <div className="text-xs text-gray-500 mt-1">
-                  {selectedArticle ? "Auto-populated from selected article" : "Enter first and last size (e.g., 3,5 displays as 3X5)"}
-                </div>
               </div>
 
               <div className="md:col-span-2">
@@ -563,9 +566,6 @@ const QRGenerator = () => {
                   min="1"
                   max="1000"
                 />
-                <div className="text-xs text-gray-500 mt-1">
-                  Maximum 1000 cartons per generation
-                </div>
               </div>
             </div>
 
@@ -588,7 +588,7 @@ const QRGenerator = () => {
           </form>
         </div>
 
-        {/* ✅ RESULTS SECTION - This was missing in your code */}
+        {/* ✅ RESULTS SECTION */}
         {generatedQRs.length > 0 && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="text-center mb-6">
