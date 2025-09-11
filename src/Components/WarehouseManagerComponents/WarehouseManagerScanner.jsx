@@ -9,6 +9,7 @@ const WarehouseManagerScanner = () => {
   const [scannedItems, setScannedItems] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
   const [scannerInstance, setScannerInstance] = useState(null);
+  const [cameraPermission, setCameraPermission] = useState(null); // Track permission status
   const [inventoryStats, setInventoryStats] = useState({
     totalReceived: 0,
     todayReceived: 0,
@@ -20,6 +21,7 @@ const WarehouseManagerScanner = () => {
 
   useEffect(() => {
     fetchInventoryStats();
+    checkCameraPermission(); // Check permission on component mount
   }, []);
 
   useEffect(() => {
@@ -33,6 +35,67 @@ const WarehouseManagerScanner = () => {
     };
   }, [isScanning, scanMode]);
 
+  // Check and request camera permission
+  const checkCameraPermission = async () => {
+    try {
+      // Check if permission is already granted
+      const permission = await navigator.permissions.query({ name: 'camera' });
+      setCameraPermission(permission.state);
+      
+      // Listen for permission changes
+      permission.onchange = () => {
+        setCameraPermission(permission.state);
+      };
+    } catch (error) {
+      console.warn('Permission API not supported:', error);
+      // Fallback: try to access camera directly
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(track => track.stop()); // Stop immediately
+        setCameraPermission('granted');
+      } catch (err) {
+        setCameraPermission('denied');
+      }
+    }
+  };
+
+  // Request camera permission explicitly
+  const requestCameraPermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment', // Use back camera by default
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      });
+      
+      // Stop the stream immediately - we just wanted permission
+      stream.getTracks().forEach(track => track.stop());
+      setCameraPermission('granted');
+      return true;
+    } catch (error) {
+      console.error('Camera permission denied:', error);
+      setCameraPermission('denied');
+      
+      Swal.fire({
+        title: 'Camera Access Required',
+        html: `
+          <p>Camera access is needed to scan QR codes.</p>
+          <p>Please:</p>
+          <ol style="text-align: left; margin: 10px 0;">
+            <li>Click the camera icon in your browser's address bar</li>
+            <li>Select "Allow" for camera access</li>
+            <li>Refresh the page and try again</li>
+          </ol>
+        `,
+        icon: 'info',
+        confirmButtonText: 'I understand'
+      });
+      return false;
+    }
+  };
+
   const fetchInventoryStats = async () => {
     try {
       const response = await axios.get(`${baseURL}/api/v1/warehouse/inventory`, { withCredentials: true });
@@ -44,25 +107,51 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-  const initializeScanner = () => {
+  const initializeScanner = async () => {
     try {
+      // Ensure camera permission is granted first
+      if (cameraPermission !== 'granted') {
+        const hasPermission = await requestCameraPermission();
+        if (!hasPermission) {
+          setIsScanning(false);
+          return;
+        }
+      }
+
       const scanner = new Html5QrcodeScanner(
         'warehouse-qr-scanner',
-        { fps: 10, qrbox: { width: 280, height: 280 }, rememberLastUsedCamera: true, disableFlip: true, aspectRatio: 1.0 },
+        { 
+          fps: 10, 
+          qrbox: { width: 280, height: 280 }, 
+          rememberLastUsedCamera: true, // Remember last used camera
+          disableFlip: true, 
+          aspectRatio: 1.0,
+          showTorchButtonIfSupported: true, // Show flashlight if available
+          showZoomSliderIfSupported: true, // Show zoom if available
+          defaultZoomValueIfSupported: 2, // Default zoom level
+          supportedScanTypes: [0, 1, 2] // Support QR codes and barcodes
+        },
         false
       );
+      
       scanner.render(
         (decodedText) => handleScanSuccess(decodedText),
-        () => {} // ignore expected per-frame failures
+        (error) => {
+          // Only log actual errors, not per-frame scan failures
+          if (error && !error.includes('No QR code found')) {
+            console.warn('Scanner error:', error);
+          }
+        }
       );
       setScannerInstance(scanner);
     } catch (error) {
       console.error('Scanner initialization error:', error);
-      Swal.fire('Error', 'Failed to initialize QR scanner', 'error');
+      setIsScanning(false);
+      Swal.fire('Error', 'Failed to initialize QR scanner. Please check camera permissions.', 'error');
     }
   };
 
-  // Utility: robust file-like check (avoids cross-realm instanceof issues)
+  // Rest of your existing methods remain the same...
   const isFileLike = (f) =>
     !!f &&
     typeof f === 'object' &&
@@ -71,10 +160,9 @@ const WarehouseManagerScanner = () => {
     typeof f.size === 'number' &&
     typeof f.arrayBuffer === 'function';
 
-  // Change handler: iterate FileList with for...of and scan sequentially
   const handleFileInputChange = async (e) => {
     const input = e?.currentTarget || e?.target || null;
-    const files = input?.files || fileInputRef.current?.files || null; // HTMLInputElement.files -> FileList
+    const files = input?.files || fileInputRef.current?.files || null;
     if (!files || files.length === 0) {
       Swal.fire('Error', 'No file selected', 'error');
       return;
@@ -83,7 +171,6 @@ const WarehouseManagerScanner = () => {
     try {
       setLoading(true);
 
-      // Stop live camera scanning before file scans
       if (scannerInstance) {
         await scannerInstance.clear();
         setScannerInstance(null);
@@ -91,19 +178,17 @@ const WarehouseManagerScanner = () => {
 
       const html5QrCode = new Html5Qrcode('qr-reader');
 
-      // Process each file sequentially with for...of (clean with async/await)
-      for (const file of files) { // FileList is iterable with for...of
+      for (const file of files) {
         if (!isFileLike(file)) {
           console.warn('Skipped non-file entry in FileList:', file?.name || '(unknown)');
           continue;
         }
 
         try {
-          const decodedText = await html5QrCode.scanFile(file, true); // must be a File
+          const decodedText = await html5QrCode.scanFile(file, true);
           await handleScanSuccess(decodedText);
         } catch (scanErr) {
           console.warn('Scan failed for file:', file.name, scanErr);
-          // Keep going to next file
         }
       }
 
@@ -226,7 +311,14 @@ const WarehouseManagerScanner = () => {
     throw new Error('Quality check cancelled');
   };
 
-  const startScanning = () => setIsScanning(true);
+  // Updated start scanning method
+  const startScanning = async () => {
+    if (cameraPermission === 'denied') {
+      await requestCameraPermission();
+    } else {
+      setIsScanning(true);
+    }
+  };
 
   const stopScanning = () => {
     if (scannerInstance) {
@@ -271,7 +363,7 @@ Report generated by Warehouse Management System
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Warehouse_Report_${new Date().toISOString().split('T')}.txt`;
+      link.download = `Warehouse_Report_${new Date().toISOString().split('T')[0]}.txt`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -302,6 +394,21 @@ Report generated by Warehouse Management System
             <div className="mb-4 sm:mb-0">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">🏭 Warehouse Scanner</h1>
               <p className="text-gray-600 mt-2">Receive and inspect incoming cartons</p>
+              {cameraPermission && (
+                <div className="flex items-center mt-2">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                    cameraPermission === 'granted' 
+                      ? 'bg-green-100 text-green-800' 
+                      : cameraPermission === 'denied'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {cameraPermission === 'granted' ? '✅ Camera Ready' : 
+                     cameraPermission === 'denied' ? '❌ Camera Blocked' : 
+                     '⏳ Camera Pending'}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
               <div className="text-center bg-gray-50 p-3 rounded-lg">
@@ -355,9 +462,16 @@ Report generated by Warehouse Management System
                 !isScanning ? (
                   <button
                     onClick={startScanning}
-                    className="w-full bg-gray-700 text-white px-4 py-3 rounded-lg hover:bg-gray-800 transition duration-200 font-medium"
+                    disabled={cameraPermission === 'denied'}
+                    className={`w-full px-4 py-3 rounded-lg transition duration-200 font-medium ${
+                      cameraPermission === 'denied'
+                        ? 'bg-red-100 text-red-600 cursor-not-allowed'
+                        : 'bg-gray-700 text-white hover:bg-gray-800'
+                    }`}
                   >
-                    📷 Start Camera Scanner
+                    {cameraPermission === 'denied' 
+                      ? '❌ Camera Access Denied - Click to Enable' 
+                      : '📷 Start Camera Scanner'}
                   </button>
                 ) : (
                   <button
@@ -374,7 +488,7 @@ Report generated by Warehouse Management System
                     accept="image/*"
                     multiple
                     ref={fileInputRef}
-                    onChange={handleFileInputChange} // iterate FileList and scan each file
+                    onChange={handleFileInputChange}
                     className="hidden"
                     id="qr-upload"
                   />
@@ -423,11 +537,22 @@ Report generated by Warehouse Management System
             <div id="qr-reader" style={{ display: 'none' }}></div>
           </div>
 
-          {/* Right Panel - Received Items */}
+          {/* Right Panel - Received Items - Same as before */}
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-0">📋 Received Items</h2>
-              <div className="text-sm text-gray-500">Today: {scannedItems.length} items</div>
+              <div className="flex items-center space-x-2">
+                <div className="text-sm text-gray-500">Today: {scannedItems.length} items</div>
+                {scannedItems.length > 0 && (
+                  <button
+                    onClick={exportInventoryReport}
+                    disabled={loading}
+                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400"
+                  >
+                    📊 Export
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="space-y-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto">

@@ -14,12 +14,14 @@ const ShipmentScanner = () => {
   const [loading, setLoading] = useState(false);
   const [scanMethod, setScanMethod] = useState('camera'); // 'camera' or 'upload'
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [cameraPermission, setCameraPermission] = useState(null); // Track permission status
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Fetch distributors on component mount
+  // Fetch distributors and check camera permission on mount
   useEffect(() => {
     fetchDistributors();
+    checkCameraPermission(); // Check permission on component mount
   }, []);
 
   // Initialize scanner when scanning starts
@@ -35,6 +37,67 @@ const ShipmentScanner = () => {
     };
   }, [isScanning, scanMethod]);
 
+  // Check and request camera permission
+  const checkCameraPermission = async () => {
+    try {
+      // Check if permission is already granted
+      const permission = await navigator.permissions.query({ name: 'camera' });
+      setCameraPermission(permission.state);
+      
+      // Listen for permission changes
+      permission.onchange = () => {
+        setCameraPermission(permission.state);
+      };
+    } catch (error) {
+      console.warn('Permission API not supported:', error);
+      // Fallback: try to access camera directly
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(track => track.stop()); // Stop immediately
+        setCameraPermission('granted');
+      } catch (err) {
+        setCameraPermission('denied');
+      }
+    }
+  };
+
+  // Request camera permission explicitly
+  const requestCameraPermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment', // Use back camera by default
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      });
+      
+      // Stop the stream immediately - we just wanted permission
+      stream.getTracks().forEach(track => track.stop());
+      setCameraPermission('granted');
+      return true;
+    } catch (error) {
+      console.error('Camera permission denied:', error);
+      setCameraPermission('denied');
+      
+      Swal.fire({
+        title: 'Camera Access Required',
+        html: `
+          <p>Camera access is needed to scan QR codes.</p>
+          <p>Please:</p>
+          <ol style="text-align: left; margin: 10px 0;">
+            <li>Click the camera icon in your browser's address bar</li>
+            <li>Select "Allow" for camera access</li>
+            <li>Refresh the page and try again</li>
+          </ol>
+        `,
+        icon: 'info',
+        confirmButtonText: 'I understand'
+      });
+      return false;
+    }
+  };
+
   const fetchDistributors = async () => {
     try {
       const response = await axios.get(`${baseURL}/api/v1/admin/distributor/get`, {
@@ -49,26 +112,48 @@ const ShipmentScanner = () => {
     }
   };
 
-  const initializeScanner = () => {
+  const initializeScanner = async () => {
     try {
+      // Ensure camera permission is granted first
+      if (cameraPermission !== 'granted') {
+        const hasPermission = await requestCameraPermission();
+        if (!hasPermission) {
+          setIsScanning(false);
+          return;
+        }
+      }
+
       const scanner = new Html5QrcodeScanner(
         "qr-scanner",
         { 
           fps: 10,
           qrbox: { width: 300, height: 300 },
-          aspectRatio: 1.0
+          aspectRatio: 1.0,
+          rememberLastUsedCamera: true, // Remember last used camera
+          disableFlip: true,
+          showTorchButtonIfSupported: true, // Show flashlight if available
+          showZoomSliderIfSupported: true, // Show zoom if available
+          defaultZoomValueIfSupported: 2, // Default zoom level
+          supportedScanTypes: [0, 1, 2] // Support QR codes and barcodes
         },
         false
       );
 
       scanner.render(
         (decodedText) => handleScanSuccess(decodedText),
-        (error) => console.log('Scan error:', error)
+        (error) => {
+          // Only log actual errors, not per-frame scan failures
+          if (error && !error.includes('No QR code found')) {
+            console.warn('Scanner error:', error);
+          }
+        }
       );
 
       setScannerInstance(scanner);
     } catch (error) {
-      Swal.fire('Error', 'Failed to initialize QR scanner', 'error');
+      console.error('Scanner initialization error:', error);
+      setIsScanning(false);
+      Swal.fire('Error', 'Failed to initialize QR scanner. Please check camera permissions.', 'error');
     }
   };
 
@@ -90,7 +175,6 @@ const ShipmentScanner = () => {
       await handleScanSuccess(qrCodeResult);
       html5QrCode.clear();
     } catch (error) {
-
       let errorMessage = 'Failed to scan QR code from image';
       if (error.message.includes('No QR code found')) {
         errorMessage = 'No QR code found in the uploaded image. Please try another image.';
@@ -183,12 +267,18 @@ const ShipmentScanner = () => {
     }
   };
 
-  const startScanning = () => {
+  // Updated start scanning method
+  const startScanning = async () => {
     if (!selectedDistributor) {
       Swal.fire('Warning', 'Please select a distributor first', 'warning');
       return;
     }
-    setIsScanning(true);
+
+    if (cameraPermission === 'denied') {
+      await requestCameraPermission();
+    } else {
+      setIsScanning(true);
+    }
   };
 
   const stopScanning = () => {
@@ -286,57 +376,55 @@ const ShipmentScanner = () => {
     setScannedItems(prev => prev.filter(item => item.uniqueId !== uniqueId));
   };
 
-const downloadShipmentReceipt = async () => {
-  if (!shipmentCreated) return;
+  const downloadShipmentReceipt = async () => {
+    if (!shipmentCreated) return;
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    // ✅ Call backend PDF generation endpoint
-    const response = await axios.post(
-      `${baseURL}/api/v1/shipment/receipt/generate`,
-      {
-        shipmentId: shipmentCreated.shipmentId,
-        distributorName: shipmentCreated.distributorName,
-        totalCartons: shipmentCreated.totalCartons,
-        shippedAt: shipmentCreated.shippedAt,
-        items: shipmentCreated.items
-      },
-      {
-        withCredentials: true,
-        responseType: 'blob' // ✅ Important for PDF download
-      }
-    );
+      // ✅ Call backend PDF generation endpoint
+      const response = await axios.post(
+        `${baseURL}/api/v1/shipment/receipt/generate`,
+        {
+          shipmentId: shipmentCreated.shipmentId,
+          distributorName: shipmentCreated.distributorName,
+          totalCartons: shipmentCreated.totalCartons,
+          shippedAt: shipmentCreated.shippedAt,
+          items: shipmentCreated.items
+        },
+        {
+          withCredentials: true,
+          responseType: 'blob' // ✅ Important for PDF download
+        }
+      );
 
-    // ✅ Create blob URL and download PDF
-    const blob = new Blob([response.data], { type: 'application/pdf' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Shipment_${shipmentCreated.shipmentId}_Receipt.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+      // ✅ Create blob URL and download PDF
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Shipment_${shipmentCreated.shipmentId}_Receipt.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-    Swal.fire({
-      icon: 'success',
-      title: 'Receipt Downloaded!',
-      text: 'PDF receipt has been downloaded successfully',
-      timer: 2000,
-      showConfirmButton: false
-    });
+      Swal.fire({
+        icon: 'success',
+        title: 'Receipt Downloaded!',
+        text: 'PDF receipt has been downloaded successfully',
+        timer: 2000,
+        showConfirmButton: false
+      });
 
-  } catch (error) {
-    console.error('Error downloading receipt:', error);
-    Swal.fire('Error', 'Failed to download receipt', 'error');
-  } finally {
-    setLoading(false);
-  }
-};
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      Swal.fire('Error', 'Failed to download receipt', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-
-  // Rest of your component JSX remains the same...
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -346,6 +434,22 @@ const downloadShipmentReceipt = async () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-800">📦 Shipment Scanner</h1>
               <p className="text-gray-600 mt-2">Scan cartons for distributor shipment</p>
+              {/* Camera Permission Status */}
+              {cameraPermission && (
+                <div className="flex items-center mt-2">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                    cameraPermission === 'granted' 
+                      ? 'bg-green-100 text-green-800' 
+                      : cameraPermission === 'denied'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {cameraPermission === 'granted' ? '✅ Camera Ready' : 
+                     cameraPermission === 'denied' ? '❌ Camera Blocked' : 
+                     '⏳ Camera Pending'}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="text-right">
               <div className="text-sm text-gray-500">Scanned Items</div>
@@ -414,9 +518,20 @@ const downloadShipmentReceipt = async () => {
                 !isScanning ? (
                   <button
                     onClick={startScanning}
-                    className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-medium"
+                    disabled={cameraPermission === 'denied' || !selectedDistributor}
+                    className={`w-full px-4 py-3 rounded-lg transition duration-200 font-medium ${
+                      cameraPermission === 'denied'
+                        ? 'bg-red-100 text-red-600 cursor-not-allowed'
+                        : !selectedDistributor
+                        ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                   >
-                    📱 Start Camera Scanner
+                    {cameraPermission === 'denied' 
+                      ? '❌ Camera Access Denied - Click to Enable' 
+                      : !selectedDistributor
+                      ? '🔒 Select Distributor First'
+                      : '📱 Start Camera Scanner'}
                   </button>
                 ) : (
                   <button
@@ -483,7 +598,7 @@ const downloadShipmentReceipt = async () => {
                   <li>Choose scan method: Camera or Upload</li>
                   <li>
                     {scanMethod === 'camera' 
-                      ? 'Start scanner and point at QR codes'
+                      ? 'Start scanner and point at QR codes - camera will open automatically'
                       : 'Upload images containing QR codes'
                     }
                   </li>
