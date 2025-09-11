@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
+import QrScanner from 'qr-scanner';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { baseURL } from '../../Utils/URLS';
@@ -12,68 +12,28 @@ const ShipmentScanner = () => {
   const [scannerInstance, setScannerInstance] = useState(null);
   const [shipmentCreated, setShipmentCreated] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [scanMethod, setScanMethod] = useState('camera'); // 'camera' or 'upload'
+  const [scanMethod, setScanMethod] = useState('camera');
   const [uploadLoading, setUploadLoading] = useState(false);
-  const [cameraPermission, setCameraPermission] = useState(null); // Track permission status
-  const scannerRef = useRef(null);
+  const [cameraPermission, setCameraPermission] = useState(null);
+  const videoRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Fetch distributors on mount - REMOVED camera permission check
   useEffect(() => {
     fetchDistributors();
-    // Don't check camera permission on mount - wait for user interaction
   }, []);
 
-  // Initialize scanner when scanning starts
   useEffect(() => {
     if (isScanning && scanMethod === 'camera' && !scannerInstance) {
       initializeScanner();
     }
     return () => {
-      // Cleanup scanner on unmount
       if (scannerInstance) {
-        scannerInstance.clear().catch(console.error);
+        scannerInstance.stop();
+        scannerInstance.destroy();
+        setScannerInstance(null);
       }
     };
   }, [isScanning, scanMethod]);
-
-  // Request camera permission explicitly when user wants to scan
-  const requestCameraPermission = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'environment', // Use back camera by default
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } 
-      });
-      
-      // Stop the stream immediately - we just wanted permission
-      stream.getTracks().forEach(track => track.stop());
-      setCameraPermission('granted');
-      return true;
-    } catch (error) {
-      console.error('Camera permission denied:', error);
-      setCameraPermission('denied');
-      
-      Swal.fire({
-        title: 'Camera Access Required',
-        html: `
-          <p>Camera access is needed to scan QR codes.</p>
-          <p>Please:</p>
-          <ol style="text-align: left; margin: 10px 0;">
-            <li>Click "Allow" when your browser asks for camera permission</li>
-            <li>If you clicked "Block", click the camera icon in your browser's address bar</li>
-            <li>Select "Allow" for camera access</li>
-            <li>Refresh the page and try again</li>
-          </ol>
-        `,
-        icon: 'info',
-        confirmButtonText: 'I understand'
-      });
-      return false;
-    }
-  };
 
   const fetchDistributors = async () => {
     try {
@@ -91,47 +51,45 @@ const ShipmentScanner = () => {
 
   const initializeScanner = async () => {
     try {
-      // Always request permission first when initializing scanner
-      const hasPermission = await requestCameraPermission();
-      if (!hasPermission) {
-        setIsScanning(false);
-        return;
+      if (!videoRef.current) {
+        throw new Error('Video element not found');
       }
 
-      const scanner = new Html5QrcodeScanner(
-        "qr-scanner",
-        { 
-          fps: 10,
-          qrbox: { width: 300, height: 300 },
-          aspectRatio: 1.0,
-          rememberLastUsedCamera: true, // Remember last used camera
-          disableFlip: false, // Allow flip for better scanning
-          showTorchButtonIfSupported: true, // Show flashlight if available
-          showZoomSliderIfSupported: true, // Show zoom if available
-          defaultZoomValueIfSupported: 2, // Default zoom level
-          supportedScanTypes: [0, 1, 2], // Support QR codes and barcodes
-          videoConstraints: {
-            facingMode: 'environment' // Use back camera
-          }
-        },
-        false
-      );
-
-      scanner.render(
-        (decodedText) => handleScanSuccess(decodedText),
-        (error) => {
-          // Only log actual errors, not per-frame scan failures
-          if (error && !error.includes('No QR code found') && !error.includes('NotFoundException')) {
-            console.warn('Scanner error:', error);
-          }
+      const scanner = new QrScanner(
+        videoRef.current,
+        (result) => handleScanSuccess(result.data),
+        {
+          returnDetailedScanResult: true,
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+          preferredCamera: 'environment', // Use back camera
+          maxScansPerSecond: 5,
         }
       );
 
+      await scanner.start();
       setScannerInstance(scanner);
+      setCameraPermission('granted');
     } catch (error) {
       console.error('Scanner initialization error:', error);
       setIsScanning(false);
-      Swal.fire('Error', 'Failed to initialize QR scanner. Please make sure you granted camera permission.', 'error');
+      setCameraPermission('denied');
+      
+      Swal.fire({
+        title: 'Camera Access Required',
+        html: `
+          <p>Camera access is needed to scan QR codes.</p>
+          <p>Please:</p>
+          <ol style="text-align: left; margin: 10px 0;">
+            <li>Click "Allow" when your browser asks for camera permission</li>
+            <li>If you clicked "Block", click the camera icon in your browser's address bar</li>
+            <li>Select "Allow" for camera access</li>
+            <li>Refresh the page and try again</li>
+          </ol>
+        `,
+        icon: 'info',
+        confirmButtonText: 'I understand'
+      });
     }
   };
 
@@ -148,10 +106,10 @@ const ShipmentScanner = () => {
     setUploadLoading(true);
 
     try {
-      const html5QrCode = new Html5Qrcode("temp-qr-element");
-      const qrCodeResult = await html5QrCode.scanFile(file, true);
-      await handleScanSuccess(qrCodeResult);
-      html5QrCode.clear();
+      const result = await QrScanner.scanImage(file, {
+        returnDetailedScanResult: true,
+      });
+      await handleScanSuccess(result.data);
     } catch (error) {
       let errorMessage = 'Failed to scan QR code from image';
       if (error.message.includes('No QR code found')) {
@@ -184,9 +142,8 @@ const ShipmentScanner = () => {
         return;
       }
 
-      // ✅ FIXED: Use correct endpoint for shipment scanning
       const response = await axios.post(
-        `${baseURL}/api/v1/shipment/scan/${qrData.uniqueId}`, // Fixed endpoint
+        `${baseURL}/api/v1/shipment/scan/${qrData.uniqueId}`,
         {
           event: 'shipped',
           scannedBy: {
@@ -245,18 +202,18 @@ const ShipmentScanner = () => {
     }
   };
 
-  // Updated start scanning method - this will always request permission
   const startScanning = () => {
     if (!selectedDistributor) {
       Swal.fire('Warning', 'Please select a distributor first', 'warning');
       return;
     }
-    setIsScanning(true); // This will trigger the useEffect which calls initializeScanner
+    setIsScanning(true);
   };
 
   const stopScanning = () => {
     if (scannerInstance) {
-      scannerInstance.clear();
+      scannerInstance.stop();
+      scannerInstance.destroy();
       setScannerInstance(null);
     }
     setIsScanning(false);
@@ -277,7 +234,6 @@ const ShipmentScanner = () => {
     fileInputRef.current?.click();
   };
 
-  // ✅ FIXED: Create shipment with proper data structure
   const createShipment = async () => {
     if (scannedItems.length === 0) {
       Swal.fire('Warning', 'Please scan at least one carton', 'warning');
@@ -294,26 +250,6 @@ const ShipmentScanner = () => {
 
       const selectedDist = distributors.find(d => d._id === selectedDistributor);
       
-      const shipmentData = {
-        distributorId: selectedDistributor,
-        distributorName: selectedDist?.distributorDetails?.partyName || selectedDist?.name || '',
-        items: scannedItems.map(item => ({
-          qrCodeId: item.uniqueId, // This should be ObjectId if available
-          uniqueId: item.uniqueId,
-          articleName: item.articleName,
-          articleDetails: {
-            colors: item.colors,
-            sizes: item.sizes,
-            numberOfCartons: 1
-          },
-          receivedAt: new Date(), // When it was received at warehouse
-          status: 'shipped'
-        })),
-        totalCartons: scannedItems.length,
-        notes: `Shipment created on ${new Date().toLocaleDateString()}`
-      };
-
-      // ✅ Create shipment directly without separate endpoint
       const shipmentId = `SHIP_${Date.now()}_${selectedDistributor.slice(-6)}`;
       
       const shipmentResult = {
@@ -355,7 +291,6 @@ const ShipmentScanner = () => {
     try {
       setLoading(true);
 
-      // ✅ Call backend PDF generation endpoint
       const response = await axios.post(
         `${baseURL}/api/v1/shipment/receipt/generate`,
         {
@@ -367,11 +302,10 @@ const ShipmentScanner = () => {
         },
         {
           withCredentials: true,
-          responseType: 'blob' // ✅ Important for PDF download
+          responseType: 'blob'
         }
       );
 
-      // ✅ Create blob URL and download PDF
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -407,7 +341,6 @@ const ShipmentScanner = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-800">📦 Shipment Scanner</h1>
               <p className="text-gray-600 mt-2">Scan cartons for distributor shipment</p>
-              {/* Camera Permission Status */}
               {cameraPermission && (
                 <div className="flex items-center mt-2">
                   <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
@@ -530,13 +463,14 @@ const ShipmentScanner = () => {
               className="hidden"
             />
 
-            {/* Temporary element for HTML5Qrcode file scanning */}
-            <div id="temp-qr-element" style={{ display: 'none' }}></div>
-
             {/* Scanner Display */}
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] flex items-center justify-center">
               {isScanning && scanMethod === 'camera' ? (
-                <div id="qr-scanner" className="w-full"></div>
+                <video
+                  ref={videoRef}
+                  className="w-full h-full max-w-sm max-h-80 object-cover rounded-lg"
+                  style={{ transform: 'scaleX(-1)' }} // Mirror video for better UX
+                />
               ) : (
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">
