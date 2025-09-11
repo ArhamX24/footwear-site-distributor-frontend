@@ -65,6 +65,41 @@ const QRGenerator = () => {
     qrFormik.setFieldValue(fieldName, value);
   };
 
+  // ✅ NEW: Logout function
+  const handleLogout = async () => {
+    try {
+      const result = await Swal.fire({
+        title: 'Confirm Logout',
+        text: 'Are you sure you want to log out?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Logout',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#d33',
+      });
+
+      if (result.isConfirmed) {
+        await axios.post(`${baseURL}/api/v1/auth/logout`, {}, { withCredentials: true });
+        Swal.fire({
+          icon: 'success',
+          title: 'Logged out successfully',
+          timer: 1500,
+          showConfirmButton: false
+        });
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Logout failed',
+        text: 'Please try again'
+      });
+    }
+  };
+
   // ✅ Updated form with article ID support
   const qrFormik = useFormik({
     initialValues: { 
@@ -143,8 +178,6 @@ const QRGenerator = () => {
       setSelectedArticle(newValue);
       qrFormik.setFieldValue('articleName', newValue.articleName);
       qrFormik.setFieldValue('articleId', newValue.articleId.toString());
-      
-      // ❌ REMOVED: Auto-filling colors and sizes
     } else if (typeof newValue === 'string') {
       setSelectedArticle(null);
       qrFormik.setFieldValue('articleName', newValue);
@@ -382,10 +415,20 @@ const QRGenerator = () => {
       <div className="max-w-4xl mx-auto">
         {/* Header Section */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              QR Code Label Generator
-            </h1>
+          <div className="flex justify-between items-start mb-6">
+            <div className="text-center flex-1">
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                QR Code Label Generator
+              </h1>
+            </div>
+            {/* ✅ NEW: Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 font-medium flex items-center"
+            >
+              <span className="mr-2">🚪</span>
+              Logout
+            </button>
           </div>
 
           {/* ✅ Updated form with article dropdown */}

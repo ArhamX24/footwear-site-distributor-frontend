@@ -22,7 +22,6 @@ const ShipmentScanner = () => {
     fetchDistributors();
   }, []);
 
-  // ✅ Fixed useEffect - prevents unnecessary reinitializations
   useEffect(() => {
     if (isScanning && scanMethod === 'camera' && !scannerInstance && videoRef.current) {
       initializeScanner();
@@ -59,7 +58,6 @@ const ShipmentScanner = () => {
 
       const scanner = new QrScanner(
         videoRef.current,
-        // ✅ Pass function reference directly
         handleScanSuccess,
         {
           returnDetailedScanResult: true,
@@ -96,18 +94,51 @@ const ShipmentScanner = () => {
     }
   };
 
-  // ✅ Fixed handleScanSuccess - stable function reference
+  // ✅ Enhanced handleScanSuccess with better QR parsing
   const handleScanSuccess = async (decodedText) => {
     try {
       let qrData;
+      
       try {
-        qrData = JSON.parse(decodedText);
-      } catch {
-        Swal.fire('Error', 'Invalid QR code content (not JSON)', 'error');
+        if (typeof decodedText === 'string') {
+          const trimmed = decodedText.trim();
+          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            qrData = JSON.parse(trimmed);
+          } else {
+            console.log('QR Content:', decodedText);
+            Swal.fire({
+              title: 'Invalid QR Code',
+              html: `
+                <p>This QR code doesn't contain the expected shipment data format.</p>
+                <p><strong>Content found:</strong></p>
+                <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
+                <p>Please scan a valid shipment QR code.</p>
+              `,
+              icon: 'warning',
+              confirmButtonText: 'OK'
+            });
+            return;
+          }
+        } else {
+          qrData = decodedText;
+        }
+      } catch (jsonError) {
+        console.log('JSON Parse Error:', jsonError);
+        console.log('QR Content:', decodedText);
+        Swal.fire({
+          title: 'Invalid QR Code Format',
+          html: `
+            <p>Unable to parse QR code data.</p>
+            <p><strong>Content:</strong></p>
+            <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
+            <p>Please ensure you're scanning a valid shipment QR code.</p>
+          `,
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
         return;
       }
 
-      // ✅ Use setState callback to check for duplicates
       const shouldProceed = await new Promise((resolve) => {
         setScannedItems((currentItems) => {
           const alreadyScanned = currentItems.find(item => item.uniqueId === qrData.uniqueId);
@@ -123,13 +154,23 @@ const ShipmentScanner = () => {
 
       if (!shouldProceed) return;
 
-      // Validate QR code format
       if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
-        Swal.fire('Error', 'Invalid QR code format', 'error');
+        Swal.fire({
+          title: 'Invalid QR Code Data',
+          html: `
+            <p>QR code is missing required information:</p>
+            <ul style="text-align: left; margin: 10px 0;">
+              <li>Unique ID: ${qrData.uniqueId ? '✅' : '❌ Missing'}</li>
+              <li>Article Name: ${(qrData.articleName || qrData.contractorInput?.articleName) ? '✅' : '❌ Missing'}</li>
+            </ul>
+            <p>Please scan a complete shipment QR code.</p>
+          `,
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
         return;
       }
 
-      // ✅ Get current distributor info when needed
       let currentDistributor;
       setSelectedDistributor((current) => {
         currentDistributor = current;
@@ -299,7 +340,6 @@ const ShipmentScanner = () => {
         confirmButtonText: 'OK'
       });
 
-      // Reset form
       setScannedItems([]);
       setSelectedDistributor('');
       stopScanning();
@@ -362,6 +402,41 @@ const ShipmentScanner = () => {
     }
   };
 
+  // ✅ NEW: Logout function
+  const handleLogout = async () => {
+    try {
+      const result = await Swal.fire({
+        title: 'Confirm Logout',
+        text: 'Are you sure you want to logout?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Logout',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#d33',
+      });
+
+      if (result.isConfirmed) {
+        await axios.post(`${baseURL}/api/v1/auth/logout`, {}, { withCredentials: true });
+        Swal.fire({
+          icon: 'success',
+          title: 'Logged out successfully',
+          timer: 1500,
+          showConfirmButton: false
+        });
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Logout failed',
+        text: 'Please try again'
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -387,9 +462,19 @@ const ShipmentScanner = () => {
                 </div>
               )}
             </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-500">Scanned Items</div>
-              <div className="text-2xl font-bold text-blue-600">{scannedItems.length}</div>
+            <div className="flex items-center space-x-4">
+              {/* ✅ NEW: Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 font-medium flex items-center"
+              >
+                <span className="mr-2">🚪</span>
+                Logout
+              </button>
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Scanned Items</div>
+                <div className="text-2xl font-bold text-blue-600">{scannedItems.length}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -484,7 +569,6 @@ const ShipmentScanner = () => {
               )}
             </div>
 
-            {/* Hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -499,7 +583,7 @@ const ShipmentScanner = () => {
                 <video
                   ref={videoRef}
                   className="w-full h-full max-w-sm max-h-80 object-cover rounded-lg"
-                  style={{ transform: 'scaleX(-1)' }} // Mirror video for better UX
+                  style={{ transform: 'scaleX(-1)' }}
                 />
               ) : (
                 <div className="text-center py-12">
@@ -557,7 +641,6 @@ const ShipmentScanner = () => {
               )}
             </div>
 
-            {/* Scanned Items List */}
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {scannedItems.length === 0 ? (
                 <div className="text-center py-8">
