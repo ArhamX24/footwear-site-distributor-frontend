@@ -23,7 +23,10 @@ const WarehouseManagerScanner = () => {
     fetchInventoryStats();
   }, []);
 
+  // ✅ Enhanced useEffect with better debugging
   useEffect(() => {
+    console.log('useEffect triggered:', { isScanning, scanMode, videoElement: !!videoRef.current, scannerExists: !!scannerRef.current });
+    
     if (isScanning && videoRef.current && !scannerRef.current && scanMode === 'camera') {
       initializeScanner();
     }
@@ -35,30 +38,64 @@ const WarehouseManagerScanner = () => {
     };
   }, [isScanning, scanMode]);
 
+  // ✅ Enhanced scanner initialization with better error handling and debugging
   const initializeScanner = async () => {
     try {
+      console.log('Initializing scanner...');
+      
+      if (!videoRef.current) {
+        throw new Error('Video element not available');
+      }
+
+      // Check if QrScanner has camera support
+      const hasCamera = await QrScanner.hasCamera();
+      console.log('Camera available:', hasCamera);
+      
+      if (!hasCamera) {
+        throw new Error('No camera found on this device');
+      }
+
       const scanner = new QrScanner(
         videoRef.current,
-        handleScanSuccess,
+        (result) => {
+          console.log('Raw scan result:', result);
+          // Handle both string and object results
+          const data = result.data || result;
+          handleScanSuccess(data);
+        },
         {
           highlightScanRegion: true,
           highlightCodeOutline: true,
           preferredCamera: 'environment',
           maxScansPerSecond: 1,
+          returnDetailedScanResult: true,
         }
       );
 
+      console.log('Starting scanner...');
       await scanner.start();
       scannerRef.current = scanner;
       setCameraPermission('granted');
+      console.log('Scanner started successfully');
     } catch (error) {
-      console.error('Scanner initialization error:', error);
+      console.error('Scanner initialization detailed error:', error);
       setCameraPermission('denied');
       setIsScanning(false);
       
       Swal.fire({
-        title: 'Camera Access Required',
-        text: 'Please allow camera access to scan QR codes.',
+        title: 'Scanner Error',
+        html: `
+          <p>Failed to initialize camera scanner:</p>
+          <p><strong>Error:</strong> ${error.message}</p>
+          <p>Please check:</p>
+          <ul style="text-align: left; margin: 10px 0;">
+            <li>Camera permissions are granted</li>
+            <li>You're using HTTPS or localhost</li>
+            <li>No other app is using the camera</li>
+            <li>Your browser supports camera access</li>
+            <li>Try refreshing the page</li>
+          </ul>
+        `,
         icon: 'error',
         confirmButtonText: 'OK'
       });
@@ -66,9 +103,14 @@ const WarehouseManagerScanner = () => {
   };
 
   const cleanupScanner = () => {
+    console.log('Cleaning up scanner...');
     if (scannerRef.current) {
-      scannerRef.current.stop();
-      scannerRef.current.destroy();
+      try {
+        scannerRef.current.stop();
+        scannerRef.current.destroy();
+      } catch (error) {
+        console.error('Error during scanner cleanup:', error);
+      }
       scannerRef.current = null;
     }
   };
@@ -84,18 +126,28 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-  // ✅ Enhanced handleScanSuccess with better QR parsing
+  // ✅ Enhanced handleScanSuccess with comprehensive debugging and error handling
   const handleScanSuccess = async (decodedText) => {
+    console.log('handleScanSuccess called with:', decodedText, typeof decodedText);
+    
     try {
       let qrData;
+      
+      // Handle different result formats from QrScanner
+      if (typeof decodedText === 'object' && decodedText.data) {
+        decodedText = decodedText.data;
+      }
       
       try {
         if (typeof decodedText === 'string') {
           const trimmed = decodedText.trim();
+          console.log('Trimmed QR content:', trimmed);
+          
           if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
             qrData = JSON.parse(trimmed);
+            console.log('Parsed QR data:', qrData);
           } else {
-            console.log('QR Content:', decodedText);
+            console.log('Non-JSON QR Content:', decodedText);
             Swal.fire({
               title: 'Invalid QR Code',
               html: `
@@ -109,18 +161,22 @@ const WarehouseManagerScanner = () => {
             });
             return;
           }
-        } else {
+        } else if (typeof decodedText === 'object') {
           qrData = decodedText;
+          console.log('Object QR data:', qrData);
+        } else {
+          throw new Error('Unexpected data type: ' + typeof decodedText);
         }
       } catch (jsonError) {
-        console.log('JSON Parse Error:', jsonError);
-        console.log('QR Content:', decodedText);
+        console.error('JSON Parse Error:', jsonError);
+        console.log('Original QR Content:', decodedText);
         Swal.fire({
           title: 'Invalid QR Code Format',
           html: `
             <p>Unable to parse QR code data.</p>
             <p><strong>Content:</strong></p>
-            <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
+            <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${String(decodedText)}</code>
+            <p><strong>Error:</strong> ${jsonError.message}</p>
             <p>Please ensure you're scanning a valid warehouse QR code.</p>
           `,
           icon: 'error',
@@ -129,6 +185,7 @@ const WarehouseManagerScanner = () => {
         return;
       }
 
+      // Check for duplicates
       const shouldProceed = await new Promise((resolve) => {
         setScannedItems((currentItems) => {
           const alreadyScanned = currentItems.find((item) => item.uniqueId === qrData.uniqueId);
@@ -144,7 +201,9 @@ const WarehouseManagerScanner = () => {
 
       if (!shouldProceed) return;
 
+      // Validate required fields
       if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
+        console.error('Missing required fields:', qrData);
         Swal.fire({
           title: 'Invalid QR Code Data',
           html: `
@@ -161,8 +220,10 @@ const WarehouseManagerScanner = () => {
         return;
       }
 
+      console.log('Starting quality check for:', qrData);
       const qualityCheck = await checkItemQuality(qrData);
 
+      console.log('Making API call to scan endpoint...');
       const response = await axios.post(
         `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`,
         {
@@ -174,6 +235,8 @@ const WarehouseManagerScanner = () => {
         },
         { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
       );
+
+      console.log('API response:', response.data);
 
       if (response.data.result) {
         const newItem = {
@@ -188,6 +251,7 @@ const WarehouseManagerScanner = () => {
           qualityNotes: qualityCheck.notes || ''
         };
 
+        console.log('Adding new item:', newItem);
         setScannedItems((prev) => [...prev, newItem]);
         setInventoryStats((prev) => ({
           ...prev,
@@ -208,17 +272,26 @@ const WarehouseManagerScanner = () => {
           position: 'top-end'
         });
       } else {
-        throw new Error(response.data.message);
+        throw new Error(response.data.message || 'Server returned failure');
       }
     } catch (error) {
+      console.error('handleScanSuccess error:', error);
       const msg = error.response?.data?.message || error.message || 'Failed to process scan';
-      Swal.fire('Error', msg, 'error');
+      Swal.fire('Error', `Scan processing failed: ${msg}`, 'error');
     }
   };
 
   const checkItemQuality = async (qrData) => {
+    console.log('Starting quality check dialog...');
+    
+    // Pause scanner during quality check
     if (scannerRef.current) {
-      scannerRef.current.stop();
+      try {
+        scannerRef.current.stop();
+        console.log('Scanner paused for quality check');
+      } catch (error) {
+        console.error('Error pausing scanner:', error);
+      }
     }
 
     const result = await Swal.fire({
@@ -254,16 +327,28 @@ const WarehouseManagerScanner = () => {
       }
     });
 
+    // Resume scanner after quality check
     if (scannerRef.current && isScanning) {
-      await scannerRef.current.start();
+      try {
+        await scannerRef.current.start();
+        console.log('Scanner resumed after quality check');
+      } catch (error) {
+        console.error('Error resuming scanner:', error);
+      }
     }
 
-    if (result.isConfirmed) return result.value;
+    if (result.isConfirmed) {
+      console.log('Quality check result:', result.value);
+      return result.value;
+    }
     throw new Error('Quality check cancelled');
   };
 
+  // ✅ Enhanced file upload handler with better debugging
   const handleFileInputChange = async (e) => {
     const files = e.target.files;
+    console.log('File input changed, files:', files?.length || 0);
+    
     if (!files || files.length === 0) {
       Swal.fire('Error', 'No file selected', 'error');
       return;
@@ -271,21 +356,36 @@ const WarehouseManagerScanner = () => {
 
     try {
       setLoading(true);
+      console.log('Processing files:', files.length);
 
       for (const file of files) {
         try {
+          console.log('Scanning file:', file.name, file.type, file.size);
+          
+          // Enhanced file scanning with better options
           const result = await QrScanner.scanImage(file, {
             returnDetailedScanResult: true,
+            scanRegion: null // Scan entire image
           });
-          await handleScanSuccess(result.data);
+          
+          console.log('File scan result:', result);
+          // Handle both data property and direct result
+          const data = result.data || result;
+          await handleScanSuccess(data);
         } catch (scanErr) {
-          console.warn('Scan failed for file:', file.name, scanErr);
-          Swal.fire('Warning', `Could not scan QR code from ${file.name}`, 'warning');
+          console.error('Scan failed for file:', file.name, scanErr);
+          let errorMessage = `Could not scan QR code from ${file.name}`;
+          if (scanErr.message.includes('No QR code found')) {
+            errorMessage += ': No QR code detected in image';
+          } else if (scanErr.message.includes('decode')) {
+            errorMessage += ': QR code found but could not be decoded';
+          }
+          Swal.fire('Warning', errorMessage, 'warning');
         }
       }
     } catch (err) {
-      console.warn('Bulk file scan error:', err);
-      Swal.fire('Error', 'Failed while scanning selected images', 'error');
+      console.error('Bulk file scan error:', err);
+      Swal.fire('Error', `Failed while scanning images: ${err.message}`, 'error');
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
       setLoading(false);
@@ -293,10 +393,12 @@ const WarehouseManagerScanner = () => {
   };
 
   const startScanning = () => {
+    console.log('Starting scan process...');
     setIsScanning(true);
   };
 
   const stopScanning = () => {
+    console.log('Stopping scan process...');
     cleanupScanner();
     setIsScanning(false);
   };
@@ -343,6 +445,7 @@ Report generated by Warehouse Management System
       window.URL.revokeObjectURL(url);
       Swal.fire('Success', 'Report downloaded successfully!', 'success');
     } catch (error) {
+      console.error('Report export error:', error);
       Swal.fire('Error', 'Failed to generate report', 'error');
     } finally {
       setLoading(false);
@@ -358,7 +461,7 @@ Report generated by Warehouse Management System
     }));
   };
 
-  // ✅ NEW: Logout function
+  // ✅ Logout function
   const handleLogout = async () => {
     try {
       const result = await Swal.fire({
@@ -372,6 +475,12 @@ Report generated by Warehouse Management System
       });
 
       if (result.isConfirmed) {
+        // Clean up scanner before logout
+        if (scannerRef.current) {
+          cleanupScanner();
+          setIsScanning(false);
+        }
+        
         await axios.post(`${baseURL}/api/v1/auth/logout`, {}, { withCredentials: true });
         Swal.fire({
           icon: 'success',
@@ -379,7 +488,6 @@ Report generated by Warehouse Management System
           timer: 1500,
           showConfirmButton: false
         });
-        // Redirect to login page
         setTimeout(() => {
           window.location.href = '/login';
         }, 1500);
@@ -420,10 +528,10 @@ Report generated by Warehouse Management System
               )}
             </div>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-              {/* ✅ NEW: Logout Button */}
+              {/* Logout Button */}
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 font-medium flex items-center"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 font-medium flex items-center justify-center"
               >
                 <span className="mr-2">🚪</span>
                 Logout
@@ -529,6 +637,8 @@ Report generated by Warehouse Management System
                   ref={videoRef}
                   className="w-full h-full max-w-sm max-h-80 object-cover rounded-lg"
                   style={{ transform: 'scaleX(-1)' }}
+                  playsInline
+                  muted
                 />
               ) : scanMode === 'upload' ? (
                 <div className="text-center py-12">
@@ -546,6 +656,17 @@ Report generated by Warehouse Management System
                 </div>
               )}
             </div>
+
+            {/* Debug Panel (remove in production) */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                <strong>Debug Info:</strong>
+                <div>Scanner: {scannerRef.current ? '✅ Active' : '❌ Not Active'}</div>
+                <div>Camera: {cameraPermission || 'Unknown'}</div>
+                <div>Scanning: {isScanning ? 'Yes' : 'No'}</div>
+                <div>Mode: {scanMode}</div>
+              </div>
+            )}
           </div>
 
           {/* Right Panel - Received Items */}
