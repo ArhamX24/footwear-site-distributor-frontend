@@ -47,76 +47,136 @@ const WarehouseManagerScanner = () => {
   };
 
   // Get available cameras
-  const getCameras = async () => {
-    try {
-      const devices = await Html5Qrcode.getCameras();
-      console.log('Available cameras:', devices);
-      setAvailableCameras(devices);
-    } catch (error) {
-      console.error('Error getting cameras:', error);
-    }
-  };
+  // Enhanced getCameras function to better identify back cameras
+const getCameras = async () => {
+  try {
+    const devices = await Html5Qrcode.getCameras();
+    console.log('=== AVAILABLE CAMERAS DEBUG ===');
+    devices.forEach((camera, index) => {
+      console.log(`Camera ${index}:`, {
+        id: camera.id,
+        label: camera.label,
+        isLikelyBackCamera: camera.label && (
+          camera.label.toLowerCase().includes('back') ||
+          camera.label.toLowerCase().includes('rear') ||
+          camera.label.toLowerCase().includes('environment') ||
+          camera.label.toLowerCase().includes('facing back') ||
+          camera.label.toLowerCase().includes('world facing')
+        ),
+        isLikelyFrontCamera: camera.label && (
+          camera.label.toLowerCase().includes('front') ||
+          camera.label.toLowerCase().includes('user') ||
+          camera.label.toLowerCase().includes('facing user') ||
+          camera.label.toLowerCase().includes('selfie')
+        )
+      });
+    });
+    console.log('=================================');
+    setAvailableCameras(devices);
+  } catch (error) {
+    console.error('Error getting cameras:', error);
+  }
+};
 
-  // Request camera permission and start scanning
-  const startCameraScanning = async () => {
-    try {
-      console.log('Starting camera scanning...');
-      
-      // Clean up any existing scanner
-      if (html5QrCodeRef.current) {
-        try {
-          await html5QrCodeRef.current.stop();
-          html5QrCodeRef.current.clear();
-        } catch (error) {
-          console.log('Error stopping previous scanner:', error);
-        }
+// Enhanced startCameraScanning function with back camera priority
+const startCameraScanning = async () => {
+  try {
+    console.log('Starting camera scanning...');
+    
+    // Clean up any existing scanner
+    if (html5QrCodeRef.current) {
+      try {
+        await html5QrCodeRef.current.stop();
+        html5QrCodeRef.current.clear();
+      } catch (error) {
+        console.log('Error stopping previous scanner:', error);
       }
+    }
 
-      // Create new scanner instance
-      html5QrCodeRef.current = new Html5Qrcode("qr-scanner-container");
+    // Create new scanner instance
+    html5QrCodeRef.current = new Html5Qrcode("qr-scanner-container");
+    
+    // Enhanced back camera detection
+    let cameraId;
+    if (availableCameras.length > 0) {
+      console.log('Available cameras:', availableCameras);
       
-      // Find back camera or use first available
-      let cameraId;
-      if (availableCameras.length > 0) {
-        // Try to find back camera
-        const backCamera = availableCameras.find(camera => 
-          camera.label && (
-            camera.label.toLowerCase().includes('back') ||
-            camera.label.toLowerCase().includes('rear') ||
-            camera.label.toLowerCase().includes('environment')
+      // Multiple strategies to find back camera
+      let backCamera = null;
+      
+      // Strategy 1: Look for back/rear/environment keywords
+      backCamera = availableCameras.find(camera => 
+        camera.label && (
+          camera.label.toLowerCase().includes('back') ||
+          camera.label.toLowerCase().includes('rear') ||
+          camera.label.toLowerCase().includes('environment') ||
+          camera.label.toLowerCase().includes('facing back') ||
+          camera.label.toLowerCase().includes('world facing')
+        )
+      );
+      
+      // Strategy 2: If no back camera found by label, try to find one that's not front-facing
+      if (!backCamera) {
+        backCamera = availableCameras.find(camera => 
+          camera.label && !(
+            camera.label.toLowerCase().includes('front') ||
+            camera.label.toLowerCase().includes('user') ||
+            camera.label.toLowerCase().includes('facing user') ||
+            camera.label.toLowerCase().includes('selfie')
           )
         );
-        cameraId = backCamera ? backCamera.id : availableCameras[0].id;
-        console.log('Using camera:', cameraId, backCamera?.label || availableCameras[0].label);
-      } else {
-        // Fallback to environment facing mode
-        cameraId = { facingMode: "environment" };
       }
+      
+      // Strategy 3: On mobile devices, often the first camera is back camera
+      if (!backCamera && availableCameras.length > 1) {
+        // If we have multiple cameras and couldn't identify back camera,
+        // try the first one (often back camera on mobile)
+        backCamera = availableCameras[0];
+      }
+      
+      // Strategy 4: Fallback to last camera if still no back camera found
+      if (!backCamera) {
+        backCamera = availableCameras[availableCameras.length - 1];
+      }
+      
+      cameraId = backCamera.id;
+      console.log('Selected camera:', {
+        id: backCamera.id,
+        label: backCamera.label
+      });
+    } else {
+      // Fallback: Use facingMode constraint for back camera
+      cameraId = { facingMode: { exact: "environment" } };
+      console.log('Using facingMode: environment');
+    }
 
-      // Camera configuration optimized for mobile
-      const config = {
-        fps: 10,
-        qrbox: function(viewfinderWidth, viewfinderHeight) {
-          const minEdgePercentage = 0.7;
-          const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
-          return {
-            width: qrboxSize,
-            height: qrboxSize,
-          };
-        },
-        aspectRatio: 1.0,
-        disableFlip: false,
-        videoConstraints: {
-          advanced: [
-            { focusMode: "continuous" },
-            { exposureMode: "continuous" },
-            { whiteBalanceMode: "continuous" }
-          ]
-        }
-      };
+    // Enhanced camera configuration for back camera preference
+    const config = {
+      fps: 10,
+      qrbox: function(viewfinderWidth, viewfinderHeight) {
+        const minEdgePercentage = 0.7;
+        const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+        const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+        return {
+          width: qrboxSize,
+          height: qrboxSize,
+        };
+      },
+      aspectRatio: 1.0,
+      disableFlip: false,
+      videoConstraints: {
+        facingMode: "environment", // Prefer back camera
+        advanced: [
+          { facingMode: { exact: "environment" } }, // Try to force back camera
+          { focusMode: "continuous" },
+          { exposureMode: "continuous" },
+          { whiteBalanceMode: "continuous" }
+        ]
+      }
+    };
 
-      // Start scanning
+    try {
+      // First attempt: Try with selected camera ID
       await html5QrCodeRef.current.start(
         cameraId,
         config,
@@ -135,51 +195,118 @@ const WarehouseManagerScanner = () => {
           console.warn('QR scan error:', error);
         }
       );
-
-      setCameraPermission('granted');
-      console.log('Camera scanning started successfully');
-
-    } catch (error) {
-      console.error('Error starting camera:', error);
-      setCameraPermission('denied');
-      setIsScanning(false);
       
-      vibrate([500]);
+      console.log('Camera scanning started successfully with selected camera');
       
-      // Show detailed error message
-      let errorMessage = 'Failed to start camera scanner';
+    } catch (firstAttemptError) {
+      console.warn('First attempt failed, trying fallback:', firstAttemptError);
       
-      if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
-        errorMessage = 'Camera permission denied. Please allow camera access and try again.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = 'No camera found on this device.';
-      } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Camera is already in use by another application.';
-      } else if (error.name === 'OverconstrainedError') {
-        errorMessage = 'Camera constraints not supported.';
-      } else if (error.name === 'NotSupportedError') {
-        errorMessage = 'Camera not supported on this browser.';
+      // Fallback attempt: Use environment facing mode
+      try {
+        await html5QrCodeRef.current.start(
+          { facingMode: "environment" },
+          config,
+          (decodedText, decodedResult) => {
+            console.log('✅ QR Code scanned:', decodedText);
+            vibrate([200, 100, 200]);
+            handleScanSuccess(decodedText);
+          },
+          (error) => {
+            if (error.includes('No QR code found') || 
+                error.includes('NotFoundException') ||
+                error.includes('No MultiFormat Readers')) {
+              return;
+            }
+            console.warn('QR scan error:', error);
+          }
+        );
+        
+        console.log('Camera scanning started successfully with environment facingMode');
+        
+      } catch (secondAttemptError) {
+        console.warn('Second attempt failed, trying any available camera:', secondAttemptError);
+        
+        // Final fallback: Try any available camera
+        const fallbackCameraId = availableCameras.length > 0 ? availableCameras[0].id : undefined;
+        
+        await html5QrCodeRef.current.start(
+          fallbackCameraId,
+          {
+            ...config,
+            videoConstraints: {
+              advanced: [
+                { focusMode: "continuous" },
+                { exposureMode: "continuous" },
+                { whiteBalanceMode: "continuous" }
+              ]
+            }
+          },
+          (decodedText, decodedResult) => {
+            console.log('✅ QR Code scanned:', decodedText);
+            vibrate([200, 100, 200]);
+            handleScanSuccess(decodedText);
+          },
+          (error) => {
+            if (error.includes('No QR code found') || 
+                error.includes('NotFoundException') ||
+                error.includes('No MultiFormat Readers')) {
+              return;
+            }
+            console.warn('QR scan error:', error);
+          }
+        );
+        
+        console.log('Camera scanning started successfully with fallback camera');
       }
-
-      Swal.fire({
-        title: 'Camera Error',
-        html: `
-          <p>${errorMessage}</p>
-          <br>
-          <p><strong>Troubleshooting:</strong></p>
-          <ul style="text-align: left; margin: 10px 0;">
-            <li>Make sure you're using HTTPS or localhost</li>
-            <li>Grant camera permissions when prompted</li>
-            <li>Close other apps using the camera</li>
-            <li>Try refreshing the page</li>
-            <li>On iOS: Check Safari settings for camera access</li>
-          </ul>
-        `,
-        icon: 'error',
-        confirmButtonText: 'OK'
-      });
     }
-  };
+
+    setCameraPermission('granted');
+    console.log('Camera scanning initialization complete');
+
+  } catch (error) {
+    console.error('Error starting camera:', error);
+    setCameraPermission('denied');
+    setIsScanning(false);
+    
+    vibrate([500]);
+    
+    // Show detailed error message
+    let errorMessage = 'Failed to start camera scanner';
+    
+    if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
+      errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+    } else if (error.name === 'NotFoundError') {
+      errorMessage = 'No camera found on this device.';
+    } else if (error.name === 'NotReadableError') {
+      errorMessage = 'Camera is already in use by another application.';
+    } else if (error.name === 'OverconstrainedError') {
+      errorMessage = 'Back camera not available. Will try front camera if needed.';
+    } else if (error.name === 'NotSupportedError') {
+      errorMessage = 'Camera not supported on this browser.';
+    }
+
+    Swal.fire({
+      title: 'Camera Error',
+      html: `
+        <p>${errorMessage}</p>
+        <br>
+        <p><strong>Troubleshooting:</strong></p>
+        <ul style="text-align: left; margin: 10px 0;">
+          <li>Make sure you're using HTTPS or localhost</li>
+          <li>Grant camera permissions when prompted</li>
+          <li>Close other apps using the camera</li>
+          <li>Try refreshing the page</li>
+          <li>On iOS: Check Safari settings for camera access</li>
+          <li>Try rotating your device if back camera doesn't work</li>
+        </ul>
+      `,
+      icon: 'error',
+      confirmButtonText: 'OK'
+    });
+  }
+};
+
+// Replace the startCameraScanning function with this enhanced version
 
   // Stop camera scanning
   const stopCameraScanning = async () => {
