@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { baseURL } from '../../Utils/URLS';
@@ -14,21 +14,24 @@ const WarehouseManagerScanner = () => {
     pendingItems: 0
   });
   const [loading, setLoading] = useState(false);
+  const [availableCameras, setAvailableCameras] = useState([]);
   const scannerRef = useRef(null);
+  const html5QrCodeRef = useRef(null);
 
   useEffect(() => {
     fetchInventoryStats();
+    getCameras();
   }, []);
 
   useEffect(() => {
-    console.log('useEffect triggered:', { isScanning });
-    
     if (isScanning) {
-      initializeScanner();
+      startCameraScanning();
+    } else {
+      stopCameraScanning();
     }
     
     return () => {
-      cleanupScanner();
+      stopCameraScanning();
     };
   }, [isScanning]);
 
@@ -43,21 +46,58 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-  // Initialize mobile-optimized camera scanner
-  const initializeScanner = async () => {
+  // Get available cameras
+  const getCameras = async () => {
     try {
-      console.log('Initializing mobile-optimized Html5QrcodeScanner...');
+      const devices = await Html5Qrcode.getCameras();
+      console.log('Available cameras:', devices);
+      setAvailableCameras(devices);
+    } catch (error) {
+      console.error('Error getting cameras:', error);
+    }
+  };
+
+  // Request camera permission and start scanning
+  const startCameraScanning = async () => {
+    try {
+      console.log('Starting camera scanning...');
       
-      if (scannerRef.current) {
-        cleanupScanner();
+      // Clean up any existing scanner
+      if (html5QrCodeRef.current) {
+        try {
+          await html5QrCodeRef.current.stop();
+          html5QrCodeRef.current.clear();
+        } catch (error) {
+          console.log('Error stopping previous scanner:', error);
+        }
       }
 
-      // Mobile-optimized configuration
+      // Create new scanner instance
+      html5QrCodeRef.current = new Html5Qrcode("qr-scanner-container");
+      
+      // Find back camera or use first available
+      let cameraId;
+      if (availableCameras.length > 0) {
+        // Try to find back camera
+        const backCamera = availableCameras.find(camera => 
+          camera.label && (
+            camera.label.toLowerCase().includes('back') ||
+            camera.label.toLowerCase().includes('rear') ||
+            camera.label.toLowerCase().includes('environment')
+          )
+        );
+        cameraId = backCamera ? backCamera.id : availableCameras[0].id;
+        console.log('Using camera:', cameraId, backCamera?.label || availableCameras[0].label);
+      } else {
+        // Fallback to environment facing mode
+        cameraId = { facingMode: "environment" };
+      }
+
+      // Camera configuration optimized for mobile
       const config = {
-        fps: 15, // Higher FPS for better mobile performance
+        fps: 10,
         qrbox: function(viewfinderWidth, viewfinderHeight) {
-          // Dynamic QR box sizing for mobile
-          const minEdgePercentage = 0.7; // 70% of the smaller edge
+          const minEdgePercentage = 0.7;
           const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
           const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
           return {
@@ -67,40 +107,26 @@ const WarehouseManagerScanner = () => {
         },
         aspectRatio: 1.0,
         disableFlip: false,
-        rememberLastUsedCamera: true,
-        showTorchButtonIfSupported: true, // Show flashlight on mobile
-        showZoomSliderIfSupported: true, // Show zoom on mobile
-        defaultZoomValueIfSupported: 2, // Default zoom level
         videoConstraints: {
-          facingMode: { ideal: "environment" }, // Prefer back camera
-          // Advanced mobile constraints
           advanced: [
             { focusMode: "continuous" },
             { exposureMode: "continuous" },
             { whiteBalanceMode: "continuous" }
           ]
-        },
-        // Mobile-specific optimizations
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true // Use native barcode detector if available
         }
       };
 
-      const scanner = new Html5QrcodeScanner(
-        "qr-scanner-container",
+      // Start scanning
+      await html5QrCodeRef.current.start(
+        cameraId,
         config,
-        false // verbose logging
-      );
-
-      scanner.render(
         (decodedText, decodedResult) => {
-          console.log('✅ Camera QR Code scanned:', decodedText);
-          // Add vibration feedback on successful scan
+          console.log('✅ QR Code scanned:', decodedText);
           vibrate([200, 100, 200]);
           handleScanSuccess(decodedText);
         },
         (error) => {
-          // Suppress common "no QR found" errors to avoid console spam
+          // Suppress common "no QR found" errors
           if (error.includes('No QR code found') || 
               error.includes('NotFoundException') ||
               error.includes('No MultiFormat Readers')) {
@@ -110,28 +136,41 @@ const WarehouseManagerScanner = () => {
         }
       );
 
-      scannerRef.current = scanner;
       setCameraPermission('granted');
-      console.log('Mobile-optimized Html5QrcodeScanner initialized successfully');
+      console.log('Camera scanning started successfully');
 
     } catch (error) {
-      console.error('Scanner initialization error:', error);
+      console.error('Error starting camera:', error);
       setCameraPermission('denied');
       setIsScanning(false);
       
-      // Add error vibration
       vibrate([500]);
       
+      // Show detailed error message
+      let errorMessage = 'Failed to start camera scanner';
+      
+      if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
+        errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No camera found on this device.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Camera is already in use by another application.';
+      } else if (error.name === 'OverconstrainedError') {
+        errorMessage = 'Camera constraints not supported.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'Camera not supported on this browser.';
+      }
+
       Swal.fire({
-        title: 'Camera Scanner Error',
+        title: 'Camera Error',
         html: `
-          <p>Failed to initialize camera scanner:</p>
-          <p><strong>Error:</strong> ${error.message}</p>
-          <p>Please check:</p>
+          <p>${errorMessage}</p>
+          <br>
+          <p><strong>Troubleshooting:</strong></p>
           <ul style="text-align: left; margin: 10px 0;">
-            <li>Camera permissions are granted</li>
-            <li>You're using HTTPS or localhost</li>
-            <li>No other app is using the camera</li>
+            <li>Make sure you're using HTTPS or localhost</li>
+            <li>Grant camera permissions when prompted</li>
+            <li>Close other apps using the camera</li>
             <li>Try refreshing the page</li>
             <li>On iOS: Check Safari settings for camera access</li>
           </ul>
@@ -142,20 +181,18 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-  const cleanupScanner = () => {
-    console.log('Cleaning up scanner...');
-    if (scannerRef.current) {
-      try {
-        scannerRef.current.clear();
-        scannerRef.current = null;
-        
-        const container = document.getElementById('qr-scanner-container');
-        if (container) {
-          container.innerHTML = '';
-        }
-      } catch (error) {
-        console.error('Error during scanner cleanup:', error);
+  // Stop camera scanning
+  const stopCameraScanning = async () => {
+    try {
+      if (html5QrCodeRef.current) {
+        console.log('Stopping camera scanner...');
+        await html5QrCodeRef.current.stop();
+        html5QrCodeRef.current.clear();
+        html5QrCodeRef.current = null;
+        console.log('Camera scanner stopped');
       }
+    } catch (error) {
+      console.error('Error stopping camera scanner:', error);
     }
   };
 
@@ -176,9 +213,9 @@ const WarehouseManagerScanner = () => {
     console.log('Type:', typeof decodedText);
     
     // Immediately pause scanner after successful scan
-    if (scannerRef.current) {
+    if (html5QrCodeRef.current) {
       try {
-        await scannerRef.current.pause();
+        await html5QrCodeRef.current.pause();
         console.log('Scanner paused after successful scan');
       } catch (error) {
         console.warn('Could not pause scanner:', error);
@@ -212,8 +249,8 @@ const WarehouseManagerScanner = () => {
               confirmButtonText: 'Scan Again'
             }).then(() => {
               // Resume scanner for another attempt
-              if (scannerRef.current) {
-                scannerRef.current.resume();
+              if (html5QrCodeRef.current) {
+                html5QrCodeRef.current.resume();
               }
             });
             return;
@@ -228,8 +265,8 @@ const WarehouseManagerScanner = () => {
         
         Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error').then(() => {
           // Resume scanner after error
-          if (scannerRef.current) {
-            scannerRef.current.resume();
+          if (html5QrCodeRef.current) {
+            html5QrCodeRef.current.resume();
           }
         });
         return;
@@ -242,8 +279,8 @@ const WarehouseManagerScanner = () => {
             vibrate([100, 50, 100, 50, 100]); // Warning vibration pattern
             Swal.fire('Warning', 'This carton has already been received!', 'warning').then(() => {
               // Resume scanner after duplicate warning
-              if (scannerRef.current) {
-                scannerRef.current.resume();
+              if (html5QrCodeRef.current) {
+                html5QrCodeRef.current.resume();
               }
             });
             resolve(false);
@@ -275,8 +312,8 @@ const WarehouseManagerScanner = () => {
           confirmButtonText: 'Scan Again'
         }).then(() => {
           // Resume scanner after error
-          if (scannerRef.current) {
-            scannerRef.current.resume();
+          if (html5QrCodeRef.current) {
+            html5QrCodeRef.current.resume();
           }
         });
         return;
@@ -360,8 +397,8 @@ const WarehouseManagerScanner = () => {
       const msg = error.response?.data?.message || error.message || 'Failed to process scan';
       Swal.fire('Error', `Scan failed: ${msg}`, 'error').then(() => {
         // Resume scanner after error (unless it was a critical error)
-        if (scannerRef.current && !error.message.includes('Quality check cancelled')) {
-          scannerRef.current.resume();
+        if (html5QrCodeRef.current && !error.message.includes('Quality check cancelled')) {
+          html5QrCodeRef.current.resume();
         } else if (error.message.includes('Quality check cancelled')) {
           // If quality check was cancelled, stop the scanner
           stopScanning();
@@ -422,7 +459,6 @@ const WarehouseManagerScanner = () => {
   const stopScanning = () => {
     console.log('Stopping scan process...');
     vibrate([100]); // Stop feedback vibration
-    cleanupScanner();
     setIsScanning(false);
   };
 
@@ -505,10 +541,9 @@ Report generated by Warehouse Management System
       if (result.isConfirmed) {
         vibrate([100, 100, 100]); // Logout confirmation vibration
         
-        if (scannerRef.current) {
-          cleanupScanner();
-          setIsScanning(false);
-        }
+        // Stop scanner before logout
+        await stopCameraScanning();
+        setIsScanning(false);
         
         await axios.post(`${baseURL}/api/v1/auth/logout`, {}, { withCredentials: true });
         Swal.fire({
@@ -556,6 +591,11 @@ Report generated by Warehouse Management System
                   </span>
                 </div>
               )}
+              {availableCameras.length > 0 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  {availableCameras.length} camera(s) available
+                </div>
+              )}
             </div>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
               <button
@@ -582,6 +622,11 @@ Report generated by Warehouse Management System
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-0">📱 QR Scanner</h2>
+              {availableCameras.length > 1 && !isScanning && (
+                <div className="text-xs text-gray-500">
+                  Back camera preferred
+                </div>
+              )}
             </div>
 
             <div className="mb-4">
@@ -613,7 +658,7 @@ Report generated by Warehouse Management System
                     Click "Start Scanner" to begin scanning QR codes
                   </p>
                   <p className="text-xs text-gray-400 mt-2">
-                    📱 Mobile optimized • 🔦 Flashlight support • 🔍 Auto-zoom
+                    📱 Mobile optimized • 🎯 Back camera • 📳 Vibration feedback
                   </p>
                 </div>
               )}
@@ -622,9 +667,10 @@ Report generated by Warehouse Management System
             {process.env.NODE_ENV === 'development' && (
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
                 <strong>Debug Info:</strong>
-                <div>Scanner: {scannerRef.current ? '✅ Active' : '❌ Not Active'}</div>
+                <div>Scanner: {html5QrCodeRef.current ? '✅ Active' : '❌ Not Active'}</div>
                 <div>Camera: {cameraPermission || 'Unknown'}</div>
                 <div>Scanning: {isScanning ? 'Yes' : 'No'}</div>
+                <div>Cameras: {availableCameras.length}</div>
                 <div>Vibration: {('vibrate' in navigator) ? '✅ Supported' : '❌ Not Supported'}</div>
               </div>
             )}
