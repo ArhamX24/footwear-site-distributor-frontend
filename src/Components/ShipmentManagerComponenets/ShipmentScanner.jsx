@@ -454,9 +454,8 @@ const ShipmentScanner = () => {
       
       const shipmentResult = {
         shipmentId: shipmentId,
-        distributorName: selectedDist?.distributorDetails?.partyName,
-        distributorPhoneNo: selectedDist?.distributorDetails?.phoneNo,
-        distributorTransport: selectedDist?.distributorDetails?.transport,
+        distributorName: selectedDist?.distributorDetails?.partyName || selectedDist?.name,
+        distributorPhoneNo: selectedDist?.phoneNo,
         totalCartons: scannedItems.length,
         shippedAt: new Date(),
         items: scannedItems
@@ -503,7 +502,6 @@ const ShipmentScanner = () => {
           shipmentId: shipmentCreated.shipmentId,
           distributorName: shipmentCreated.distributorName,
           distributorPhoneNo: shipmentCreated.distributorPhoneNo,
-          distributorTransport: shipmentCreated.distributorTransport,
           totalCartons: shipmentCreated.totalCartons,
           shippedAt: shipmentCreated.shippedAt,
           items: shipmentCreated.items

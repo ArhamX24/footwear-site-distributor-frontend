@@ -23,30 +23,79 @@ const PastOrdersPage = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const getShipments = async () => {
-        try {
-            const response = await axios.get(`${baseURL}/api/v1/admin/shipments`, {
-                withCredentials: true,
-                params: {
-                    status: statusFilter !== 'all' ? statusFilter : undefined,
-                    distributorId: distributorFilter !== 'all' ? distributorFilter : undefined
-                }
-            });
-            setShipments(response.data.data.shipments);
-        } catch (error) {
-            Swal.fire('Error', 'Failed to fetch shipments', 'error');
-        }
-    };
+  try {
+    // ✅ FIXED: Use the correct endpoint from your controller
+    const response = await axios.get(`${baseURL}/api/v1/shipment/all`, {
+      withCredentials: true,
+      params: {
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        distributorId: distributorFilter !== 'all' ? distributorFilter : undefined
+      }
+    });
+    
+    // ✅ IMPROVED: Add data validation
+    if (response.data && response.data.result) {
+      setShipments(response.data.data.shipments || []);
+    } else {
+      console.error('Invalid response structure:', response.data);
+      Swal.fire('Error', 'Invalid response from server', 'error');
+    }
+  } catch (error) {
+    // ✅ IMPROVED: Better error handling
+    console.error('Full error details:', error);
+    let errorMessage = 'Failed to fetch shipments';
+    
+    if (error.response) {
+      // Server responded with error status
+      errorMessage = error.response.data?.message || `Server Error: ${error.response.status}`;
+    } else if (error.request) {
+      // Network error
+      errorMessage = 'Network error - please check your connection';
+    }
+    
+    Swal.fire('Error', errorMessage, 'error');
+  }
+};
 
-    const getDistributors = async () => {
-        try {
-            const response = await axios.get(`${baseURL}/api/v1/admin/distributor/get`, {
-                withCredentials: true
-            });
-            setDistributors(response.data.data);
-        } catch (error) {
-            console.error('Error fetching distributors:', error);
-        }
-    };
+
+    // ✅ FIXED: Correct all endpoints
+const getDistributors = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/api/v1/admin/distributor/get`, {
+      withCredentials: true
+    });
+    
+    if (response.data && response.data.result) {
+      setDistributors(response.data.data || []);
+    }
+  } catch (error) {
+    console.error('Error fetching distributors:', error);
+    Swal.fire('Error', 'Failed to fetch distributors', 'error');
+  }
+};
+
+const handleViewShipment = async (shipment) => {
+  try {
+    setIsLoading(true);
+    // ✅ FIXED: Use correct endpoint for shipment details
+    const response = await axios.get(`${baseURL}/api/v1/shipment/details/${shipment._id}`, {
+      withCredentials: true
+    });
+    
+    if (response.data && response.data.result) {
+      setSelectedShipment(response.data.data);
+      setShowModal(true);
+    } else {
+      throw new Error('Invalid response from server');
+    }
+  } catch (error) {
+    console.error('Error viewing shipment:', error);
+    Swal.fire('Error', 'Failed to view shipment details', 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
     const getAutoDeleteSettings = async () => {
         try {
@@ -129,22 +178,6 @@ const PastOrdersPage = () => {
             }
         } catch (error) {
             Swal.fire('Error', 'Failed to delete old shipments', 'error');
-        }
-    };
-
-    const handleViewShipment = async (shipment) => {
-        try {
-            setIsLoading(true);
-            // Fetch detailed shipment data
-            const response = await axios.get(`${baseURL}/api/v1/admin/shipments/${shipment._id}`, {
-                withCredentials: true
-            });
-            setSelectedShipment(response.data.data);
-            setShowModal(true);
-        } catch (error) {
-            Swal.fire('Error', 'Failed to view shipment details', 'error');
-        } finally {
-            setIsLoading(false);
         }
     };
 
