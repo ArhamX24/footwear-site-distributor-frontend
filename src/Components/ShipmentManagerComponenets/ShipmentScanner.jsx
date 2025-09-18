@@ -475,11 +475,16 @@ const ShipmentScanner = () => {
       vibrate([50, 50]);
 
       const selectedDist = distributors.find(d => d._id === selectedDistributor);
+      console.log('====================================');
+      console.log(selectedDist);
+      console.log('====================================');
       const shipmentId = `SHIP_${Date.now()}_${selectedDistributor.slice(-6)}`;
       
       const shipmentResult = {
         shipmentId: shipmentId,
-        distributorName: selectedDist?.distributorDetails?.partyName || selectedDist?.name || '',
+        distributorName: selectedDist?.distributorDetails?.partyName,
+        distributorPhoneNo: selectedDist?.distributorDetails?.phoneNo,
+        distributorTransport: selectedDist?.distributorDetails?.transport,
         totalCartons: scannedItems.length,
         shippedAt: new Date(),
         items: scannedItems
@@ -525,6 +530,8 @@ const ShipmentScanner = () => {
         {
           shipmentId: shipmentCreated.shipmentId,
           distributorName: shipmentCreated.distributorName,
+          distributorPhoneNo: shipmentCreated.distributorPhoneNo,
+          distributorTransport: shipmentCreated.distributorTransport,
           totalCartons: shipmentCreated.totalCartons,
           shippedAt: shipmentCreated.shippedAt,
           items: shipmentCreated.items
