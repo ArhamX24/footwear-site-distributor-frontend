@@ -81,7 +81,7 @@ const AddProduct = () => {
       </div>
 
       
-      <div className="max-w-6xl mx-auto">
+      {/* <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -115,7 +115,7 @@ const AddProduct = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Action Cards */}
       <div className="max-w-6xl mx-auto my-8">

@@ -25,7 +25,7 @@ const PastOrdersPage = () => {
     const getShipments = async () => {
   try {
     // ✅ FIXED: Use the correct endpoint from your controller
-    const response = await axios.get(`${baseURL}/api/v1/shipment/all`, {
+    const response = await axios.get(`${baseURL}/api/v1/admin/shipments`, {
       withCredentials: true,
       params: {
         status: statusFilter !== 'all' ? statusFilter : undefined,
@@ -78,12 +78,15 @@ const handleViewShipment = async (shipment) => {
   try {
     setIsLoading(true);
     // ✅ FIXED: Use correct endpoint for shipment details
-    const response = await axios.get(`${baseURL}/api/v1/shipment/details/${shipment._id}`, {
+    const response = await axios.get(`${baseURL}/api/v1/admin/shipments/${shipment._id}`, {
       withCredentials: true
     });
     
     if (response.data && response.data.result) {
       setSelectedShipment(response.data.data);
+      console.log('====================================');
+      console.log(selectedShipment);
+      console.log('====================================');
       setShowModal(true);
     } else {
       throw new Error('Invalid response from server');
