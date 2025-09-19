@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import ProductCard from "../../Components/UserComponents/ProductCard";
 import axios from "axios";
 import OrderModal from "../../Components/UserComponents/OrderModal";
@@ -6,419 +6,305 @@ import { useSelector } from "react-redux";
 import Carousel from "./Carousel";
 import { baseURL } from "../../Utils/URLS";
 
+// Custom hook to detect clicks outside an element
+const useOutsideAlerter = (ref, callback) => {
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (ref.current && !ref.current.contains(event.target)) {
+                callback();
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [ref, callback]);
+};
+
 const ProductScreen = () => {
-      const [allProducts, setAllProducts] = useState(null); // all products fetched
-      const [openDropdown, setOpenDropdown] = useState(null);
-      const [selectedFilters, setSelectedFilters] = useState({
+    const [allProducts, setAllProducts] = useState(null);
+    const [openDropdown, setOpenDropdown] = useState(null);
+    const [selectedFilters, setSelectedFilters] = useState({
         filterNames: [],
         filterOptions: [],
-      });
-      const [placeOrderModal, setPlaceOrderModal] = useState(false);
-      const [selectedProductDetails, setSelectedProductDetails] = useState(null);
-      const [filters, setFilters] = useState(null); // dynamic filters from backend
-      // "page" now is used for client-side slicing (6 products per page)
-      const [page, setPage] = useState(1);
-      const [totalPages, setTotalPages] = useState(0) 
-      const [articleDetails, setArticleDetails] = useState([])
-      const [dealsImages, setDealsImages] = useState(null)
-      const [selectedArticle, setSelectedArticle] = useState('')
-      const [loading, setLoading] = useState(false)
-      const [variantDropDown, setVariantDropDown] = useState(false)
-      const [segmentDD, setSegmentDD] = useState(false)
-
-      const categories = ["Gents", "Ladies", "Kids"]
-
-      // let sideMenuOpen = useSelector((Store)=> Store.nav.isOpen)
-      let searchQuery = useSelector((Store)=> Store?.nav?.searchQuery)
-
-     const getProducts = async () => {
-  try {
-    setLoading(true)
-    // Build query parameters and serialize filters as JSON strings
-    const queryParams = new URLSearchParams({
-      page,
-      limit: 12,
-      search: searchQuery || "",
-      filterName: JSON.stringify(selectedFilters.filterNames),
-      filterOption: JSON.stringify(selectedFilters.filterOptions),
     });
+    const [placeOrderModal, setPlaceOrderModal] = useState(false);
+    const [selectedProductDetails, setSelectedProductDetails] = useState(null);
+    const [filters, setFilters] = useState(null);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [articleDetails, setArticleDetails] = useState([]);
+    const [dealsImages, setDealsImages] = useState(null);
+    const [selectedArticle, setSelectedArticle] = useState('');
+    const [loading, setLoading] = useState(false);
 
+    const categories = ["Gents", "Ladies", "Kids"];
+    const searchQuery = useSelector((Store) => Store?.nav?.searchQuery);
+    const dropdownRef = useRef(null);
 
-    // Send GET request with the query string carrying the JSON-serialized filters
-    let response = await axios.get(
-      `${baseURL}/api/v1/distributor/products/get?${queryParams.toString()}`
-    );
+    useOutsideAlerter(dropdownRef, () => setOpenDropdown(null));
 
-    // Update state based on API response
-    if(response.data.result){
-      setLoading(false)
-      setAllProducts(response.data.data);
-      setTotalPages(response.data.totalPages);
-    }else{
-      setLoading(false)
-      setAllProducts(null);
-      setTotalPages(0);
-    }
-  } catch (error) {
-    console.error("Error fetching products:", error.response?.data);
-  } finally {
-    setLoading(false)
-  }
-};
-            // Fetch dynamic filters from backend.
-      const getFilters = async () => {
+    const getProducts = async () => {
         try {
-          let response = await axios.get(`${baseURL}/api/v1/distributor/products/filters/get`);
-          if(response.data.result){
-            setFilters(response.data.data);
-          }
-        } catch (error) {
-          console.error(error.response?.data);
-        }
-      };
+            setLoading(true);
+            const queryParams = new URLSearchParams({
+                page,
+                limit: 12,
+                search: searchQuery || "",
+                filterName: JSON.stringify(selectedFilters.filterNames),
+                filterOption: JSON.stringify(selectedFilters.filterOptions),
+            });
 
-      const getDealsImages = async () => {
+            const response = await axios.get(
+                `${baseURL}/api/v1/distributor/products/get?${queryParams.toString()}`
+            );
+
+            if (response.data.result) {
+                setAllProducts(response.data.data);
+                setTotalPages(response.data.totalPages);
+            } else {
+                setAllProducts(null);
+                setTotalPages(0);
+            }
+        } catch (error) {
+            console.error("Error fetching products:", error.response?.data);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getFilters = async () => {
         try {
-          let response = await axios.get(`${baseURL}/api/v1/distributor/deals/get`);
-          if(response.data.result){
-            setDealsImages(response.data.images)
-          }
+            const response = await axios.get(`${baseURL}/api/v1/distributor/products/filters/get`);
+            if (response.data.result) {
+                setFilters(response.data.data);
+            }
         } catch (error) {
-          console.error(error.response?.data);
+            console.error(error.response?.data);
         }
-      }
+    };
 
-      const getArticleDetails = async () => {
+    const getDealsImages = async () => {
         try {
-          let response = await axios.get(`${baseURL}/api/v1/distributor/products/details/get?segment=${selectedArticle}`)
-          if(response.data.result){
-            setArticleDetails(response.data.data.variants)
-          }
+            const response = await axios.get(`${baseURL}/api/v1/distributor/deals/get`);
+            if (response.data.result) {
+                setDealsImages(response.data.images);
+            }
         } catch (error) {
-          console.error(error.response.data.data)
+            console.error(error.response?.data);
         }
-      }
-    
+    };
 
-      // Toggle the dropdown for a given filter category.
-      const toggleDropdown = (category) => {
+    const getArticleDetails = async () => {
+        if (!selectedArticle) {
+            setArticleDetails([]);
+            return;
+        }
+        try {
+            const response = await axios.get(`${baseURL}/api/v1/distributor/products/details/get?segment=${selectedArticle}`);
+            if (response.data.result) {
+                // Extract unique variant names
+                const uniqueVariants = [...new Set(response.data.data.variants.map(v => v.name))];
+                setArticleDetails(uniqueVariants);
+            }
+        } catch (error) {
+            console.error(error.response?.data);
+        }
+    };
+
+    const toggleDropdown = (category) => {
         setOpenDropdown(openDropdown === category ? null : category);
-      };
-    
-      // Update selected filters when a user clicks an option.
-const handleFilterChange = (filterName, selectedOption, isChecked) => {
-  setSelectedFilters((prev) => {
-    let updatedFilterNames = [...prev.filterNames];
-    let updatedFilterOptions = [...prev.filterOptions];
-    const filterIndex = prev.filterNames.indexOf(filterName);
+    };
 
-    // // 🔹 Special handling for price (single-value selection)
-    // if (filterName === "price") {
-    //   if (isChecked) {
-    //     if (filterIndex !== -1) {
-    //       updatedFilterOptions[filterIndex] = [selectedOption];
-    //     } else {
-    //       updatedFilterNames.push(filterName);
-    //       updatedFilterOptions.push([selectedOption]);
-    //     }
-    //   } else if (filterIndex !== -1) {
-    //     updatedFilterNames.splice(filterIndex, 1);
-    //     updatedFilterOptions.splice(filterIndex, 1);
-    //   }
-    //   return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
-    // }
+    const handleFilterChange = (filterName, selectedOption, isChecked) => {
+        setSelectedFilters((prev) => {
+            let updatedFilterNames = [...prev.filterNames];
+            let updatedFilterOptions = [...prev.filterOptions];
+            const filterIndex = prev.filterNames.indexOf(filterName);
 
-    // 🔹 Special handling for articleName (single selection only)
+            if (filterName === "segment") {
+                const oldIndex = updatedFilterNames.indexOf("segment");
+                if (oldIndex !== -1) {
+                    updatedFilterNames.splice(oldIndex, 1);
+                    updatedFilterOptions.splice(oldIndex, 1);
+                }
+                if (isChecked) {
+                    updatedFilterNames.push("segment");
+                    updatedFilterOptions.push([selectedOption]);
+                    setSelectedArticle(selectedOption);
+                } else {
+                    setSelectedArticle('');
+                }
+                return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
+            }
 
-    if (filterName === "segment") {
+            if (isChecked) {
+                if (filterIndex !== -1) {
+                    updatedFilterOptions[filterIndex] = [
+                        ...new Set([...updatedFilterOptions[filterIndex], selectedOption]),
+                    ];
+                } else {
+                    updatedFilterNames.push(filterName);
+                    updatedFilterOptions.push([selectedOption]);
+                }
+            } else if (filterIndex !== -1) {
+                updatedFilterOptions[filterIndex] = updatedFilterOptions[filterIndex].filter(
+                    (opt) => opt !== selectedOption
+                );
+                if (updatedFilterOptions[filterIndex].length === 0) {
+                    updatedFilterNames.splice(filterIndex, 1);
+                    updatedFilterOptions.splice(filterIndex, 1);
+                }
+            }
+            return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
+        });
+    };
 
-      const oldIndex = updatedFilterNames.indexOf("segment");
-      if (oldIndex !== -1) {
-        updatedFilterNames.splice(oldIndex, 1);
-        updatedFilterOptions.splice(oldIndex, 1);
-      }
-
-      if (isChecked) {
-        updatedFilterNames.push("segment");
-        updatedFilterOptions.push([selectedOption]);
-        setSelectedArticle(selectedOption);
-      } else {
-        setSelectedArticle('');
-        setVariantDropDown(false)
-      }
-
-      return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
-    }
-
-    // 🔹 Default multi-select logic
-    if (isChecked) {
-      if (filterIndex !== -1) {
-        updatedFilterOptions[filterIndex] = [
-          ...new Set([...updatedFilterOptions[filterIndex], selectedOption]),
-        ];
-      } else {
-        updatedFilterNames.push(filterName);
-        updatedFilterOptions.push([selectedOption]);
-      }
-    } else if (filterIndex !== -1) {
-      updatedFilterOptions[filterIndex] = updatedFilterOptions[filterIndex].filter(
-        (opt) => opt !== selectedOption
-      );
-
-      if (updatedFilterOptions[filterIndex].length === 0) {
-        updatedFilterNames.splice(filterIndex, 1);
-        updatedFilterOptions.splice(filterIndex, 1);
-
-      }
-    }
-
-
-    return { filterNames: updatedFilterNames, filterOptions: updatedFilterOptions };
-  });
-};
-
-      // Call products and filters only once.
-      useEffect(() => {
+    useEffect(() => {
         getFilters();
         getDealsImages();
-      }, []);
+    }, []);
 
-      useEffect(()=>{
-        getArticleDetails()
-      }, [selectedArticle])
+    useEffect(() => {
+        getArticleDetails();
+    }, [selectedArticle]);
 
-      useEffect(() => {
-        getProducts()
-      }, [page, searchQuery, selectedFilters])
-      
-    
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            getProducts();
+        }, 300); // Debounce API call
+        return () => clearTimeout(handler);
+    }, [page, searchQuery, selectedFilters]);
 
-  return (
-    <div className="w-full flex min-h-screen">
-        <main className="w-full mx-auto lg:p-6 p-3">
-          {placeOrderModal ? (
-            <OrderModal
-              setPlaceOrderModal={setPlaceOrderModal}
-              selectedProductDetails={selectedProductDetails}
-              getProducts={getProducts}
-            />
-          ) : (
-            ""
-          )}
-          <div className="md:w-11/12 w-full mx-auto flex items-center justify-between gap-x-2">
-  <div className="w-1/3 md:w-2/6 relative">
-  <p
-    className="flex items-center justify-between md:text-lg text-sm cursor-pointer font-medium px-2 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
-    onClick={() => {toggleDropdown("Segment"), setSegmentDD(!segmentDD)}}
-  >
-    Segment
-    <span>
-      {openDropdown === "Segment" ? (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          fill="currentColor"
-        >
-          <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z" />
-        </svg>
-      ) : (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          fill="currentColor"
-        >
-          <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z" />
-        </svg>
-      )}
-    </span>
-  </p>
-  {openDropdown === "Segment" && (
-  <div className="bg-gray-100 p-2 rounded-lg border absolute z-20 lg:w-2/3 w-fit max-w-[95vw] shadow-md transition-all duration-200">
-  {filters?.segments?.map((option) => {
-    const filterValue = option.toLowerCase();
-    const articleIndex = selectedFilters.filterNames.indexOf("segment");
-    const isChecked = filterValue === selectedArticle.toLowerCase();
     return (
-      <label
-        key={option}
-        className="flex items-center gap-2 py-2 cursor-pointer text-sm md:text-base lg:text-lg hover:text-indigo-700"
-      >
-        <input
-          type="checkbox"
-          className="form-checkbox text-indigo-600 accent-indigo-600 focus:ring-2 focus:ring-indigo-400"
-          checked={isChecked}
-          onChange={(e) => {
-            handleFilterChange("segment", filterValue, e.target.checked);
-            setSelectedArticle(filterValue);
-            setVariantDropDown(true);
-          }}
-        />
-        <span className="capitalize">{option}</span>
-      </label>
-    );
-  })}
-</div>
-)}
-</div>
-          <div className="w-1/3 md:w-2/6 relative">
-                <p
-          className="flex items-center justify-between md:text-lg text-sm cursor-pointer w-fit font-medium px-2 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
-          onClick={() => {if(segmentDD == true){setVariantDropDown(!variantDropDown)}else{setVariantDropDown(false)}}}
-          >
-          Category
-          <span>
-            {variantDropDown ? (
-              <svg
-              xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                fill="currentColor"
-              >
-                <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z" />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                fill="currentColor"
-                >
-                <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z" />
-              </svg>
-            )}
-          </span>
-        </p>
-        {variantDropDown && (
-  <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full">
-    {articleDetails?.length <= 0 ? (
-      <p className="text-sm w-full">No Variants For This Article</p>
-    ) : (
-      articleDetails?.map((option) => {
-        const filterValue = option.toLowerCase();
-        const variantIndex = selectedFilters.filterNames.indexOf("variant");
-        const isChecked = variantIndex !== -1 && selectedFilters.filterOptions?.[variantIndex]?.includes(filterValue)
-        return (
-          <label
-            key={option}
-            className="flex items-center gap-2 py-1 cursor-pointer text-sm md:text-lg"
-          >
-            <input
-              type="checkbox"
-              className="form-checkbox text-indigo-600"
-              checked={isChecked}
-              onChange={(e) => {
-                handleFilterChange("variant", filterValue, e.target.checked)
-              }}
-            />
-            <span className="capitalize">{option}</span>
-          </label>
-        );
-      })
-    )}
-  </div>
-)}
-          </div>
-          <div className="w-1/3 md:w-2/6 relative">
-                <p
-          className="flex items-center justify-between md:text-lg text-sm cursor-pointer font-medium px-2 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
-          onClick={() => toggleDropdown("Gender")}
-          >
-          Gender
-          <span>
-            {openDropdown === "Gender" ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                fill="currentColor"
-              >
-                <path d="M12 8.3685L3.03212 13.1162L3.9679 14.8838L12 10.6315L20.0321 14.8838L20.9679 13.1162L12 8.3685Z" />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                fill="currentColor"
-              >
-                <path d="M12 15.6315L20.9679 10.8838L20.0321 9.11619L12 13.3685L3.9679 9.11619L3.03212 10.8838L12 15.6315Z" />
-              </svg>
-            )}
-          </span>
-        </p>
-          {openDropdown === "Gender" && (
-  <div className="bg-gray-100 p-2 rounded-lg border absolute z-10 lg:w-2/3 w-full">
-    {categories?.map((option) => {
-      const filterValue = option.toLowerCase();
-      const genderIndex = selectedFilters.filterNames.indexOf("gender");
-      const isChecked =
-        genderIndex !== -1 &&
-        selectedFilters.filterOptions[genderIndex].includes(filterValue);
-
-      return (
-        <label key={option} className="flex items-center gap-2 py-1 text-sm md:text-lg">
-          <input
-            type="checkbox"
-            className="form-checkbox text-indigo-600"
-            checked={isChecked}
-            onChange={(e) =>
-              handleFilterChange("gender", filterValue, e.target.checked)
-            }
-          />
-          <span className="capitalize">{option}</span>
-        </label>
-      );
-    })}
-  </div>
-)}
-          </div>
-          </div>
-          {
-            dealsImages && <Carousel dealsImages={dealsImages}/>
-          }
-          {loading ? (
-            <div className="flex w-full h-4/5 items-center justify-center">
-              <span className="loading loading-bars loading-lg"></span>
-            </div>
-          ) : allProducts?.length ? (
-              <div>
-              <div className="flex flex-wrap justify-around w-full">
-                {allProducts?.map((product) =>
-                  product.variants?.map((variant) =>
-                    variant.articles?.map((article) => (
-                      <ProductCard
-                        key={article._id}
-                        variant={variant}
-                        product={article}
-                        setSelectedProductDetails={() =>
-                          setSelectedProductDetails({
-                            product: article,
-                            variant: variant.name,
-                            segment: product.segment,
-                          })
-                        }
+        <div className="w-full bg-gray-50 min-h-screen">
+            <main className="w-full max-w-7xl mx-auto p-4 md:p-6">
+                {placeOrderModal && (
+                    <OrderModal
                         setPlaceOrderModal={setPlaceOrderModal}
-/>
-                    ))
-                  )
+                        selectedProductDetails={selectedProductDetails}
+                        getProducts={getProducts}
+                    />
                 )}
-              </div>
-              
-              </div>
-          ) : (
-            <p className="text-center text-gray-600">No products match the selected filters.</p>
-          )}
-        </main>
-      </div>
-  )
-}
 
-export default ProductScreen
+                {/* Filter Section */}
+                <div ref={dropdownRef} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                    {/* Segment Filter */}
+                    <div className="relative">
+                        <button
+                            onClick={() => toggleDropdown("Segment")}
+                            className="w-full flex items-center justify-between text-left bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-200 hover:border-indigo-500 transition-colors"
+                        >
+                            <span className="font-semibold text-gray-700">Segment</span>
+                            <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${openDropdown === 'Segment' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                        {openDropdown === "Segment" && (
+                            <div className="absolute z-20 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 p-2 max-h-60 overflow-y-auto">
+                                {filters?.segments?.map((option) => (
+                                    <label key={option} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                            checked={selectedArticle.toLowerCase() === option.toLowerCase()}
+                                            onChange={(e) => handleFilterChange("segment", option.toLowerCase(), e.target.checked)}
+                                        />
+                                        <span className="text-gray-800 capitalize">{option}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Category/Variant Filter */}
+                    <div className="relative">
+                        <button
+                            onClick={() => selectedArticle && toggleDropdown("Variant")}
+                            disabled={!selectedArticle}
+                            className="w-full flex items-center justify-between text-left bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-200 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed hover:enabled:border-indigo-500"
+                        >
+                            <span className="font-semibold text-gray-700">Category</span>
+                            <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${openDropdown === 'Variant' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                        {openDropdown === "Variant" && (
+                            <div className="absolute z-20 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 p-2 max-h-60 overflow-y-auto">
+                                {articleDetails.length > 0 ? articleDetails.map((option) => (
+                                    <label key={option} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                            checked={selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("variant")]?.includes(option.toLowerCase())}
+                                            onChange={(e) => handleFilterChange("variant", option.toLowerCase(), e.target.checked)}
+                                        />
+                                        <span className="text-gray-800 capitalize">{option}</span>
+                                    </label>
+                                )) : <p className="text-sm text-gray-500 p-2">No categories for this segment.</p>}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Gender Filter */}
+                    <div className="relative">
+                        <button
+                            onClick={() => toggleDropdown("Gender")}
+                            className="w-full flex items-center justify-between text-left bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-200 hover:border-indigo-500 transition-colors"
+                        >
+                            <span className="font-semibold text-gray-700">Gender</span>
+                            <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${openDropdown === 'Gender' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                        {openDropdown === "Gender" && (
+                            <div className="absolute z-20 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 p-2 max-h-60 overflow-y-auto">
+                                {categories.map((option) => (
+                                    <label key={option} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                            checked={selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("gender")]?.includes(option.toLowerCase())}
+                                            onChange={(e) => handleFilterChange("gender", option.toLowerCase(), e.target.checked)}
+                                        />
+                                        <span className="text-gray-800 capitalize">{option}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Products Section */}
+                {loading ? (
+                    <div className="flex items-center justify-center h-96">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                    </div>
+                ) : allProducts?.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {allProducts.map((product) =>
+                            product.variants?.map((variant) =>
+                                variant.articles?.map((article) => (
+                                    <ProductCard
+                                        key={article._id}
+                                        variant={variant}
+                                        product={article}
+                                        setSelectedProductDetails={() =>
+                                            setSelectedProductDetails({
+                                                product: article,
+                                                variant: variant.name,
+                                                segment: product.segment,
+                                            })
+                                        }
+                                        setPlaceOrderModal={setPlaceOrderModal}
+                                    />
+                                ))
+                            )
+                        )}
+                    </div>
+                ) : (
+                    <div className="text-center py-20">
+                        <h3 className="text-xl font-semibold text-gray-700">No Products Found</h3>
+                        <p className="text-gray-500 mt-2">Try adjusting your filters or search term.</p>
+                    </div>
+                )}
+            </main>
+        </div>
+    );
+};
+
+export default ProductScreen;

@@ -35,7 +35,7 @@ const formik = useFormik({
 
       let { phoneNo, password } = values;
 
-      const response = await axios.post(`/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
+      const response = await axios.post(`${baseURL}/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
 
       if (!response.data.result) {
         setIsLoading(false)

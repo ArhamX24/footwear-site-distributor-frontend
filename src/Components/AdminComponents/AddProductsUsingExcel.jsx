@@ -69,13 +69,15 @@ const AddProductsUsingExcel = () => {
       <button
         onClick={handleExcelUpload}
         disabled={loading}
-        className={`bg-gray-700 text-white px-3 py-2 rounded-xl hover:bg-gray-800 transition duration-200 flex items-center ${
+        className={`bg-gray-600 text-white px-4 py-2 hover:bg-gray-700 rounded-full border transition duration-200 w-full text-sm font-medium flex items-center ${
           loading ? "opacity-60 cursor-not-allowed" : "hover:bg-gray-800"
         }`}
       >
         <span className="mr-2"><FiUpload size={18} /></span>
         {loading ? "Uploading..." : "Upload via Excel"}
       </button>
+
+      
 
     </div>
   );

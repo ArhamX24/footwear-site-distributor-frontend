@@ -35,7 +35,6 @@ const QRGenerator = () => {
       
       if (response.data.result && response.data.data) {
         setArticles(response.data.data);
-        console.log(`Found ${response.data.data.length} articles with IDs`);
       }
     } catch (error) {
       console.error('Error fetching articles:', error);
@@ -160,7 +159,6 @@ const QRGenerator = () => {
         );
 
       } catch (err) {
-        console.log(err);
         Swal.fire(
           "Error", 
           err.response?.data?.message || "Failed to generate QR codes", 
@@ -645,7 +643,7 @@ const QRGenerator = () => {
             
             {/* ✅ ACTION BUTTONS - Download, Print, Receipt */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <button
+              {/* <button
                 onClick={handleDownload}
                 className="flex items-center justify-center bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 transition duration-200 disabled:bg-green-400 font-medium"
                 disabled={downloadLoading}
@@ -661,7 +659,7 @@ const QRGenerator = () => {
                     Download as ZIP
                   </>
                 )}
-              </button>
+              </button> */}
 
               <button
                 onClick={handlePrint}
@@ -676,7 +674,7 @@ const QRGenerator = () => {
                 ) : (
                   <>
                     <span className="mr-2">🖨️</span>
-                    Print Labels
+                    Print QR's
                   </>
                 )}
               </button>
