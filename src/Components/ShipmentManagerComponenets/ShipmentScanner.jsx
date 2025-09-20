@@ -15,6 +15,7 @@ const ShipmentScanner = () => {
   const [availableCameras, setAvailableCameras] = useState([]);
   const html5QrCodeRef = useRef(null);
   const qrReaderRef = useRef(null);
+  const qrScannerRef = useRef(null);
 
   useEffect(() => {
     fetchDistributors();
@@ -42,6 +43,11 @@ const ShipmentScanner = () => {
         }
         qrReaderRef.current.clear();
         qrReaderRef.current = null;
+      }
+      // Clear the scanner container
+      const scannerContainer = document.getElementById("qr-scanner-container");
+      if (scannerContainer) {
+        scannerContainer.innerHTML = '';
       }
     } catch (error) {
       console.log('Cleanup error:', error);
@@ -186,11 +192,28 @@ const ShipmentScanner = () => {
         if (state === Html5Qrcode.SCANNING) {
           await qrReaderRef.current.stop();
         }
-        qrReaderRef.current.clear();
+        await qrReaderRef.current.clear();
         qrReaderRef.current = null;
       }
+      
+      // FIXED: Clear the scanner container completely
+      const scannerContainer = document.getElementById("qr-scanner-container");
+      if (scannerContainer) {
+        scannerContainer.innerHTML = '';
+        // Reset container styling if needed
+        scannerContainer.style.display = '';
+      }
+      
+      // Reset camera permission status
+      setCameraPermission('available');
+      
     } catch (error) {
       console.error('Error stopping scanner:', error);
+      // Even if there's an error, clear the container
+      const scannerContainer = document.getElementById("qr-scanner-container");
+      if (scannerContainer) {
+        scannerContainer.innerHTML = '';
+      }
     }
   };
 
@@ -209,7 +232,6 @@ const ShipmentScanner = () => {
   };
 
   const handleScanSuccess = async (decodedText) => {
-
     
     // Pause scanner after successful scan
     if (qrReaderRef.current) {
@@ -330,7 +352,6 @@ const ShipmentScanner = () => {
         return current;
       });
 
-
       const response = await axios.post(
         `${baseURL}/api/v1/shipment/scan/${qrData.uniqueId}`,
         {
@@ -351,7 +372,6 @@ const ShipmentScanner = () => {
           headers: { 'Content-Type': 'application/json' }
         }
       );
-
 
       if (response.data.result) {
         const formatSizeRange = (sizes) => {
