@@ -297,7 +297,7 @@ const ManageInventory = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm font-semibold text-green-600">
-                          {row.availableQuantity}
+                          {row.availableQuantity < 0 ? 0 : row.availableQuantity}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
