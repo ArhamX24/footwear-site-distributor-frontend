@@ -100,7 +100,7 @@ const AddDialog = ({ getProducts }) => {
         Swal.fire({
           icon: "error",
           title: "Oops...",
-          text: error.response?.data?.message || "Something went wrong!",
+          text: error.response?.data?.message || "Please Check All Details..!",
         });
         setError(error.response?.data?.message);
       }

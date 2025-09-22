@@ -534,47 +534,86 @@ const startCameraScanning = async () => {
     }
   };
 
+ // Helper function to format size range
+  const formatSizeRange = (sizes) => {
+    if (!sizes || sizes.length === 0) return 'N/A';
+    if (!Array.isArray(sizes)) return sizes.toString();
+    if (sizes.length === 1) return sizes[0].toString();
+    
+    const sortedSizes = [...sizes].sort((a, b) => a - b);
+    return `${sortedSizes[0]}X${sortedSizes[sortedSizes.length - 1]}`;
+  };
+
   const checkItemQuality = async (qrData) => {
     console.log('Starting quality check dialog...');
 
+    // Extract article details
+    const articleName = qrData.articleName || qrData.contractorInput?.articleName || 'Unknown Article';
+    const colors = qrData.contractorInput?.colors || qrData.colors || [];
+    const sizes = qrData.contractorInput?.sizes || qrData.sizes || [];
+    const cartonNumber = qrData.contractorInput?.cartonNumber || qrData.cartonNumber || 'N/A';
+
+    // Format colors display
+    const colorsDisplay = Array.isArray(colors) && colors.length > 0 
+      ? colors.join(', ') 
+      : (typeof colors === 'string' ? colors : 'N/A');
+
+    // Format sizes display
+    const sizesDisplay = formatSizeRange(sizes);
+
     const result = await Swal.fire({
-      title: 'Quality Check',
+      title: 'Confirm Receipt',
       html: `
-        <div style="text-align: left;">
-          <p><strong>Article:</strong> ${qrData.articleName || qrData.contractorInput?.articleName}</p>
-          <p><strong>Carton:</strong> #${qrData.contractorInput?.cartonNumber || 'N/A'}</p>
-          <hr>
-          <p style="margin-bottom: 10px;"><strong>Condition Assessment:</strong></p>
+        <div style="text-align: left; background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 10px 0;">
           <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px;">
-              <input type="radio" name="quality" value="good" checked> 
-              ✅ Good Condition
-            </label>
-            <label style="display: block;">
-              <input type="radio" name="quality" value="damaged"> 
-              ⚠️ Damaged/Issues Found
-            </label>
+            <h4 style="margin: 0 0 10px 0; color: #333; font-size: 18px;">📦 ${articleName}</h4>
           </div>
-          <textarea id="quality-notes" placeholder="Additional notes (optional)..." 
-            style="width: 100%; height: 60px; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+          
+          <div style="display: grid; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+              <span style="font-weight: 600; color: #495057;">🎨 Colors:</span>
+              <span style="color: #6c757d;">${colorsDisplay}</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+              <span style="font-weight: 600; color: #495057;">📏 Sizes:</span>
+              <span style="color: #6c757d;">${sizesDisplay}</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+              <span style="font-weight: 600; color: #495057;">📦 Carton:</span>
+              <span style="color: #6c757d;">#${cartonNumber}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+          <p style="color: #6c757d; font-size: 14px;">Confirm receipt of this carton?</p>
         </div>
       `,
       showCancelButton: true,
-      confirmButtonText: 'Confirm Receipt',
-      cancelButtonText: 'Cancel Scan',
+      confirmButtonText: '✅ Confirm Receipt',
+      cancelButtonText: '❌ Cancel',
+      confirmButtonColor: '#28a745',
+      cancelButtonColor: '#dc3545',
       allowOutsideClick: false,
-      preConfirm: () => {
-        const qualityRadio = document.querySelector('input[name="quality"]:checked');
-        const notes = document.getElementById('quality-notes').value;
-        return { passed: qualityRadio?.value === 'good', condition: qualityRadio?.value || 'good', notes };
+      customClass: {
+        popup: 'swal2-popup-custom',
+        confirmButton: 'swal2-confirm-custom',
+        cancelButton: 'swal2-cancel-custom'
       }
     });
 
     if (result.isConfirmed) {
-      console.log('Quality check result:', result.value);
-      return result.value;
+      console.log('Receipt confirmed for:', articleName);
+      // Return default good quality since we're not asking for quality assessment
+      return { 
+        passed: true, 
+        condition: 'good', 
+        notes: `Carton #${cartonNumber} received and confirmed` 
+      };
     }
-    throw new Error('Quality check cancelled');
+    throw new Error('Receipt cancelled');
   };
 
   const startScanning = () => {

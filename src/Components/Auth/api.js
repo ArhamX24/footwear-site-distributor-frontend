@@ -1,4 +1,3 @@
-// Components/Auth/api.js - Axios configuration with interceptors
 import axios from 'axios';
 import { baseURL } from '../../Utils/URLS';
 

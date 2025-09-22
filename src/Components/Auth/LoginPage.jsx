@@ -35,7 +35,7 @@ const formik = useFormik({
 
       let { phoneNo, password } = values;
 
-      const response = await axios.post(`/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
+      const response = await axios.post(`${baseURL}/api/v1/auth/login`, { phoneNo, password }, { withCredentials: true });
 
       if (!response.data.result) {
         setIsLoading(false)
@@ -84,7 +84,7 @@ const formik = useFormik({
           <form onSubmit={formik.handleSubmit}>
             <input
               type="tel"
-              placeholder="Eg. 9897989765"
+              placeholder="Mobile No."
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:border-gray-500 focus:outline-none"
               name="phoneNo"
               ref={inputRef}
