@@ -12,7 +12,7 @@ export const useAuth = () => {
   const handleLogout = async () => {
     try {
       // Call logout API to clear cookies
-      await axios.post(`${baseURL}/api/v1/auth/logout`, {}, { withCredentials: true });
+      await axios.post(`/api/v1/auth/logout`, {}, { withCredentials: true });
     } catch (error) {
       console.error('Logout API error:', error);
     } finally {
