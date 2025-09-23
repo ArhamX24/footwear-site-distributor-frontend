@@ -20,7 +20,6 @@ const AllArticlesListed = () => {
       );
       setGroupedProducts(response.data.groupedData);
     } catch (error) {
-      console.error(error.response?.data);
       setGroupedProducts({});
     } finally {
       setLoading(false);

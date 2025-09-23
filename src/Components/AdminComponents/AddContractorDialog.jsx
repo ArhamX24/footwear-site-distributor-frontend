@@ -69,7 +69,6 @@ const AddContractorDialog = ({ setIsUpdated }) => {
         });
 
         setError(error.response?.data?.message || 'Something went wrong.');
-        console.log(error.response);
       }
     }
   });

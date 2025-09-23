@@ -37,12 +37,9 @@ const PastOrdersPage = () => {
     if (response.data && response.data.result) {
       setShipments(response.data.data.shipments || []);
     } else {
-      console.error('Invalid response structure:', response.data);
       Swal.fire('Error', 'Invalid response from server', 'error');
     }
   } catch (error) {
-    // ✅ IMPROVED: Better error handling
-    console.error('Full error details:', error);
     let errorMessage = 'Failed to fetch shipments';
     
     if (error.response) {
@@ -69,7 +66,6 @@ const getDistributors = async () => {
       setDistributors(response.data.data || []);
     }
   } catch (error) {
-    console.error('Error fetching distributors:', error);
     Swal.fire('Error', 'Failed to fetch distributors', 'error');
   }
 };
@@ -84,15 +80,11 @@ const handleViewShipment = async (shipment) => {
     
     if (response.data && response.data.result) {
       setSelectedShipment(response.data.data);
-      console.log('====================================');
-      console.log(selectedShipment);
-      console.log('====================================');
       setShowModal(true);
     } else {
       throw new Error('Invalid response from server');
     }
   } catch (error) {
-    console.error('Error viewing shipment:', error);
     Swal.fire('Error', 'Failed to view shipment details', 'error');
   } finally {
     setIsLoading(false);

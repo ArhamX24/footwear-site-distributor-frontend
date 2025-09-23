@@ -44,7 +44,6 @@ const AddProductsUsingExcel = () => {
         });
       }
     } catch (error) {
-      console.error(error);
       Swal.fire({
         icon: "error",
         title: "Server Error",

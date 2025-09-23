@@ -90,7 +90,6 @@ const ManageManagers = () => {
         setManagers(response.data.data);
       }
     } catch (error) {
-      console.error(error);
     } finally {
       setLoading(false);
     }

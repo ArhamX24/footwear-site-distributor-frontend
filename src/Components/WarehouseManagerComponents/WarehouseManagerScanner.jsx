@@ -51,7 +51,6 @@ const WarehouseManagerScanner = () => {
 const getCameras = async () => {
   try {
     const devices = await Html5Qrcode.getCameras();
-    console.log('=== AVAILABLE CAMERAS DEBUG ===');
     devices.forEach((camera, index) => {
       console.log(`Camera ${index}:`, {
         id: camera.id,
@@ -71,7 +70,6 @@ const getCameras = async () => {
         )
       });
     });
-    console.log('=================================');
     setAvailableCameras(devices);
   } catch (error) {
     console.error('Error getting cameras:', error);
@@ -81,7 +79,6 @@ const getCameras = async () => {
 // Enhanced startCameraScanning function with back camera priority
 const startCameraScanning = async () => {
   try {
-    console.log('Starting camera scanning...');
     
     // Clean up any existing scanner
     if (html5QrCodeRef.current) {
@@ -99,7 +96,6 @@ const startCameraScanning = async () => {
     // Enhanced back camera detection
     let cameraId;
     if (availableCameras.length > 0) {
-      console.log('Available cameras:', availableCameras);
       
       // Multiple strategies to find back camera
       let backCamera = null;
@@ -140,14 +136,9 @@ const startCameraScanning = async () => {
       }
       
       cameraId = backCamera.id;
-      console.log('Selected camera:', {
-        id: backCamera.id,
-        label: backCamera.label
-      });
     } else {
       // Fallback: Use facingMode constraint for back camera
       cameraId = { facingMode: { exact: "environment" } };
-      console.log('Using facingMode: environment');
     }
 
     // Enhanced camera configuration for back camera preference
@@ -181,7 +172,6 @@ const startCameraScanning = async () => {
         cameraId,
         config,
         (decodedText, decodedResult) => {
-          console.log('✅ QR Code scanned:', decodedText);
           vibrate([200, 100, 200]);
           handleScanSuccess(decodedText);
         },
@@ -192,14 +182,11 @@ const startCameraScanning = async () => {
               error.includes('No MultiFormat Readers')) {
             return;
           }
-          console.warn('QR scan error:', error);
         }
       );
       
-      console.log('Camera scanning started successfully with selected camera');
       
     } catch (firstAttemptError) {
-      console.warn('First attempt failed, trying fallback:', firstAttemptError);
       
       // Fallback attempt: Use environment facing mode
       try {
@@ -207,7 +194,6 @@ const startCameraScanning = async () => {
           { facingMode: "environment" },
           config,
           (decodedText, decodedResult) => {
-            console.log('✅ QR Code scanned:', decodedText);
             vibrate([200, 100, 200]);
             handleScanSuccess(decodedText);
           },
@@ -217,14 +203,11 @@ const startCameraScanning = async () => {
                 error.includes('No MultiFormat Readers')) {
               return;
             }
-            console.warn('QR scan error:', error);
           }
         );
         
-        console.log('Camera scanning started successfully with environment facingMode');
         
       } catch (secondAttemptError) {
-        console.warn('Second attempt failed, trying any available camera:', secondAttemptError);
         
         // Final fallback: Try any available camera
         const fallbackCameraId = availableCameras.length > 0 ? availableCameras[0].id : undefined;
@@ -242,7 +225,6 @@ const startCameraScanning = async () => {
             }
           },
           (decodedText, decodedResult) => {
-            console.log('✅ QR Code scanned:', decodedText);
             vibrate([200, 100, 200]);
             handleScanSuccess(decodedText);
           },
@@ -256,15 +238,12 @@ const startCameraScanning = async () => {
           }
         );
         
-        console.log('Camera scanning started successfully with fallback camera');
       }
     }
 
     setCameraPermission('granted');
-    console.log('Camera scanning initialization complete');
 
   } catch (error) {
-    console.error('Error starting camera:', error);
     setCameraPermission('denied');
     setIsScanning(false);
     
@@ -312,11 +291,9 @@ const startCameraScanning = async () => {
   const stopCameraScanning = async () => {
     try {
       if (html5QrCodeRef.current) {
-        console.log('Stopping camera scanner...');
         await html5QrCodeRef.current.stop();
         html5QrCodeRef.current.clear();
         html5QrCodeRef.current = null;
-        console.log('Camera scanner stopped');
       }
     } catch (error) {
       console.error('Error stopping camera scanner:', error);
@@ -334,16 +311,11 @@ const startCameraScanning = async () => {
     }
   };
 
-  const handleScanSuccess = async (decodedText) => {
-    console.log('=== QR SCAN DEBUG ===');
-    console.log('Raw decoded text:', decodedText);
-    console.log('Type:', typeof decodedText);
-    
+  const handleScanSuccess = async (decodedText) => {    
     // Immediately pause scanner after successful scan
     if (html5QrCodeRef.current) {
       try {
         await html5QrCodeRef.current.pause();
-        console.log('Scanner paused after successful scan');
       } catch (error) {
         console.warn('Could not pause scanner:', error);
       }
@@ -355,14 +327,11 @@ const startCameraScanning = async () => {
       try {
         if (typeof decodedText === 'string') {
           const trimmed = decodedText.trim();
-          console.log('Trimmed content:', trimmed);
           
           if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
             qrData = JSON.parse(trimmed);
-            console.log('Parsed QR data:', qrData);
-            console.log('UniqueId from QR:', qrData.uniqueId);
+
           } else {
-            console.log('Non-JSON QR Content:', decodedText);
             vibrate([300, 100, 300]); // Error vibration pattern
             
             Swal.fire({
@@ -384,10 +353,8 @@ const startCameraScanning = async () => {
           }
         } else {
           qrData = decodedText;
-          console.log('Object QR data:', qrData);
         }
       } catch (jsonError) {
-        console.error('JSON Parse Error:', jsonError);
         vibrate([300, 100, 300]); // Error vibration
         
         Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error').then(() => {
@@ -423,7 +390,6 @@ const startCameraScanning = async () => {
       }
 
       if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
-        console.error('Missing required fields:', qrData);
         vibrate([300, 100, 300]); // Error vibration
         
         Swal.fire({
@@ -445,12 +411,9 @@ const startCameraScanning = async () => {
         });
         return;
       }
-
-      console.log('Sending uniqueId to backend:', qrData.uniqueId);
       
       const qualityCheck = await checkItemQuality(qrData);
 
-      console.log('Making API call to:', `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`);
       
       const response = await axios.post(
         `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`,
@@ -464,7 +427,6 @@ const startCameraScanning = async () => {
         { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
       );
 
-      console.log('Backend response:', response.data);
 
       if (response.data.result) {
         const newItem = {
@@ -479,7 +441,6 @@ const startCameraScanning = async () => {
           qualityNotes: qualityCheck.notes || ''
         };
 
-        console.log('Adding new item:', newItem);
         setScannedItems((prev) => [...prev, newItem]);
         setInventoryStats((prev) => ({
           ...prev,
@@ -513,11 +474,6 @@ const startCameraScanning = async () => {
       }
       
     } catch (error) {
-      console.error('=== QR SCAN ERROR ===');
-      console.error('Error details:', error);
-      console.error('Response data:', error.response?.data);
-      console.error('Status:', error.response?.status);
-      
       // Error vibration
       vibrate([500, 200, 500]);
       
@@ -545,7 +501,6 @@ const startCameraScanning = async () => {
   };
 
   const checkItemQuality = async (qrData) => {
-    console.log('Starting quality check dialog...');
 
     // Extract article details
     const articleName = qrData.articleName || qrData.contractorInput?.articleName || 'Unknown Article';
@@ -605,7 +560,6 @@ const startCameraScanning = async () => {
     });
 
     if (result.isConfirmed) {
-      console.log('Receipt confirmed for:', articleName);
       // Return default good quality since we're not asking for quality assessment
       return { 
         passed: true, 
@@ -617,13 +571,11 @@ const startCameraScanning = async () => {
   };
 
   const startScanning = () => {
-    console.log('Starting scan process...');
     vibrate([50]); // Quick feedback vibration
     setIsScanning(true);
   };
 
   const stopScanning = () => {
-    console.log('Stopping scan process...');
     vibrate([100]); // Stop feedback vibration
     setIsScanning(false);
   };
@@ -674,7 +626,6 @@ Report generated by Warehouse Management System
       vibrate([100, 50, 100]); // Success vibration
       Swal.fire('Success', 'Report downloaded successfully!', 'success');
     } catch (error) {
-      console.error('Report export error:', error);
       vibrate([300]); // Error vibration
       Swal.fire('Error', 'Failed to generate report', 'error');
     } finally {
@@ -723,7 +674,6 @@ Report generated by Warehouse Management System
         }, 1500);
       }
     } catch (error) {
-      console.error('Logout error:', error);
       vibrate([300]); // Error vibration
       Swal.fire({
         icon: 'error',

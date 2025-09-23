@@ -17,7 +17,7 @@ const CartPage = () => {
   const handlePlaceOrderClick = () => {
     setShowConfirmModal(true);
   };
-
+  
   // When the order is confirmed, send the data to the backend.
   const handleConfirmOrder = async () => {
     try {

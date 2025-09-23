@@ -160,7 +160,6 @@ const ShipmentScanner = () => {
       setCameraPermission('granted');
       
     } catch (error) {
-      console.error('Error starting scanner:', error);
       setCameraPermission('denied');
       setIsScanning(false);
       
@@ -208,7 +207,6 @@ const ShipmentScanner = () => {
       setCameraPermission('available');
       
     } catch (error) {
-      console.error('Error stopping scanner:', error);
       // Even if there's an error, clear the container
       const scannerContainer = document.getElementById("qr-scanner-container");
       if (scannerContainer) {

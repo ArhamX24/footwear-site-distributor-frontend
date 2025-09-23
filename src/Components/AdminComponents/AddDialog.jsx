@@ -95,7 +95,7 @@ const AddDialog = ({ getProducts }) => {
         setIsVariant(false);
         setAllColorsAvailable(false);
       } catch (error) {
-        console.error(error);
+
         setLoading(false);
         Swal.fire({
           icon: "error",
