@@ -358,7 +358,7 @@ const ProductCard = ({ product, setIsDeleted, setIsUpdated }) => {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-600">Category</span>
-                        <span className="text-sm font-semibold text-gray-900 capitalize">{product.variantName}</span>
+                        <span className="text-sm font-semibold text-gray-900 capitalize">{product.gender}</span>
                       </div>
                     </div>
                   </div>
