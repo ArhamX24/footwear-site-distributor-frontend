@@ -61,6 +61,7 @@ const formik = useFormik({
 
       action.resetForm();
     } catch (error) {
+      console.error(error)
       setError(error.response?.data?.message || "Login Failed. Try Again.");
     } finally {
       setIsLoading(false)
