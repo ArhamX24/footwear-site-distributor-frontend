@@ -34,6 +34,30 @@ const AllArticlesListed = () => {
     getProducts();
   }, []);
 
+  // Filter segments based on search term and auto-expand matching segments
+  useEffect(() => {
+    if (searchTerm && groupedProducts) {
+      const newExpanded = {};
+      Object.keys(groupedProducts).forEach(segment => {
+        const hasMatch = 
+          segment.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          groupedProducts[segment].some(product =>
+            product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.variantName.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+        
+        if (hasMatch) {
+          newExpanded[segment] = true;
+        }
+      });
+      setExpanded(newExpanded);
+    } else if (!searchTerm) {
+      // Optionally collapse all when search is cleared
+      // Remove this if you want to keep previous state
+      setExpanded({});
+    }
+  }, [searchTerm, groupedProducts]);
+
   // Filter segments based on search term
   const filteredSegments = groupedProducts
     ? Object.keys(groupedProducts).filter(segment =>
@@ -44,6 +68,19 @@ const AllArticlesListed = () => {
         )
       )
     : [];
+
+  // Filter products within a segment based on search term
+  const getFilteredProducts = (segment) => {
+    if (!searchTerm) {
+      return groupedProducts[segment];
+    }
+    
+    return groupedProducts[segment].filter(product =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.variantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      segment.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
 
   // Calculate total products
   const getTotalProducts = () => {
@@ -184,7 +221,7 @@ const AllArticlesListed = () => {
           /* Segments List */
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             {filteredSegments.map((segment, index) => {
-              const items = groupedProducts[segment];
+              const filteredProducts = getFilteredProducts(segment);
               const isOpen = expanded[segment] || false;
 
               return (
@@ -215,7 +252,7 @@ const AllArticlesListed = () => {
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <span className="text-sm font-medium text-gray-900">
-                          {items.length} articles
+                          {searchTerm ? `${filteredProducts.length} of ${groupedProducts[segment].length}` : `${filteredProducts.length}`} articles
                         </span>
                         <p className="text-xs text-gray-500">
                           {isOpen ? "Click to collapse" : "Click to expand"}
@@ -253,20 +290,29 @@ const AllArticlesListed = () => {
 
                       {/* Articles List */}
                       <div className="max-h-96 overflow-y-auto">
-                        {items.map((product) => (
-                          <ProductCard
-                            key={product._id}
-                            product={product}
-                            setIsDeleted={setIsDeleted}
-                            setisUpdated={setIsUpdated}
-                          />
-                        ))}
+                        {filteredProducts.length > 0 ? (
+                          filteredProducts.map((product) => (
+                            <ProductCard
+                              key={product._id}
+                              product={product}
+                              setIsDeleted={setIsDeleted}
+                              setisUpdated={setIsUpdated}
+                            />
+                          ))
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            No matching articles in this segment
+                          </div>
+                        )}
                       </div>
 
                       {/* Section Footer */}
                       <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
                         <p className="text-sm text-gray-800 text-center capitalize">
-                          {items.length} article{items.length !== 1 ? 's' : ''} in {segment} segment
+                          {searchTerm 
+                            ? `${filteredProducts.length} matching article${filteredProducts.length !== 1 ? 's' : ''} in ${segment} segment`
+                            : `${filteredProducts.length} article${filteredProducts.length !== 1 ? 's' : ''} in ${segment} segment`
+                          }
                         </p>
                       </div>
                     </div>
