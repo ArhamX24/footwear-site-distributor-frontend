@@ -61,7 +61,14 @@ const formik = useFormik({
 
       action.resetForm();
     } catch (error) {
-      console.error(error)
+      if (error.response) {
+    // Server responded with error status
+    if (error.response.status === 502) {
+      console.error(error.response);
+      // Show user-friendly message
+      setError('Our servers are currently experiencing issues. Please try again in a few minutes.');
+    }
+  }
       setError(error.response?.data?.message || "Login Failed. Try Again.");
     } finally {
       setIsLoading(false)
