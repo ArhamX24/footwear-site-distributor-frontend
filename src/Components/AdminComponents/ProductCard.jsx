@@ -1,15 +1,28 @@
 import { FaTrash, FaEdit, FaEye, FaImage, FaTimes, FaTag, FaBox, FaInfoCircle, FaImages, FaCalendarAlt, FaUser } from "react-icons/fa";
-import { Package, Tag, Grid3X3, X, Calendar, User, MapPin, Palette } from "lucide-react";
+import { Package, Tag, Grid3X3, X, Calendar, User, MapPin, Palette, Upload, Save } from "lucide-react";
 import Swal from "sweetalert2";
 import axios from "axios";
 import { useState } from "react";
 import { baseURL } from "../../Utils/URLS";
 
-const ProductCard = ({ product, setIsDeleted, setIsUpdated }) => {
+const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
   const [imageError, setImageError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // Edit form states
+  const [editForm, setEditForm] = useState({
+    name: product.name,
+    segment: product.segment,
+    gender: product.gender,
+    variantName: product.variantName,
+    existingImages: product.images || [],
+    newImages: []
+  });
+  const [editLoading, setEditLoading] = useState(false);
+  const [previewImages, setPreviewImages] = useState([]);
 
   const handleDelete = async (id) => {
     const { isConfirmed } = await Swal.fire({
@@ -71,6 +84,130 @@ const ProductCard = ({ product, setIsDeleted, setIsUpdated }) => {
     setCurrentImageIndex(0);
   };
 
+  const openEditModal = () => {
+    setEditForm({
+      name: product.name,
+      segment: product.segment,
+      gender: product.gender,
+      variantName: product.variantName,
+      existingImages: product.images || [],
+      newImages: []
+    });
+    setPreviewImages([]);
+    setShowEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setPreviewImages([]);
+    setEditForm({
+      name: product.name,
+      segment: product.segment,
+      gender: product.gender,
+      variantName: product.variantName,
+      existingImages: product.images || [],
+      newImages: []
+    });
+  };
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    
+    if (files.length + editForm.existingImages.length + editForm.newImages.length > 10) {
+      Swal.fire({
+        title: "Too Many Images",
+        text: "You can upload a maximum of 10 images total.",
+        icon: "warning",
+        confirmButtonColor: "#4B5563",
+      });
+      return;
+    }
+
+    setEditForm(prev => ({
+      ...prev,
+      newImages: [...prev.newImages, ...files]
+    }));
+
+    // Create preview URLs
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setPreviewImages(prev => [...prev, ...newPreviews]);
+  };
+
+  const removeExistingImage = (index) => {
+    setEditForm(prev => ({
+      ...prev,
+      existingImages: prev.existingImages.filter((_, i) => i !== index)
+    }));
+  };
+
+  const removeNewImage = (index) => {
+    setEditForm(prev => ({
+      ...prev,
+      newImages: prev.newImages.filter((_, i) => i !== index)
+    }));
+    setPreviewImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (editForm.existingImages.length + editForm.newImages.length === 0) {
+      Swal.fire({
+        title: "No Images",
+        text: "Please add at least one image.",
+        icon: "warning",
+        confirmButtonColor: "#4B5563",
+      });
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+
+      const formData = new FormData();
+      formData.append('name', editForm.name.trim().toLowerCase());
+      formData.append('segment', editForm.segment.trim().toLowerCase());
+      formData.append('gender', editForm.gender.trim().toLowerCase());
+      formData.append('variantName', editForm.variantName.trim().toLowerCase());
+      formData.append('existingImages', JSON.stringify(editForm.existingImages));
+      
+      editForm.newImages.forEach((file) => {
+        formData.append('images', file);
+      });
+
+      const res = await axios.put(
+        `${baseURL}/api/v1/admin/products/updateproduct/${product._id}`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          },
+          withCredentials: true
+        }
+      );
+
+      if (res.data.result) {
+        Swal.fire({
+          title: "Success!",
+          text: "Product updated successfully.",
+          icon: "success",
+          confirmButtonColor: "#4B5563",
+        });
+        setisUpdated(prev => !prev);
+        closeEditModal();
+      }
+    } catch (err) {
+      Swal.fire({
+        title: "Error",
+        text: err.response?.data?.message || "Unable to update product. Try again later.",
+        icon: "error",
+        confirmButtonColor: "#4B5563",
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   const nextImage = () => {
     if (product.images && product.images.length > 1) {
       setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
@@ -81,15 +218,6 @@ const ProductCard = ({ product, setIsDeleted, setIsUpdated }) => {
     if (product.images && product.images.length > 1) {
       setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
     }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
   };
 
   return (
@@ -140,6 +268,13 @@ const ProductCard = ({ product, setIsDeleted, setIsUpdated }) => {
               >
                 <FaEye className="text-xs" />
                 View
+              </button>
+              <button
+                onClick={openEditModal}
+                className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium shadow-sm"
+              >
+                <FaEdit className="text-xs" />
+                Edit
               </button>
               <button
                 onClick={() => handleDelete(product._id)}
@@ -221,6 +356,15 @@ const ProductCard = ({ product, setIsDeleted, setIsUpdated }) => {
             </button>
             
             <button
+              onClick={openEditModal}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium shadow-sm"
+              title="Edit Product"
+            >
+              <FaEdit className="text-xs" />
+              Edit
+            </button>
+            
+            <button
               onClick={() => handleDelete(product._id)}
               disabled={loading}
               className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -233,7 +377,7 @@ const ProductCard = ({ product, setIsDeleted, setIsUpdated }) => {
         </div>
       </div>
 
-      {/* Article Details Modal */}
+      {/* View Details Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -273,7 +417,7 @@ const ProductCard = ({ product, setIsDeleted, setIsUpdated }) => {
                         <img
                           src={product.images[currentImageIndex]}
                           alt={`${product.name} - Image ${currentImageIndex + 1}`}
-                          className="w-full h-full bg-contain"
+                          className="w-full h-full object-contain"
                           onError={(e) => {
                             e.target.style.display = 'none';
                             e.target.nextSibling.style.display = 'flex';
@@ -360,11 +504,201 @@ const ProductCard = ({ product, setIsDeleted, setIsUpdated }) => {
                         <span className="text-sm font-medium text-gray-600">Category</span>
                         <span className="text-sm font-semibold text-gray-900 capitalize">{product.gender}</span>
                       </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-600">Variant</span>
+                        <span className="text-sm font-semibold text-gray-900 capitalize">{product.variantName}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white relative">
+              <button
+                onClick={closeEditModal}
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-all"
+              >
+                <X size={20} />
+              </button>
+              <div className="flex items-center space-x-4">
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <FaEdit className="text-2xl" size={24} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">Edit Product</h2>
+                  <p className="text-blue-100">Update product information</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <form onSubmit={handleEditSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Article Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Segment <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.segment}
+                      onChange={(e) => setEditForm({...editForm, segment: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Category (Gender) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.gender}
+                      onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Variant Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.variantName}
+                      onChange={(e) => setEditForm({...editForm, variantName: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Image Management */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Product Images <span className="text-red-500">*</span>
+                  </label>
+                  
+                  {/* Existing Images */}
+                  {editForm.existingImages.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-2">Existing Images</p>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                        {editForm.existingImages.map((img, index) => (
+                          <div key={`existing-${index}`} className="relative group">
+                            <img
+                              src={img}
+                              alt={`Existing ${index + 1}`}
+                              className="w-full h-24 object-cover rounded-lg border-2 border-gray-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeExistingImage(index)}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* New Images Preview */}
+                  {previewImages.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-2">New Images</p>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                        {previewImages.map((preview, index) => (
+                          <div key={`new-${index}`} className="relative group">
+                            <img
+                              src={preview}
+                              alt={`New ${index + 1}`}
+                              className="w-full h-24 object-cover rounded-lg border-2 border-blue-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeNewImage(index)}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload Button */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
+                    <input
+                      type="file"
+                      id="image-upload"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className="cursor-pointer flex flex-col items-center space-y-2"
+                    >
+                      <Upload className="text-gray-400" size={32} />
+                      <span className="text-sm text-gray-600">
+                        Click to upload new images
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Maximum 10 images total (Current: {editForm.existingImages.length + editForm.newImages.length})
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editLoading}
+                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Save size={18} />
+                    {editLoading ? "Updating..." : "Update Product"}
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
       )}
