@@ -79,209 +79,63 @@ const getCameras = async () => {
 // Enhanced startCameraScanning function with back camera priority
 const startCameraScanning = async () => {
   try {
-    
-    // Clean up any existing scanner
+    // 1. CLEANUP FIRST: strict mode safety
     if (html5QrCodeRef.current) {
-      try {
+      if (html5QrCodeRef.current.isScanning) {
         await html5QrCodeRef.current.stop();
-        html5QrCodeRef.current.clear();
-      } catch (error) {
-        console.log('Error stopping previous scanner:', error);
       }
+      html5QrCodeRef.current.clear();
     }
 
-    // Create new scanner instance
-    html5QrCodeRef.current = new Html5Qrcode("qr-scanner-container");
-    
-    // Enhanced back camera detection
+    // 2. Wait a tick to ensure DOM is ready (React safety)
+    await new Promise(r => setTimeout(r, 100));
+
+    // 3. Initialize
+    const html5QrCode = new Html5Qrcode("qr-scanner-container");
+    html5QrCodeRef.current = html5QrCode;
+
+    // 4. Camera Selection (Your logic simplified)
     let cameraId;
     if (availableCameras.length > 0) {
-      
-      // Multiple strategies to find back camera
-      let backCamera = null;
-      
-      // Strategy 1: Look for back/rear/environment keywords
-      backCamera = availableCameras.find(camera => 
-        camera.label && (
-          camera.label.toLowerCase().includes('back') ||
-          camera.label.toLowerCase().includes('rear') ||
-          camera.label.toLowerCase().includes('environment') ||
-          camera.label.toLowerCase().includes('facing back') ||
-          camera.label.toLowerCase().includes('world facing')
-        )
+      // Try to find environment/back camera
+      const backCamera = availableCameras.find(cam => 
+        cam.label.toLowerCase().includes('back') || 
+        cam.label.toLowerCase().includes('environment') ||
+        cam.label.toLowerCase().includes('rear')
       );
-      
-      // Strategy 2: If no back camera found by label, try to find one that's not front-facing
-      if (!backCamera) {
-        backCamera = availableCameras.find(camera => 
-          camera.label && !(
-            camera.label.toLowerCase().includes('front') ||
-            camera.label.toLowerCase().includes('user') ||
-            camera.label.toLowerCase().includes('facing user') ||
-            camera.label.toLowerCase().includes('selfie')
-          )
-        );
-      }
-      
-      // Strategy 3: On mobile devices, often the first camera is back camera
-      if (!backCamera && availableCameras.length > 1) {
-        // If we have multiple cameras and couldn't identify back camera,
-        // try the first one (often back camera on mobile)
-        backCamera = availableCameras[0];
-      }
-      
-      // Strategy 4: Fallback to last camera if still no back camera found
-      if (!backCamera) {
-        backCamera = availableCameras[availableCameras.length - 1];
-      }
-      
-      cameraId = backCamera.id;
-    } else {
-      // Fallback: Use facingMode constraint for back camera
-      cameraId = { facingMode: { exact: "environment" } };
+      // Use back camera if found, otherwise last camera (often back on Android), otherwise first
+      cameraId = backCamera ? backCamera.id : availableCameras[availableCameras.length - 1].id;
     }
 
-    // Enhanced camera configuration for back camera preference
+    // 5. Config - REMOVED aspectRatio to fix white screen
     const config = {
       fps: 10,
-      qrbox: function(viewfinderWidth, viewfinderHeight) {
-        const minEdgePercentage = 0.7;
-        const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-        const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
-        return {
-          width: qrboxSize,
-          height: qrboxSize,
-        };
-      },
-      aspectRatio: 1.0,
-      disableFlip: false,
+      qrbox: { width: 250, height: 250 }, // Fixed pixel size is often more stable than function
       videoConstraints: {
-        facingMode: "environment", // Prefer back camera
-        advanced: [
-          { facingMode: { exact: "environment" } }, // Try to force back camera
-          { focusMode: "continuous" },
-          { exposureMode: "continuous" },
-          { whiteBalanceMode: "continuous" }
-        ]
+        facingMode: { ideal: "environment" }, // 'ideal' is safer than 'exact'
+        focusMode: "continuous"
       }
     };
 
-    try {
-      // First attempt: Try with selected camera ID
-      await html5QrCodeRef.current.start(
-        cameraId,
-        config,
-        (decodedText, decodedResult) => {
-          vibrate([200, 100, 200]);
-          handleScanSuccess(decodedText);
-        },
-        (error) => {
-          // Suppress common "no QR found" errors
-          if (error.includes('No QR code found') || 
-              error.includes('NotFoundException') ||
-              error.includes('No MultiFormat Readers')) {
-            return;
-          }
-        }
-      );
-      
-      
-    } catch (firstAttemptError) {
-      
-      // Fallback attempt: Use environment facing mode
-      try {
-        await html5QrCodeRef.current.start(
-          { facingMode: "environment" },
-          config,
-          (decodedText, decodedResult) => {
-            vibrate([200, 100, 200]);
-            handleScanSuccess(decodedText);
-          },
-          (error) => {
-            if (error.includes('No QR code found') || 
-                error.includes('NotFoundException') ||
-                error.includes('No MultiFormat Readers')) {
-              return;
-            }
-          }
-        );
-        
-        
-      } catch (secondAttemptError) {
-        
-        // Final fallback: Try any available camera
-        const fallbackCameraId = availableCameras.length > 0 ? availableCameras[0].id : undefined;
-        
-        await html5QrCodeRef.current.start(
-          fallbackCameraId,
-          {
-            ...config,
-            videoConstraints: {
-              advanced: [
-                { focusMode: "continuous" },
-                { exposureMode: "continuous" },
-                { whiteBalanceMode: "continuous" }
-              ]
-            }
-          },
-          (decodedText, decodedResult) => {
-            vibrate([200, 100, 200]);
-            handleScanSuccess(decodedText);
-          },
-          (error) => {
-            if (error.includes('No QR code found') || 
-                error.includes('NotFoundException') ||
-                error.includes('No MultiFormat Readers')) {
-              return;
-            }
-            console.warn('QR scan error:', error);
-          }
-        );
-        
+    // 6. Start
+    await html5QrCode.start(
+      cameraId || { facingMode: "environment" },
+      config,
+      (decodedText) => {
+        handleScanSuccess(decodedText);
+      },
+      (errorMessage) => {
+        // ignore errors
       }
-    }
+    );
 
     setCameraPermission('granted');
 
   } catch (error) {
+    console.error("Scanner error:", error);
     setCameraPermission('denied');
     setIsScanning(false);
-    
-    vibrate([500]);
-    
-    // Show detailed error message
-    let errorMessage = 'Failed to start camera scanner';
-    
-    if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
-      errorMessage = 'Camera permission denied. Please allow camera access and try again.';
-    } else if (error.name === 'NotFoundError') {
-      errorMessage = 'No camera found on this device.';
-    } else if (error.name === 'NotReadableError') {
-      errorMessage = 'Camera is already in use by another application.';
-    } else if (error.name === 'OverconstrainedError') {
-      errorMessage = 'Back camera not available. Will try front camera if needed.';
-    } else if (error.name === 'NotSupportedError') {
-      errorMessage = 'Camera not supported on this browser.';
-    }
-
-    Swal.fire({
-      title: 'Camera Error',
-      html: `
-        <p>${errorMessage}</p>
-        <br>
-        <p><strong>Troubleshooting:</strong></p>
-        <ul style="text-align: left; margin: 10px 0;">
-          <li>Make sure you're using HTTPS or localhost</li>
-          <li>Grant camera permissions when prompted</li>
-          <li>Close other apps using the camera</li>
-          <li>Try refreshing the page</li>
-          <li>On iOS: Check Safari settings for camera access</li>
-          <li>Try rotating your device if back camera doesn't work</li>
-        </ul>
-      `,
-      icon: 'error',
-      confirmButtonText: 'OK'
-    });
+    Swal.fire('Camera Error', 'Could not access camera. Please check permissions.', 'error');
   }
 };
 
@@ -764,20 +618,27 @@ Report generated by Warehouse Management System
             </div>
 
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] sm:min-h-[400px] flex items-center justify-center">
-              {isScanning ? (
-                <div id="qr-scanner-container" className="w-full h-full"></div>
-              ) : (
-                <div className="text-center py-12">
+              {/* Replace this entire block in your return statement */}
+<div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] sm:min-h-[400px] flex items-center justify-center relative overflow-hidden bg-black">
+  
+  {/* 1. Placeholder when NOT scanning */}
+              {!isScanning && (
+                <div className="text-center py-12 absolute z-10 bg-white w-full h-full flex flex-col items-center justify-center">
                   <div className="text-4xl sm:text-6xl mb-4">📦</div>
                   <p className="text-gray-500">Scanner ready for carton receipt</p>
                   <p className="text-sm text-gray-400 mt-2">
-                    Click "Start Scanner" to begin scanning QR codes
-                  </p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    📱 Mobile optimized • 🎯 Back camera • 📳 Vibration feedback
+                    Click "Start Scanner" to begin
                   </p>
                 </div>
               )}
+
+              {/* 2. The Scanner Container - ALWAYS RENDERED, just hidden via z-index or visibility if needed */}
+              <div 
+                id="qr-scanner-container" 
+                className={`w-full h-full ${!isScanning ? 'invisible' : 'visible'}`}
+              ></div>
+
+            </div>
             </div>
 
             {process.env.NODE_ENV === 'development' && (

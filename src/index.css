@@ -28,3 +28,14 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield; /* For Firefox */
 }
+
+#qr-scanner-container video {
+  object-fit: cover !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0.5rem;
+}
+
+#qr-scanner-container {
+  overflow: hidden;
+}
