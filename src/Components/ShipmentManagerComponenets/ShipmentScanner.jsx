@@ -13,16 +13,15 @@ const ShipmentScanner = () => {
   const [loading, setLoading] = useState(false);
   const [cameraPermission, setCameraPermission] = useState(null);
   const [availableCameras, setAvailableCameras] = useState([]);
-  const html5QrCodeRef = useRef(null);
   const qrReaderRef = useRef(null);
-  const qrScannerRef = useRef(null);
+  const isProcessingRef = useRef(false); // ✅ Prevent multiple scans
 
   useEffect(() => {
     fetchDistributors();
     initializeCamera();
     
     return () => {
-      cleanup();
+      forceCleanup();
     };
   }, []);
 
@@ -34,23 +33,26 @@ const ShipmentScanner = () => {
     }
   }, [isScanning]);
 
-  const cleanup = async () => {
+  // ✅ Force cleanup
+  const forceCleanup = async () => {
     try {
       if (qrReaderRef.current) {
         const state = qrReaderRef.current.getState();
-        if (state === Html5Qrcode.SCANNING) {
+        if (state === 2) { // Html5QrcodeScannerState.SCANNING
           await qrReaderRef.current.stop();
         }
-        qrReaderRef.current.clear();
-        qrReaderRef.current = null;
-      }
-      // Clear the scanner container
-      const scannerContainer = document.getElementById("qr-scanner-container");
-      if (scannerContainer) {
-        scannerContainer.innerHTML = '';
+        await qrReaderRef.current.clear();
       }
     } catch (error) {
       console.log('Cleanup error:', error);
+    } finally {
+      qrReaderRef.current = null;
+      const container = document.getElementById("qr-scanner-container");
+      if (container) {
+        container.innerHTML = '';
+        container.removeAttribute('style');
+      }
+      isProcessingRef.current = false;
     }
   };
 
@@ -80,7 +82,6 @@ const ShipmentScanner = () => {
   const getBackCamera = () => {
     if (availableCameras.length === 0) return null;
     
-    // Strategy 1: Look for back/rear/environment keywords
     let backCamera = availableCameras.find(camera => 
       camera.label && (
         camera.label.toLowerCase().includes('back') ||
@@ -89,7 +90,6 @@ const ShipmentScanner = () => {
       )
     );
     
-    // Strategy 2: If multiple cameras, avoid front-facing ones
     if (!backCamera && availableCameras.length > 1) {
       backCamera = availableCameras.find(camera => 
         camera.label && !(
@@ -100,7 +100,6 @@ const ShipmentScanner = () => {
       );
     }
     
-    // Strategy 3: Use first camera as fallback (often back camera on mobile)
     if (!backCamera) {
       backCamera = availableCameras[0];
     }
@@ -110,12 +109,12 @@ const ShipmentScanner = () => {
 
   const startScanning = async () => {
     try {
-      await cleanup(); // Clean up any existing scanner
+      await forceCleanup();
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       const qrReader = new Html5Qrcode("qr-scanner-container");
       qrReaderRef.current = qrReader;
       
-      // Get back camera
       const backCamera = getBackCamera();
       const cameraId = backCamera ? backCamera.id : { facingMode: "environment" };
       
@@ -146,13 +145,17 @@ const ShipmentScanner = () => {
         cameraId,
         config,
         (decodedText) => {
-          vibrate([200, 100, 200]);
-          handleScanSuccess(decodedText);
+          // ✅ Prevent multiple simultaneous scans
+          if (!isProcessingRef.current) {
+            isProcessingRef.current = true;
+            vibrate([200, 100, 200]);
+            handleScanSuccess(decodedText);
+          }
         },
         (error) => {
-          // Suppress common scanning errors
           if (!error.includes('NotFoundException') && 
               !error.includes('No QR code found')) {
+            // Suppress common errors
           }
         }
       );
@@ -162,7 +165,6 @@ const ShipmentScanner = () => {
     } catch (error) {
       setCameraPermission('denied');
       setIsScanning(false);
-      
       vibrate([500]);
       
       let errorMessage = 'Failed to start camera scanner';
@@ -188,30 +190,22 @@ const ShipmentScanner = () => {
     try {
       if (qrReaderRef.current) {
         const state = qrReaderRef.current.getState();
-        if (state === Html5Qrcode.SCANNING) {
+        if (state === 2) {
           await qrReaderRef.current.stop();
         }
         await qrReaderRef.current.clear();
         qrReaderRef.current = null;
       }
-      
-      // FIXED: Clear the scanner container completely
-      const scannerContainer = document.getElementById("qr-scanner-container");
-      if (scannerContainer) {
-        scannerContainer.innerHTML = '';
-        // Reset container styling if needed
-        scannerContainer.style.display = '';
-      }
-      
-      // Reset camera permission status
-      setCameraPermission('available');
-      
     } catch (error) {
-      // Even if there's an error, clear the container
-      const scannerContainer = document.getElementById("qr-scanner-container");
-      if (scannerContainer) {
-        scannerContainer.innerHTML = '';
+      console.error('Stop error:', error);
+    } finally {
+      const container = document.getElementById("qr-scanner-container");
+      if (container) {
+        container.innerHTML = '';
+        container.removeAttribute('style');
       }
+      isProcessingRef.current = false;
+      setCameraPermission('available');
     }
   };
 
@@ -230,19 +224,22 @@ const ShipmentScanner = () => {
   };
 
   const handleScanSuccess = async (decodedText) => {
+    console.log('Scan detected:', decodedText);
     
-    // Pause scanner after successful scan
-    if (qrReaderRef.current) {
-      try {
-        await qrReaderRef.current.pause(true);
-      } catch (error) {
-        console.warn('Could not pause scanner:', error);
-      }
-    }
-
+    // ✅ Don't stop scanner - keep it running for continuous scanning
+    // Just prevent duplicate processing
+    
     try {
       let qrData;
       
+      // Validate qrData
+      if (!qrData || typeof qrData !== 'object') {
+        vibrate([300, 100, 300]);
+        Swal.fire('Invalid QR Data', 'QR code does not contain valid data', 'error');
+        isProcessingRef.current = false;
+        return;
+      }
+
       try {
         if (typeof decodedText === 'string') {
           const trimmed = decodedText.trim();
@@ -257,16 +254,12 @@ const ShipmentScanner = () => {
               html: `
                 <p>This QR code doesn't contain the expected shipment data format.</p>
                 <p><strong>Content found:</strong></p>
-                <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
-                <p>Please scan a valid shipment QR code.</p>
+                de style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
               `,
               icon: 'warning',
-              confirmButtonText: 'Scan Again'
-            }).then(() => {
-              if (qrReaderRef.current) {
-                qrReaderRef.current.resume();
-              }
+              confirmButtonText: 'OK'
             });
+            isProcessingRef.current = false;
             return;
           }
         } else {
@@ -274,35 +267,23 @@ const ShipmentScanner = () => {
         }
       } catch (jsonError) {
         vibrate([300, 100, 300]);
-        
-        Swal.fire({
-          title: 'Invalid QR Code Format',
-          html: `
-            <p>Unable to parse QR code data.</p>
-            <p><strong>Content:</strong></p>
-            <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
-            <p>Please ensure you're scanning a valid shipment QR code.</p>
-          `,
-          icon: 'error',
-          confirmButtonText: 'Scan Again'
-        }).then(() => {
-          if (qrReaderRef.current) {
-            qrReaderRef.current.resume();
-          }
-        });
+        Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error');
+        isProcessingRef.current = false;
         return;
       }
 
+      const uniqueId = qrData.uniqueId || null;
+      const articleName = qrData.articleName 
+        || qrData.contractorInput?.articleName 
+        || qrData.productReference?.articleName 
+        || null;
+
       const shouldProceed = await new Promise((resolve) => {
         setScannedItems((currentItems) => {
-          const alreadyScanned = currentItems.find(item => item.uniqueId === qrData.uniqueId);
+          const alreadyScanned = currentItems.find(item => item.uniqueId === uniqueId);
           if (alreadyScanned) {
             vibrate([100, 50, 100, 50, 100]);
-            Swal.fire('Warning', 'This carton has already been scanned!', 'warning').then(() => {
-              if (qrReaderRef.current) {
-                qrReaderRef.current.resume();
-              }
-            });
+            Swal.fire('Warning', 'This carton has already been scanned!', 'warning');
             resolve(false);
             return currentItems;
           }
@@ -312,10 +293,11 @@ const ShipmentScanner = () => {
       });
 
       if (!shouldProceed) {
+        isProcessingRef.current = false;
         return;
       }
 
-      if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
+      if (!uniqueId || !articleName) {
         vibrate([300, 100, 300]);
         
         Swal.fire({
@@ -323,18 +305,14 @@ const ShipmentScanner = () => {
           html: `
             <p>QR code is missing required information:</p>
             <ul style="text-align: left; margin: 10px 0;">
-              <li>Unique ID: ${qrData.uniqueId ? '✅' : '❌ Missing'}</li>
-              <li>Article Name: ${(qrData.articleName || qrData.contractorInput?.articleName) ? '✅' : '❌ Missing'}</li>
+              <li>Unique ID: ${uniqueId ? '✅' : '❌ Missing'}</li>
+              <li>Article Name: ${articleName ? '✅' : '❌ Missing'}</li>
             </ul>
-            <p>Please scan a complete shipment QR code.</p>
           `,
           icon: 'error',
-          confirmButtonText: 'Scan Again'
-        }).then(() => {
-          if (qrReaderRef.current) {
-            qrReaderRef.current.resume();
-          }
+          confirmButtonText: 'OK'
         });
+        isProcessingRef.current = false;
         return;
       }
 
@@ -351,7 +329,7 @@ const ShipmentScanner = () => {
       });
 
       const response = await axios.post(
-        `${baseURL}/api/v1/shipment/scan/${qrData.uniqueId}`,
+        `${baseURL}/api/v1/shipment/scan/${uniqueId}`,
         {
           event: 'shipped',
           scannedBy: {
@@ -374,23 +352,25 @@ const ShipmentScanner = () => {
       if (response.data.result) {
         const formatSizeRange = (sizes) => {
           if (!sizes) return 'N/A';
-          if (Array.isArray(sizes)) {
-            if (sizes.length === 1) return sizes[0].toString();
-            if (sizes.length > 1) {
-              const sorted = [...sizes].sort((a, b) => a - b);
-              return `${sorted[0]}X${sorted[sorted.length - 1]}`;
-            }
-          }
-          return sizes.toString();
+          if (!Array.isArray(sizes)) return sizes.toString();
+          if (sizes.length === 0) return 'N/A';
+          if (sizes.length === 1) return sizes[0].toString();
+          
+          const sorted = [...sizes].sort((a, b) => a - b);
+          return `${sorted[0]}X${sorted[sorted.length - 1]}`;
         };
 
+        const colors = qrData.contractorInput?.colors || qrData.colors || ['Not specified'];
+        const sizes = qrData.contractorInput?.sizes || qrData.sizes || [];
+        const cartonNumber = qrData.contractorInput?.cartonNumber || qrData.cartonNumber || 'N/A';
+
         const newItem = {
-          uniqueId: qrData.uniqueId,
-          articleName: qrData.articleName || qrData.contractorInput?.articleName,
-          colors: qrData.contractorInput?.colors || qrData.colors,
-          sizes: qrData.contractorInput?.sizes || qrData.sizes,
-          sizesFormatted: formatSizeRange(qrData.contractorInput?.sizes || qrData.sizes),
-          cartonNumber: qrData.contractorInput?.cartonNumber || qrData.cartonNumber,
+          uniqueId: uniqueId,
+          articleName: articleName,
+          colors: colors,
+          sizes: sizes,
+          sizesFormatted: formatSizeRange(sizes),
+          cartonNumber: cartonNumber,
           scannedAt: new Date().toLocaleTimeString(),
           status: 'shipped'
         };
@@ -408,12 +388,6 @@ const ShipmentScanner = () => {
           toast: true,
           position: 'top-end'
         });
-
-        setTimeout(() => {
-          if (qrReaderRef.current) {
-            qrReaderRef.current.resume();
-          }
-        }, 2000);
         
       } else {
         throw new Error(response.data.message || 'Server returned failure');
@@ -430,11 +404,13 @@ const ShipmentScanner = () => {
         errorMessage = error.message;
       }
       
-      Swal.fire('Error', errorMessage, 'error').then(() => {
-        if (qrReaderRef.current) {
-          qrReaderRef.current.resume();
-        }
-      });
+      console.error('Scan error:', error);
+      Swal.fire('Error', errorMessage, 'error');
+    } finally {
+      // ✅ Reset processing flag after 1 second to allow next scan
+      setTimeout(() => {
+        isProcessingRef.current = false;
+      }, 1000);
     }
   };
 
@@ -447,8 +423,9 @@ const ShipmentScanner = () => {
     setIsScanning(true);
   };
 
-  const handleStopScanning = () => {
+  const handleStopScanning = async () => {
     vibrate([100]);
+    await forceCleanup();
     setIsScanning(false);
   };
 
@@ -573,7 +550,7 @@ const ShipmentScanner = () => {
       if (result.isConfirmed) {
         vibrate([100, 100, 100]);
         
-        await cleanup();
+        await forceCleanup();
         setIsScanning(false);
         
         await axios.post(`${baseURL}/api/v1/auth/logout`, {}, { withCredentials: true });
@@ -648,11 +625,6 @@ const ShipmentScanner = () => {
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-0">🎯 QR Scanner</h2>
-              {availableCameras.length > 1 && !isScanning && (
-                <div className="text-xs text-gray-500">
-                  Back camera auto-selected
-                </div>
-              )}
             </div>
             
             {/* Distributor Selection */}
@@ -701,18 +673,18 @@ const ShipmentScanner = () => {
               )}
             </div>
 
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] sm:min-h-[400px] flex items-center justify-center">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] sm:min-h-[400px] flex items-center justify-center bg-black">
               {isScanning ? (
                 <div id="qr-scanner-container" className="w-full h-full"></div>
               ) : (
                 <div className="text-center py-12">
                   <div className="text-4xl sm:text-6xl mb-4">📷</div>
-                  <p className="text-gray-500">Scanner ready for shipment QR codes</p>
-                  <p className="text-sm text-gray-400 mt-2">
+                  <p className="text-white">Scanner ready for shipment QR codes</p>
+                  <p className="text-sm text-gray-300 mt-2">
                     Select distributor first, then click "Start Scanner"
                   </p>
                   <p className="text-xs text-gray-400 mt-2">
-                    📱 Mobile optimized • 🎯 Back camera auto-selected • 📳 Vibration feedback
+                    📱 Continuous scanning • 🎯 Back camera • 📳 Vibration feedback
                   </p>
                 </div>
               )}
@@ -725,7 +697,7 @@ const ShipmentScanner = () => {
                 <ul className="list-disc list-inside mt-2 space-y-1">
                   <li>Select the destination distributor</li>
                   <li>Start scanner and point at QR codes</li>
-                  <li>Each carton will be added to the shipment list</li>
+                  <li>Scanner stays active for continuous scanning</li>
                   <li>Create shipment when all items are scanned</li>
                 </ul>
               </div>
