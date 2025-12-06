@@ -103,7 +103,6 @@ const ProductScreen = () => {
         try { 
             const response = await axios.get(`${baseURL}/api/v1/distributor/products/details/get?segment=${selectedArticle}`); 
             if (response.data.result) { 
-                // Extract unique variant names 
                 const uniqueVariants = [...new Set(response.data.data.variants.map(v => v.name))]; 
                 setArticleDetails(uniqueVariants); 
             } 
@@ -129,7 +128,6 @@ const ProductScreen = () => {
                     updatedFilterOptions.splice(oldIndex, 1); 
                 } 
                  
-                // Clear variant filter when segment changes 
                 const variantIndex = updatedFilterNames.indexOf("variant"); 
                 if (variantIndex !== -1) { 
                     updatedFilterNames.splice(variantIndex, 1); 
@@ -141,7 +139,6 @@ const ProductScreen = () => {
                     updatedFilterOptions.push([selectedOption]); 
                     setSelectedArticle(selectedOption); 
                      
-                    // Auto-open category dropdown after segment selection 
                     setTimeout(() => { 
                         setOpenDropdown("Variant"); 
                     }, 100); 
@@ -185,13 +182,13 @@ const ProductScreen = () => {
     useEffect(() => { 
         const handler = setTimeout(() => { 
             getProducts(); 
-        }, 300); // Debounce API call 
+        }, 300);
         return () => clearTimeout(handler); 
     }, [page, searchQuery, selectedFilters]); 
  
     return ( 
         <div className="w-full bg-gray-50 min-h-screen"> 
-            <main className="w-full max-w-7xl mx-auto p-4 md:p-6"> 
+            <main className="w-full max-w-7xl mx-auto p-2 md:p-4 lg:p-6"> 
                 {placeOrderModal && ( 
                     <OrderModal 
                         setPlaceOrderModal={setPlaceOrderModal} 
@@ -200,30 +197,30 @@ const ProductScreen = () => {
                     /> 
                 )} 
  
-                {/* Filter Section */} 
-                <div ref={dropdownRef} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8"> 
+                {/* Filter Section - Mobile Optimized */} 
+                <div ref={dropdownRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3 lg:gap-4 mb-4 md:mb-6 lg:mb-8"> 
                     {/* Segment Filter */} 
                     <div className="relative"> 
                         <button 
                             onClick={() => toggleDropdown("Segment")} 
-                            className="w-full flex items-center justify-between text-left bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-200 hover:border-indigo-500 transition-colors" 
+                            className="w-full flex items-center justify-between text-left bg-white px-3 md:px-4 py-2 md:py-3 rounded-md md:rounded-lg shadow-sm border border-gray-200 hover:border-indigo-500 transition-colors text-sm" 
                         > 
-                            <span className="font-semibold text-gray-700"> 
+                            <span className="font-semibold text-gray-700 truncate"> 
                                 {selectedArticle ? `Segment: ${selectedArticle}` : "Select Segment"} 
                             </span> 
-                            <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${openDropdown === 'Segment' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg> 
+                            <svg className={`w-4 h-4 md:w-5 md:h-5 text-gray-500 transform transition-transform flex-shrink-0 ml-2 ${openDropdown === 'Segment' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg> 
                         </button> 
                         {openDropdown === "Segment" && ( 
-                            <div className="absolute z-20 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 p-2 max-h-60 overflow-y-auto"> 
+                            <div className="absolute z-20 mt-2 w-full bg-white rounded-md md:rounded-lg shadow-xl border border-gray-200 p-2 max-h-60 overflow-y-auto"> 
                                 {filters?.segments?.map((option) => ( 
-                                    <label key={option} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer"> 
+                                    <label key={option} className="flex items-center gap-2 md:gap-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer"> 
                                         <input 
                                             type="checkbox" 
-                                            className="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" 
+                                            className="form-checkbox h-4 w-4 md:h-5 md:w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 flex-shrink-0" 
                                             checked={selectedArticle.toLowerCase() === option.toLowerCase()} 
                                             onChange={(e) => handleFilterChange("segment", option.toLowerCase(), e.target.checked)} 
                                         /> 
-                                        <span className="text-gray-800 capitalize">{option}</span> 
+                                        <span className="text-gray-800 capitalize text-sm md:text-base">{option}</span> 
                                     </label> 
                                 ))} 
                             </div> 
@@ -235,36 +232,36 @@ const ProductScreen = () => {
                         <button 
                             onClick={() => selectedArticle && toggleDropdown("Variant")} 
                             disabled={!selectedArticle} 
-                            className="w-full flex items-center justify-between text-left bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-200 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed hover:enabled:border-indigo-500" 
+                            className="w-full flex items-center justify-between text-left bg-white px-3 md:px-4 py-2 md:py-3 rounded-md md:rounded-lg shadow-sm border border-gray-200 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed hover:enabled:border-indigo-500 text-sm" 
                         > 
-                            <span className="font-semibold text-gray-700"> 
+                            <span className="font-semibold text-gray-700 truncate"> 
                                 {selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("variant")]?.length > 0  
                                     ? `Categories: ${selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("variant")].join(', ')}`  
                                     : "Select Category"} 
                             </span> 
-                            <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${openDropdown === 'Variant' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg> 
+                            <svg className={`w-4 h-4 md:w-5 md:h-5 text-gray-500 transform transition-transform flex-shrink-0 ml-2 ${openDropdown === 'Variant' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg> 
                         </button> 
                         {openDropdown === "Variant" && selectedArticle && ( 
-                            <div className="absolute z-20 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 p-2 max-h-60 overflow-y-auto"> 
+                            <div className="absolute z-20 mt-2 w-full bg-white rounded-md md:rounded-lg shadow-xl border border-gray-200 p-2 max-h-60 overflow-y-auto"> 
                                 {articleDetails.length > 0 ? articleDetails.map((option) => ( 
-                                    <label key={option} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer"> 
+                                    <label key={option} className="flex items-center gap-2 md:gap-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer"> 
                                         <input 
                                             type="checkbox" 
-                                            className="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" 
+                                            className="form-checkbox h-4 w-4 md:h-5 md:w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 flex-shrink-0" 
                                             checked={selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("variant")]?.includes(option.toLowerCase())} 
                                             onChange={(e) => handleFilterChange("variant", option.toLowerCase(), e.target.checked)} 
                                         /> 
-                                        <span className="text-gray-800 capitalize">{option}</span> 
+                                        <span className="text-gray-800 capitalize text-sm md:text-base">{option}</span> 
                                     </label> 
                                 )) : ( 
-                                    <p className="text-sm text-gray-500 p-2"> 
+                                    <p className="text-xs md:text-sm text-gray-500 p-2"> 
                                         {selectedArticle ? `Loading categories for ${selectedArticle}...` : "No categories available."} 
                                     </p> 
                                 )} 
                             </div> 
                         )} 
                         {!selectedArticle && ( 
-                            <p className="text-xs text-gray-400 mt-1">Select a segment first</p> 
+                            <p className="text-[10px] md:text-xs text-gray-400 mt-1">Select a segment first</p> 
                         )} 
                     </div> 
  
@@ -272,26 +269,26 @@ const ProductScreen = () => {
                     <div className="relative"> 
                         <button 
                             onClick={() => toggleDropdown("Gender")} 
-                            className="w-full flex items-center justify-between text-left bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-200 hover:border-indigo-500 transition-colors" 
+                            className="w-full flex items-center justify-between text-left bg-white px-3 md:px-4 py-2 md:py-3 rounded-md md:rounded-lg shadow-sm border border-gray-200 hover:border-indigo-500 transition-colors text-sm" 
                         > 
-                            <span className="font-semibold text-gray-700"> 
+                            <span className="font-semibold text-gray-700 truncate"> 
                                 {selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("gender")]?.length > 0  
                                     ? `Gender: ${selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("gender")].join(', ')}`  
                                     : "Select Gender"} 
                             </span> 
-                            <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${openDropdown === 'Gender' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg> 
+                            <svg className={`w-4 h-4 md:w-5 md:h-5 text-gray-500 transform transition-transform flex-shrink-0 ml-2 ${openDropdown === 'Gender' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg> 
                         </button> 
                         {openDropdown === "Gender" && ( 
-                            <div className="absolute z-20 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 p-2 max-h-60 overflow-y-auto"> 
+                            <div className="absolute z-20 mt-2 w-full bg-white rounded-md md:rounded-lg shadow-xl border border-gray-200 p-2 max-h-60 overflow-y-auto"> 
                                 {categories.map((option) => ( 
-                                    <label key={option} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer"> 
+                                    <label key={option} className="flex items-center gap-2 md:gap-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer"> 
                                         <input 
                                             type="checkbox" 
-                                            className="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" 
+                                            className="form-checkbox h-4 w-4 md:h-5 md:w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 flex-shrink-0" 
                                             checked={selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("gender")]?.includes(option.toLowerCase())} 
                                             onChange={(e) => handleFilterChange("gender", option.toLowerCase(), e.target.checked)} 
                                         /> 
-                                        <span className="text-gray-800 capitalize">{option}</span> 
+                                        <span className="text-gray-800 capitalize text-sm md:text-base">{option}</span> 
                                     </label> 
                                 ))} 
                             </div> 
@@ -299,13 +296,13 @@ const ProductScreen = () => {
                     </div> 
                 </div> 
  
-                {/* Products Section */} 
+                {/* Products Section - MOBILE OPTIMIZED GRID */} 
                 {loading ? ( 
                     <div className="flex items-center justify-center h-96"> 
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div> 
+                        <div className="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-b-2 border-indigo-600"></div> 
                     </div> 
                 ) : allProducts?.length > 0 ? ( 
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6"> 
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 lg:gap-6"> 
                         {allProducts.map((product) => 
                             product.variants?.map((variant) => 
                                 variant.articles?.map((article) => ( 
@@ -327,9 +324,9 @@ const ProductScreen = () => {
                         )} 
                     </div> 
                 ) : ( 
-                    <div className="text-center py-20"> 
-                        <h3 className="text-xl font-semibold text-gray-700">No Products Found</h3> 
-                        <p className="text-gray-500 mt-2">Try adjusting your filters or search term.</p> 
+                    <div className="text-center py-12 md:py-20"> 
+                        <h3 className="text-lg md:text-xl font-semibold text-gray-700">No Products Found</h3> 
+                        <p className="text-sm md:text-base text-gray-500 mt-2">Try adjusting your filters or search term.</p> 
                     </div> 
                 )} 
             </main> 

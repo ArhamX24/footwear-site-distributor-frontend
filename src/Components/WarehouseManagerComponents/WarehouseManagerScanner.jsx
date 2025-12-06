@@ -289,16 +289,30 @@ const startCameraScanning = async () => {
 
   // Stop camera scanning
   const stopCameraScanning = async () => {
-    try {
-      if (html5QrCodeRef.current) {
-        await html5QrCodeRef.current.stop();
-        html5QrCodeRef.current.clear();
-        html5QrCodeRef.current = null;
-      }
-    } catch (error) {
-      console.error('Error stopping camera scanner:', error);
+  try {
+    if (html5QrCodeRef.current) {
+      await html5QrCodeRef.current.stop();
+      await html5QrCodeRef.current.clear();
+      html5QrCodeRef.current = null;
     }
-  };
+    
+    // Clear scanner container
+    const scannerContainer = document.getElementById("qr-scanner-container");
+    if (scannerContainer) {
+      scannerContainer.innerHTML = '';
+    }
+    
+  } catch (error) {
+    console.error('Error stopping camera scanner:', error);
+    
+    // Force clear even on error
+    const scannerContainer = document.getElementById("qr-scanner-container");
+    if (scannerContainer) {
+      scannerContainer.innerHTML = '';
+    }
+  }
+};
+
 
   const fetchInventoryStats = async () => {
     try {
@@ -311,184 +325,182 @@ const startCameraScanning = async () => {
     }
   };
 
-  const handleScanSuccess = async (decodedText) => {    
-    // Immediately pause scanner after successful scan
-    if (html5QrCodeRef.current) {
-      try {
-        await html5QrCodeRef.current.pause();
-      } catch (error) {
-        console.warn('Could not pause scanner:', error);
-      }
-    }
-    
+ const handleScanSuccess = async (decodedText) => {    
+  // IMMEDIATELY STOP scanner after successful scan
+  if (html5QrCodeRef.current) {
     try {
-      let qrData;
+      await html5QrCodeRef.current.stop();
+      await html5QrCodeRef.current.clear();
+      html5QrCodeRef.current = null;
       
-      try {
-        if (typeof decodedText === 'string') {
-          const trimmed = decodedText.trim();
-          
-          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-            qrData = JSON.parse(trimmed);
-
-          } else {
-            vibrate([300, 100, 300]); // Error vibration pattern
-            
-            Swal.fire({
-              title: 'Invalid QR Code',
-              html: `
-                <p>This QR code doesn't contain JSON data.</p>
-                <p><strong>Content found:</strong></p>
-                <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
-              `,
-              icon: 'warning',
-              confirmButtonText: 'Scan Again'
-            }).then(() => {
-              // Resume scanner for another attempt
-              if (html5QrCodeRef.current) {
-                html5QrCodeRef.current.resume();
-              }
-            });
-            return;
-          }
-        } else {
-          qrData = decodedText;
-        }
-      } catch (jsonError) {
-        vibrate([300, 100, 300]); // Error vibration
-        
-        Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error').then(() => {
-          // Resume scanner after error
-          if (html5QrCodeRef.current) {
-            html5QrCodeRef.current.resume();
-          }
-        });
-        return;
-      }
-
-      const shouldProceed = await new Promise((resolve) => {
-        setScannedItems((currentItems) => {
-          const alreadyScanned = currentItems.find((item) => item.uniqueId === qrData.uniqueId);
-          if (alreadyScanned) {
-            vibrate([100, 50, 100, 50, 100]); // Warning vibration pattern
-            Swal.fire('Warning', 'This carton has already been received!', 'warning').then(() => {
-              // Resume scanner after duplicate warning
-              if (html5QrCodeRef.current) {
-                html5QrCodeRef.current.resume();
-              }
-            });
-            resolve(false);
-            return currentItems;
-          }
-          resolve(true);
-          return currentItems;
-        });
-      });
-
-      if (!shouldProceed) {
-        return;
-      }
-
-      if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
-        vibrate([300, 100, 300]); // Error vibration
-        
-        Swal.fire({
-          title: 'Invalid QR Code Data',
-          html: `
-            <p>QR code is missing required information:</p>
-            <ul style="text-align: left; margin: 10px 0;">
-              <li>Unique ID: ${qrData.uniqueId ? '✅' : '❌ Missing'}</li>
-              <li>Article Name: ${(qrData.articleName || qrData.contractorInput?.articleName) ? '✅' : '❌ Missing'}</li>
-            </ul>
-          `,
-          icon: 'error',
-          confirmButtonText: 'Scan Again'
-        }).then(() => {
-          // Resume scanner after error
-          if (html5QrCodeRef.current) {
-            html5QrCodeRef.current.resume();
-          }
-        });
-        return;
+      // Clear scanner container
+      const scannerContainer = document.getElementById("qr-scanner-container");
+      if (scannerContainer) {
+        scannerContainer.innerHTML = '';
       }
       
-      const qualityCheck = await checkItemQuality(qrData);
-
-      
-      const response = await axios.post(
-        `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`,
-        {
-          event: 'received',
-          scannedBy: { userType: 'warehouse_inspector' },
-          location: 'Main Warehouse',
-          qualityCheck,
-          notes: `Received at warehouse on ${new Date().toLocaleString()}`
-        },
-        { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
-      );
-
-
-      if (response.data.result) {
-        const newItem = {
-          uniqueId: qrData.uniqueId,
-          articleName: qrData.articleName || qrData.contractorInput?.articleName,
-          colors: qrData.contractorInput?.colors || qrData.colors,
-          sizes: qrData.contractorInput?.sizes || qrData.sizes,
-          cartonNumber: qrData.contractorInput?.cartonNumber || qrData.cartonNumber,
-          scannedAt: new Date().toLocaleTimeString(),
-          status: 'received',
-          qualityStatus: qualityCheck.passed ? 'good' : 'damaged',
-          qualityNotes: qualityCheck.notes || ''
-        };
-
-        setScannedItems((prev) => [...prev, newItem]);
-        setInventoryStats((prev) => ({
-          ...prev,
-          totalReceived: prev.totalReceived + 1,
-          todayReceived: prev.todayReceived + 1
-        }));
-
-        // Success vibration pattern
-        vibrate([100, 50, 100, 50, 200]);
-
-        const qualityEmoji = qualityCheck.passed ? '✅' : '⚠️';
-        const qualityText = qualityCheck.passed ? 'Good Condition' : 'Quality Issue Noted';
-        
-        Swal.fire({
-          icon: qualityCheck.passed ? 'success' : 'warning',
-          title: `${qualityEmoji} Carton Received!`,
-          text: `${newItem.articleName} - Carton ${newItem.cartonNumber} (${qualityText})`,
-          timer: 2000,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end'
-        });
-
-        // Automatically stop scanner after successful scan and processing
-        setTimeout(() => {
-          stopScanning();
-        }, 2500); // Give time for toast to show
-        
-      } else {
-        throw new Error(response.data.message || 'Server returned failure');
-      }
+      // Update scanning state
+      setIsScanning(false);
       
     } catch (error) {
-      // Error vibration
-      vibrate([500, 200, 500]);
-      
-      const msg = error.response?.data?.message || error.message || 'Failed to process scan';
-      Swal.fire('Error', `Scan failed: ${msg}`, 'error').then(() => {
-        // Resume scanner after error (unless it was a critical error)
-        if (html5QrCodeRef.current && !error.message.includes('Quality check cancelled')) {
-          html5QrCodeRef.current.resume();
-        } else if (error.message.includes('Quality check cancelled')) {
-          // If quality check was cancelled, stop the scanner
-          stopScanning();
-        }
-      });
+      console.warn('Could not stop scanner:', error);
     }
-  };
+  }
+  
+  try {
+    let qrData;
+    
+    try {
+      if (typeof decodedText === 'string') {
+        const trimmed = decodedText.trim();
+        
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          qrData = JSON.parse(trimmed);
+
+        } else {
+          vibrate([300, 100, 300]); // Error vibration pattern
+          
+          Swal.fire({
+            title: 'Invalid QR Code',
+            html: `
+              <p>This QR code doesn't contain JSON data.</p>
+              <p><strong>Content found:</strong></p>
+              de style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
+            `,
+            icon: 'warning',
+            confirmButtonText: 'OK'
+          });
+          return;
+        }
+      } else {
+        qrData = decodedText;
+      }
+    } catch (jsonError) {
+      vibrate([300, 100, 300]); // Error vibration
+      
+      Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error');
+      return;
+    }
+
+    const shouldProceed = await new Promise((resolve) => {
+      setScannedItems((currentItems) => {
+        const alreadyScanned = currentItems.find((item) => item.uniqueId === qrData.uniqueId);
+        if (alreadyScanned) {
+          vibrate([100, 50, 100, 50, 100]); // Warning vibration pattern
+          Swal.fire('Warning', 'This carton has already been received!', 'warning');
+          resolve(false);
+          return currentItems;
+        }
+        resolve(true);
+        return currentItems;
+      });
+    });
+
+    if (!shouldProceed) {
+      return;
+    }
+
+    if (!qrData.uniqueId || !(qrData.articleName || qrData.contractorInput?.articleName)) {
+      vibrate([300, 100, 300]); // Error vibration
+      
+      Swal.fire({
+        title: 'Invalid QR Code Data',
+        html: `
+          <p>QR code is missing required information:</p>
+          <ul style="text-align: left; margin: 10px 0;">
+            <li>Unique ID: ${qrData.uniqueId ? '✅' : '❌ Missing'}</li>
+            <li>Article Name: ${(qrData.articleName || qrData.contractorInput?.articleName) ? '✅' : '❌ Missing'}</li>
+          </ul>
+        `,
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+    
+    const qualityCheck = await checkItemQuality(qrData);
+
+    
+    const response = await axios.post(
+      `${baseURL}/api/v1/warehouse/scan/${qrData.uniqueId}`,
+      {
+        event: 'received',
+        scannedBy: { userType: 'warehouse_inspector' },
+        location: 'Main Warehouse',
+        qualityCheck,
+        notes: `Received at warehouse on ${new Date().toLocaleString()}`
+      },
+      { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
+    );
+
+    if (response.data.result) {
+      const newItem = {
+        uniqueId: qrData.uniqueId,
+        articleName: qrData.articleName || qrData.contractorInput?.articleName,
+        colors: qrData.contractorInput?.colors || qrData.colors,
+        sizes: qrData.contractorInput?.sizes || qrData.sizes,
+        cartonNumber: qrData.contractorInput?.cartonNumber || qrData.cartonNumber,
+        scannedAt: new Date().toLocaleTimeString(),
+        status: 'received',
+        qualityStatus: qualityCheck.passed ? 'good' : 'damaged',
+        qualityNotes: qualityCheck.notes || ''
+      };
+
+      setScannedItems((prev) => [...prev, newItem]);
+      setInventoryStats((prev) => ({
+        ...prev,
+        totalReceived: prev.totalReceived + 1,
+        todayReceived: prev.todayReceived + 1
+      }));
+
+      // Success vibration pattern
+      vibrate([100, 50, 100, 50, 200]);
+
+      const qualityEmoji = qualityCheck.passed ? '✅' : '⚠️';
+      const qualityText = qualityCheck.passed ? 'Good Condition' : 'Quality Issue Noted';
+      
+      Swal.fire({
+        icon: qualityCheck.passed ? 'success' : 'warning',
+        title: `${qualityEmoji} Carton Received Successfully!`,
+        html: `
+          <div style="text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+            <p><strong>Article:</strong> ${newItem.articleName}</p>
+            <p><strong>Carton:</strong> #${newItem.cartonNumber}</p>
+            <p><strong>Colors:</strong> ${Array.isArray(newItem.colors) ? newItem.colors.join(', ') : newItem.colors}</p>
+            <p><strong>Sizes:</strong> ${Array.isArray(newItem.sizes) ? newItem.sizes.join(', ') : newItem.sizes}</p>
+            <p><strong>Quality:</strong> ${qualityText}</p>
+          </div>
+          <p style="margin-top: 10px; color: #666; font-size: 14px;">Scanner closed. Click "Start Scanner" to receive another carton.</p>
+        `,
+        confirmButtonText: 'OK',
+        timer: 4000,
+        timerProgressBar: true
+      });
+      
+    } else {
+      throw new Error(response.data.message || 'Server returned failure');
+    }
+    
+  } catch (error) {
+    // Error vibration
+    vibrate([500, 200, 500]);
+    
+    const msg = error.response?.data?.message || error.message || 'Failed to process scan';
+    
+    // Don't show error for user-cancelled quality check
+    if (msg.includes('Receipt cancelled') || msg.includes('Quality check cancelled')) {
+      Swal.fire({
+        icon: 'info',
+        title: 'Receipt Cancelled',
+        text: 'Carton receipt was cancelled. Scanner closed.',
+        confirmButtonText: 'OK'
+      });
+    } else {
+      Swal.fire('Error', `Scan failed: ${msg}`, 'error');
+    }
+  }
+};
+
 
  // Helper function to format size range
   const formatSizeRange = (sizes) => {
@@ -575,10 +587,36 @@ const startCameraScanning = async () => {
     setIsScanning(true);
   };
 
-  const stopScanning = () => {
-    vibrate([100]); // Stop feedback vibration
+  const stopScanning = async () => {
+  vibrate([100]); // Stop feedback vibration
+  
+  try {
+    if (html5QrCodeRef.current) {
+      await html5QrCodeRef.current.stop();
+      await html5QrCodeRef.current.clear();
+      html5QrCodeRef.current = null;
+    }
+    
+    // Clear scanner container
+    const scannerContainer = document.getElementById("qr-scanner-container");
+    if (scannerContainer) {
+      scannerContainer.innerHTML = '';
+      scannerContainer.style.display = '';
+    }
+    
+  } catch (error) {
+    console.error('Error stopping camera scanner:', error);
+    
+    // Even if error, clear the container
+    const scannerContainer = document.getElementById("qr-scanner-container");
+    if (scannerContainer) {
+      scannerContainer.innerHTML = '';
+    }
+  } finally {
     setIsScanning(false);
-  };
+  }
+};
+
 
   const exportInventoryReport = async () => {
     try {
