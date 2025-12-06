@@ -488,7 +488,7 @@ const ShipmentScanner = () => {
 
     } catch (error) {
       vibrate([300]);
-      Swal.fire('Error', error.response?.data?.message || 'Failed to create shipment', 'error');
+      Swal.fire('Error', 'Please try again', 'error');
     } finally {
       setLoading(false);
     }

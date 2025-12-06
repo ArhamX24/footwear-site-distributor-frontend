@@ -267,18 +267,7 @@ const startCameraScanning = async () => {
     Swal.fire({
       title: 'Camera Error',
       html: `
-        <p>${errorMessage}</p>
-        <br>
-        <p><strong>Troubleshooting:</strong></p>
-        <ul style="text-align: left; margin: 10px 0;">
-          <li>Make sure you're using HTTPS or localhost</li>
-          <li>Grant camera permissions when prompted</li>
-          <li>Close other apps using the camera</li>
-          <li>Try refreshing the page</li>
-          <li>On iOS: Check Safari settings for camera access</li>
-          <li>Try rotating your device if back camera doesn't work</li>
-        </ul>
-      `,
+        <p>Please Try Again</p>`,
       icon: 'error',
       confirmButtonText: 'OK'
     });
