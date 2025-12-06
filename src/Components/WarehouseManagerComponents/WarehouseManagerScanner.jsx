@@ -16,14 +16,13 @@ const WarehouseManagerScanner = () => {
   const [loading, setLoading] = useState(false);
   const [availableCameras, setAvailableCameras] = useState([]);
   const html5QrCodeRef = useRef(null);
-  const isProcessingRef = useRef(false); // ✅ Prevent multiple scans
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     fetchInventoryStats();
     getCameras();
     
     return () => {
-      // Cleanup on unmount
       forceCleanup();
     };
   }, []);
@@ -46,7 +45,6 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-  // ✅ Force cleanup - stops everything
   const forceCleanup = async () => {
     try {
       if (html5QrCodeRef.current) {
@@ -74,8 +72,12 @@ const WarehouseManagerScanner = () => {
       const devices = await Html5Qrcode.getCameras();
       console.log('Available cameras:', devices);
       setAvailableCameras(devices);
+      if (devices && devices.length > 0) {
+        setCameraPermission('available');
+      }
     } catch (error) {
       console.error('Error getting cameras:', error);
+      setCameraPermission('denied');
     }
   };
 
@@ -148,7 +150,6 @@ const WarehouseManagerScanner = () => {
         cameraId,
         config,
         (decodedText) => {
-          // ✅ Prevent multiple simultaneous scans
           if (!isProcessingRef.current) {
             isProcessingRef.current = true;
             vibrate([200, 100, 200]);
@@ -195,7 +196,7 @@ const WarehouseManagerScanner = () => {
     try {
       if (html5QrCodeRef.current) {
         const state = await html5QrCodeRef.current.getState();
-        if (state === 2) { // 2 = Html5QrcodeScannerState.SCANNING
+        if (state === 2) {
           await html5QrCodeRef.current.stop();
         }
         await html5QrCodeRef.current.clear();
@@ -204,7 +205,7 @@ const WarehouseManagerScanner = () => {
     } catch (error) {
       console.error('Stop camera error:', error);
     } finally {
-      // ✅ ALWAYS clear the container
+      // CRITICAL FIX: Always clear the container completely
       const container = document.getElementById("qr-scanner-container");
       if (container) {
         container.innerHTML = '';
@@ -227,11 +228,8 @@ const WarehouseManagerScanner = () => {
   };
 
   const handleScanSuccess = async (decodedText) => {
-    // ✅ Immediately stop scanner to prevent white screen
+    // Stop scanner immediately
     setIsScanning(false);
-    
-    // ✅ Force cleanup
-    await forceCleanup();
     
     try {
       let qrData;
@@ -250,7 +248,7 @@ const WarehouseManagerScanner = () => {
               html: `
                 <p>This QR code doesn't contain JSON data.</p>
                 <p><strong>Content found:</strong></p>
-                de style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
+                <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
               `,
               icon: 'warning',
               confirmButtonText: 'OK'
@@ -266,7 +264,6 @@ const WarehouseManagerScanner = () => {
         return;
       }
 
-      // Validate qrData structure
       if (!qrData || typeof qrData !== 'object') {
         vibrate([300, 100, 300]);
         Swal.fire('Invalid QR Data', 'QR code does not contain valid data', 'error');
@@ -356,7 +353,6 @@ const WarehouseManagerScanner = () => {
         vibrate([100, 50, 100, 50, 200]);
 
         const qualityEmoji = qualityCheck.passed ? '✅' : '⚠️';
-        const qualityText = qualityCheck.passed ? 'Good Condition' : 'Quality Issue Noted';
         
         Swal.fire({
           icon: qualityCheck.passed ? 'success' : 'warning',
@@ -387,7 +383,6 @@ const WarehouseManagerScanner = () => {
         Swal.fire('Error', `Scan failed: ${msg}`, 'error');
       }
     } finally {
-      // ✅ Reset processing flag
       isProcessingRef.current = false;
     }
   };
@@ -464,7 +459,6 @@ const WarehouseManagerScanner = () => {
 
   const stopScanning = async () => {
     vibrate([100]);
-    await forceCleanup();
     setIsScanning(false);
   };
 
@@ -589,13 +583,13 @@ SUMMARY:
                   }`}>
                     {cameraPermission === 'granted' ? '✅ Camera Ready' : 
                      cameraPermission === 'denied' ? '❌ Camera Blocked' : 
-                     '⏳ Camera Pending'}
+                     '⏳ Camera Available'}
                   </span>
                 </div>
               )}
               {availableCameras.length > 0 && (
                 <div className="text-xs text-gray-500 mt-1">
-                  {availableCameras.length} camera(s) available
+                  {availableCameras.length} camera(s) available - Back camera preferred
                 </div>
               )}
             </div>
@@ -609,11 +603,11 @@ SUMMARY:
               </button>
               <div className="text-center bg-gray-50 p-3 rounded-lg">
                 <div className="text-sm text-gray-500">Today Received</div>
-                <div className="text-xl sm:text-2xl font-bold text-gray-600">{inventoryStats.todayReceived}</div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">{inventoryStats.todayReceived}</div>
               </div>
               <div className="text-center bg-gray-50 p-3 rounded-lg">
                 <div className="text-sm text-gray-500">Total Items</div>
-                <div className="text-xl sm:text-2xl font-bold text-gray-600">{scannedItems.length}</div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">{scannedItems.length}</div>
               </div>
             </div>
           </div>
@@ -624,27 +618,32 @@ SUMMARY:
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-0">📱 QR Scanner</h2>
+              {availableCameras.length > 1 && !isScanning && (
+                <div className="text-xs text-gray-500">
+                  Back camera auto-selected
+                </div>
+              )}
             </div>
 
             <div className="mb-4">
               {!isScanning ? (
                 <button
                   onClick={startScanning}
-                  className="w-full bg-gray-700 text-white px-4 py-3 rounded-lg hover:bg-gray-800 transition duration-200 font-medium"
+                  className="w-full bg-gray-700 text-white px-4 py-3 rounded-lg hover:bg-gray-800 transition duration-200 font-medium text-sm"
                 >
                   📷 Start Camera Scanner
                 </button>
               ) : (
                 <button
                   onClick={stopScanning}
-                  className="w-full bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 transition duration-200 font-medium"
+                  className="w-full bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 transition duration-200 font-medium text-sm"
                 >
                   ⏹️ Stop Scanner
                 </button>
               )}
             </div>
 
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] sm:min-h-[400px] flex items-center justify-center bg-black">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] sm:min-h-[400px] flex items-center justify-center">
               {isScanning ? (
                 <div id="qr-scanner-container" className="w-full h-full"></div>
               ) : (
@@ -655,10 +654,23 @@ SUMMARY:
                     Click "Start Scanner" to begin scanning QR codes
                   </p>
                   <p className="text-xs text-gray-400 mt-2">
-                    📱 Mobile optimized • 🎯 Back camera • 📳 Vibration feedback
+                    📱 Auto-closes after scan • 🎯 Back camera • 📳 Vibration feedback
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Instructions */}
+            <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-3 sm:p-4">
+              <div className="text-xs sm:text-sm text-blue-700">
+                <strong>Instructions:</strong>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Click "Start Scanner" to activate camera</li>
+                  <li>Point camera at QR code on carton</li>
+                  <li>Scanner automatically closes after successful scan</li>
+                  <li>Review and confirm carton details</li>
+                </ul>
+              </div>
             </div>
           </div>
 
@@ -720,6 +732,19 @@ SUMMARY:
                 ))
               )}
             </div>
+
+            {/* Summary */}
+            {scannedItems.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="text-xs sm:text-sm">
+                    <div><strong>Good Condition:</strong> {scannedItems.filter(item => item.qualityStatus === 'good').length} items</div>
+                    <div><strong>With Issues:</strong> {scannedItems.filter(item => item.qualityStatus === 'damaged').length} items</div>
+                    <div><strong>Total Processed:</strong> {scannedItems.length} cartons</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
