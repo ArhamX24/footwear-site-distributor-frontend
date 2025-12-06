@@ -1,6 +1,9 @@
 import { NavLink } from "react-router-dom";
 
 const Sidebar = ({position}) => {
+
+  
+
   return (
 
 <div className={`w-full bg-gray-100 border-r border-gray-100 min-h-full ${position} left-0 top-0 z-10`}>

@@ -25,7 +25,6 @@ import  {Navigate} from "react-router"
 import AllArticlesListed from './Components/AdminComponents/AllArticlesListed.jsx'
 import ManageInventory from './Components/AdminComponents/ManageInventory.jsx'
 import QRStatisticsDashboard from './Components/AdminComponents/QRStatisticsDashboard.jsx'
-// ✅ ADD THIS IMPORT
 import { PersistGate } from 'redux-persist/integration/react'
 import QRGenerator from './Components/ContractorComponents/QRGenerator.jsx'
 import WarehouseManagerScanner from './Components/WarehouseManagerComponents/WarehouseManagerScanner.jsx'
@@ -77,7 +76,7 @@ let AppRouter = createBrowserRouter([
           { path: "/secure/admin/managemanagers", element : <ManageManagers/>},
         ],
       },
-      // ✅ FIXED: Added AuthWrapper protection for contractor routes
+
       {
         path: "/secure/contractor",
         element: <AuthWrapper allowedRoles={["contractor"]} />,
@@ -86,7 +85,7 @@ let AppRouter = createBrowserRouter([
           { path: "qrgenerator", element: <QRGenerator/> }
         ]
       },
-      // ✅ FIXED: Added AuthWrapper protection for warehouse manager routes
+
       {
         path: "/secure/warehousemanager",
         element: <AuthWrapper allowedRoles={["warehouse_inspector"]} />,
@@ -95,7 +94,7 @@ let AppRouter = createBrowserRouter([
           { path: "scanner", element: <WarehouseManagerScanner/> }
         ]
       },
-      // ✅ FIXED: Added AuthWrapper protection for shipment manager routes
+
       {
         path: "/secure/shipment",
         element: <AuthWrapper allowedRoles={["shipment_manager"]} />,
