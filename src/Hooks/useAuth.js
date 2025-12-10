@@ -18,7 +18,7 @@ export const useAuth = () => {
     } finally {
       // Always clear Redux state and redirect
       dispatch(logout());
-      navigate('/login');
+      navigate('/');
     }
   };
 
