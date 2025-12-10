@@ -16,8 +16,9 @@ const AddDistributorDialog = () => {
 
   const formik = useFormik({
     initialValues: {
-      billNo:'',
+      salesmanName:'',
       partyName:'',
+      city: '',
       transport: '',
       phoneNo: "",
       password: ""
@@ -28,8 +29,9 @@ const AddDistributorDialog = () => {
         setError("");
   
         const formData = new FormData();
-        formData.append("billNo", values.billNo);
+        formData.append("salesmanName", values.salesmanName);
         formData.append("partyName", values.partyName);
+        formData.append("city", values.city);
         formData.append("transport", values.transport);
         formData.append("phoneNo", values.phoneNo);
         formData.append("password", values.password);
@@ -96,14 +98,14 @@ const AddDistributorDialog = () => {
           <form onSubmit={formik.handleSubmit}>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Bill No</label>
+                <label className="block text-sm font-medium text-gray-700">Salesman Name</label>
                 <input 
-                  type="number" 
-                  name="billNo"
-                  placeholder="eg. 12345" 
+                  type="text" 
+                  name="salesmanName"
+                  placeholder="eg. Aman Sharma" 
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
                   onChange={formik.handleChange}
-                  value={formik.values.billNo}
+                  value={formik.values.salesmanName}
                   required
                 />
               </div>
@@ -117,6 +119,19 @@ const AddDistributorDialog = () => {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
                   onChange={formik.handleChange}
                   value={formik.values.partyName}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">City</label>
+                <input 
+                  type="text" 
+                  name="city"
+                  placeholder="eg. Agra, Up" 
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-gray-900"
+                  onChange={formik.handleChange}
+                  value={formik.values.city}
                   required
                 />
               </div>

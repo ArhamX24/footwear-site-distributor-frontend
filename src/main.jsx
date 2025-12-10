@@ -31,6 +31,7 @@ import WarehouseManagerScanner from './Components/WarehouseManagerComponents/War
 import ShipmentScanner from './Components/ShipmentManagerComponenets/ShipmentScanner.jsx'
 import ManageContractors from './Components/AdminComponents/ManageContractors.jsx'
 import ManageManagers from './Components/AdminComponents/ManageManagers.jsx'
+import PastOrders from './Screens/User/PastOrders.jsx'
 
 // ✅ Create a Layout component that includes BootAuth
 const Layout = () => {
@@ -57,6 +58,7 @@ let AppRouter = createBrowserRouter([
           { index: true, element: <Navigate to="dashboard" replace /> },
           { path: "dashboard", element: <ProductScreen /> },
           { path: "cart", element: <CartPage /> },
+          { path: "past-orders", element: <PastOrders/>}
         ]
       },
       {

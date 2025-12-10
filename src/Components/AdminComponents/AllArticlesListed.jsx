@@ -3,6 +3,7 @@ import axios from "axios";
 import ProductCard from "../../Components/AdminComponents/ProductCard";
 import { baseURL } from "../../Utils/URLS";
 import { ChevronDown, ChevronUp, Package, Grid3X3, Layers, Search, Filter } from "lucide-react";
+import AddDialog from "./AddDialog";
 
 const AllArticlesListed = () => {
   const [groupedProducts, setGroupedProducts] = useState(null);
@@ -34,51 +35,82 @@ const AllArticlesListed = () => {
     getProducts();
   }, []);
 
+  // ✅ Enhanced matching function with keyword support
+  const matchesSearch = (text, keywords = []) => {
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Check if the main text matches
+    if (text && text.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+    
+    // Check if any keyword matches
+    if (keywords && Array.isArray(keywords)) {
+      return keywords.some(keyword => 
+        keyword && keyword.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return false;
+  };
+
+  // ✅ Enhanced segment matching with keywords
+  const segmentMatchesSearch = (segment, products) => {
+    // Check segment name
+    if (matchesSearch(segment, products[0]?.segmentKeywords)) {
+      return true;
+    }
+    
+    // Check if any product in segment matches
+    return products.some(product =>
+      matchesSearch(product.name, product.articleKeywords) ||
+      matchesSearch(product.variantName, product.variantKeywords) ||
+      matchesSearch(segment, product.segmentKeywords)
+    );
+  };
+
+  // ✅ Enhanced product matching with keywords
+  const productMatchesSearch = (product, segment) => {
+    if (!searchTerm) return true;
+    
+    return (
+      matchesSearch(product.name, product.articleKeywords) ||
+      matchesSearch(product.variantName, product.variantKeywords) ||
+      matchesSearch(segment, product.segmentKeywords) ||
+      matchesSearch(product.gender)
+    );
+  };
+
   // Filter segments based on search term and auto-expand matching segments
   useEffect(() => {
     if (searchTerm && groupedProducts) {
       const newExpanded = {};
       Object.keys(groupedProducts).forEach(segment => {
-        const hasMatch = 
-          segment.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          groupedProducts[segment].some(product =>
-            product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.variantName.toLowerCase().includes(searchTerm.toLowerCase())
-          );
-        
-        if (hasMatch) {
+        if (segmentMatchesSearch(segment, groupedProducts[segment])) {
           newExpanded[segment] = true;
         }
       });
       setExpanded(newExpanded);
     } else if (!searchTerm) {
-      // Optionally collapse all when search is cleared
-      // Remove this if you want to keep previous state
       setExpanded({});
     }
   }, [searchTerm, groupedProducts]);
 
-  // Filter segments based on search term
+  // ✅ Filter segments based on search term with keyword support
   const filteredSegments = groupedProducts
     ? Object.keys(groupedProducts).filter(segment =>
-        segment.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        groupedProducts[segment].some(product =>
-          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.variantName.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+        segmentMatchesSearch(segment, groupedProducts[segment])
       )
     : [];
 
-  // Filter products within a segment based on search term
+  // ✅ Filter products within a segment based on search term with keyword support
   const getFilteredProducts = (segment) => {
     if (!searchTerm) {
       return groupedProducts[segment];
     }
     
     return groupedProducts[segment].filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.variantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      segment.toLowerCase().includes(searchTerm.toLowerCase())
+      productMatchesSearch(product, segment)
     );
   };
 
@@ -144,11 +176,23 @@ const AllArticlesListed = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Search articles or segments..."
+                placeholder="Search by name or keywords..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="md:w-1/5 w-full">
+              <AddDialog getProducts={getProducts} />
             </div>
 
             {/* Control Buttons */}
@@ -173,12 +217,20 @@ const AllArticlesListed = () => {
           {/* Search Results Info */}
           {searchTerm && (
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600">
-                {filteredSegments.length === 0 
-                  ? `No results found for "${searchTerm}"`
-                  : `Found ${filteredSegments.length} segment${filteredSegments.length !== 1 ? 's' : ''} matching "${searchTerm}"`
-                }
-              </p>
+              <div className="flex items-start gap-2">
+                <Search className="text-gray-400 mt-0.5 flex-shrink-0" size={16} />
+                <div>
+                  <p className="text-sm text-gray-600">
+                    {filteredSegments.length === 0 
+                      ? `No results found for "${searchTerm}"`
+                      : `Found ${filteredSegments.length} segment${filteredSegments.length !== 1 ? 's' : ''} matching "${searchTerm}"`
+                    }
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Searching in segment names, categories, articles, and keywords
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -208,7 +260,7 @@ const AllArticlesListed = () => {
               No Results Found
             </h3>
             <p className="text-gray-600 mb-6">
-              Try adjusting your search terms or clear the search to see all articles.
+              No segments, categories, articles, or keywords match "{searchTerm}".
             </p>
             <button 
               onClick={() => setSearchTerm("")}
@@ -320,41 +372,6 @@ const AllArticlesListed = () => {
                 </div>
               );
             })}
-          </div>
-        )}
-
-        {/* Summary Statistics */}
-        {groupedProducts && Object.keys(groupedProducts).length > 0 && (
-          <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-              Inventory Overview
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
-              <div className="space-y-2">
-                <div className="text-2xl font-bold text-gray-600">
-                  {Object.keys(groupedProducts).length}
-                </div>
-                <div className="text-sm text-gray-500 font-medium">
-                  Total Segments
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-2xl font-bold text-gray-600">
-                  {getTotalProducts()}
-                </div>
-                <div className="text-sm text-gray-500 font-medium">
-                  Total Articles
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-2xl font-bold text-gray-600">
-                  {getTotalProducts() > 0 ? Math.round(getTotalProducts() / Object.keys(groupedProducts).length) : 0}
-                </div>
-                <div className="text-sm text-gray-500 font-medium">
-                  Average per Segment
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>

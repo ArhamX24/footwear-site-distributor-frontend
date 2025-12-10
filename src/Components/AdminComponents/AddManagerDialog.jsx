@@ -76,7 +76,7 @@ const AddManagerDialog = ({ managerType, setIsUpdated }) => {
       <button 
         onClick={handleOpen} 
         className="bg-gray-600 text-white px-4 py-2 hover:bg-gray-700 rounded-full border transition duration-200 w-full text-sm font-medium">
-       + Add New {managerType === 'warehouse' ? 'Warehouse' : 'Shipment'} Manager
+       + Add New {managerType === 'warehouse' ? 'In' : 'Out'} Manager
       </button>
 
       {open && (
@@ -84,7 +84,7 @@ const AddManagerDialog = ({ managerType, setIsUpdated }) => {
           <div className="bg-white p-6 rounded-lg shadow-lg w-96 opacity-100" onClick={(e) => { e.stopPropagation() }}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">
-                Add {managerType === 'warehouse' ? 'Warehouse' : 'Shipment'} Manager
+                Add {managerType === 'warehouse' ? 'In' : 'Out'} Manager
               </h2>
               <button
                 onClick={() => setOpen(false)}

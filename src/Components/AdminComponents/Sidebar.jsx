@@ -24,7 +24,7 @@ const Sidebar = ({position}) => {
 
     {/* Articles */}
     <NavLink
-      to="product"
+      to="product/manageinventory"
       className={({ isActive }) =>
         `p-3 rounded-2xl flex items-center justify-start mt-5 duration-200 ease-in-out cursor-pointer
         ${isActive ? "bg-gray-700 text-white" : "hover:bg-gray-200 text-gray-700"}`
@@ -33,7 +33,20 @@ const Sidebar = ({position}) => {
       <span className='mr-4'>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M7.00488 7.99966V5.99966C7.00488 3.23824 9.24346 0.999664 12.0049 0.999664C14.7663 0.999664 17.0049 3.23824 17.0049 5.99966V7.99966H20.0049C20.5572 7.99966 21.0049 8.44738 21.0049 8.99966V20.9997C21.0049 21.5519 20.5572 21.9997 20.0049 21.9997H4.00488C3.4526 21.9997 3.00488 21.5519 3.00488 20.9997V8.99966C3.00488 8.44738 3.4526 7.99966 4.00488 7.99966H7.00488ZM7.00488 9.99966H5.00488V19.9997H19.0049V9.99966H17.0049V11.9997H15.0049V9.99966H9.00488V11.9997H7.00488V9.99966ZM9.00488 7.99966H15.0049V5.99966C15.0049 4.34281 13.6617 2.99966 12.0049 2.99966C10.348 2.99966 9.00488 4.34281 9.00488 5.99966V7.99966Z"></path></svg>
             </span>
-      <span>Manage <span className='font-semibold'>Inventory</span></span>
+      <span>Godown</span>
+    </NavLink>
+
+    <NavLink
+      to="product/viewarticles"
+      className={({ isActive }) =>
+        `p-3 rounded-2xl flex items-center justify-start mt-5 duration-200 ease-in-out cursor-pointer
+        ${isActive ? "bg-gray-700 text-white" : "hover:bg-gray-200 text-gray-700"}`
+      }
+    >
+      <span className='mr-4'>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M7.00488 7.99966V5.99966C7.00488 3.23824 9.24346 0.999664 12.0049 0.999664C14.7663 0.999664 17.0049 3.23824 17.0049 5.99966V7.99966H20.0049C20.5572 7.99966 21.0049 8.44738 21.0049 8.99966V20.9997C21.0049 21.5519 20.5572 21.9997 20.0049 21.9997H4.00488C3.4526 21.9997 3.00488 21.5519 3.00488 20.9997V8.99966C3.00488 8.44738 3.4526 7.99966 4.00488 7.99966H7.00488ZM7.00488 9.99966H5.00488V19.9997H19.0049V9.99966H17.0049V11.9997H15.0049V9.99966H9.00488V11.9997H7.00488V9.99966ZM9.00488 7.99966H15.0049V5.99966C15.0049 4.34281 13.6617 2.99966 12.0049 2.99966C10.348 2.99966 9.00488 4.34281 9.00488 5.99966V7.99966Z"></path></svg>
+            </span>
+      <span>View Articles</span>
     </NavLink>
 
     {/* Deals */}
@@ -47,7 +60,7 @@ const Sidebar = ({position}) => {
       <span className='mr-4'>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 23C16.1421 23 19.5 19.6421 19.5 15.5C19.5 14.6345 19.2697 13.8032 19 13.0296C17.3333 14.6765 16.0667 15.5 15.2 15.5C19.1954 8.5 17 5.5 11 1.5C11.5 6.49951 8.20403 8.77375 6.86179 10.0366C5.40786 11.4045 4.5 13.3462 4.5 15.5C4.5 19.6421 7.85786 23 12 23ZM12.7094 5.23498C15.9511 7.98528 15.9666 10.1223 13.463 14.5086C12.702 15.8419 13.6648 17.5 15.2 17.5C15.8884 17.5 16.5841 17.2992 17.3189 16.9051C16.6979 19.262 14.5519 21 12 21C8.96243 21 6.5 18.5376 6.5 15.5C6.5 13.9608 7.13279 12.5276 8.23225 11.4932C8.35826 11.3747 8.99749 10.8081 9.02477 10.7836C9.44862 10.4021 9.7978 10.0663 10.1429 9.69677C11.3733 8.37932 12.2571 6.91631 12.7094 5.23498Z"></path></svg>
             </span>
-      <span>Manage <span className='font-semibold'>Deals</span></span>
+      <span>Manage <span className='font-semibold'>Offers</span></span>
     </NavLink>
 
     {/* Distributors */}
@@ -75,7 +88,7 @@ const Sidebar = ({position}) => {
       <span className='mr-4'>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M5 20H19V22H5V20ZM12 18C7.58172 18 4 14.4183 4 10C4 5.58172 7.58172 2 12 2C16.4183 2 20 5.58172 20 10C20 14.4183 16.4183 18 12 18ZM12 16C15.3137 16 18 13.3137 18 10C18 6.68629 15.3137 4 12 4C8.68629 4 6 6.68629 6 10C6 13.3137 8.68629 16 12 16Z"></path></svg>
               </span>
-      <span>Manage <span className='font-semibold'>Contractors</span></span>
+      <span>Bar Code Generator</span>
     </NavLink>
     <NavLink
       to="/secure/admin/managemanagers"
@@ -87,7 +100,7 @@ const Sidebar = ({position}) => {
       <span className='mr-4'>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M4 22C4 17.5817 7.58172 14 12 14C16.4183 14 20 17.5817 20 22H4ZM13 16.083V20H17.6586C16.9423 17.9735 15.1684 16.4467 13 16.083ZM11 20V16.083C8.83165 16.4467 7.05766 17.9735 6.34141 20H11ZM12 13C8.685 13 6 10.315 6 7C6 3.685 8.685 1 12 1C15.315 1 18 3.685 18 7C18 10.315 15.315 13 12 13ZM12 11C14.2104 11 16 9.21043 16 7C16 4.78957 14.2104 3 12 3C9.78957 3 8 4.78957 8 7C8 9.21043 9.78957 11 12 11Z"></path></svg>
               </span>
-      <span>Manage <span className='font-semibold'>Shipment/Warehouse Managers</span></span>
+      <span>Add <span className='font-semibold'>In/Out Managers</span></span>
     </NavLink>
 
      {/* Past Orders */}

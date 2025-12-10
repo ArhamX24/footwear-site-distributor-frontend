@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { FaTrash, FaEdit, FaSave, FaTimes, FaClock, FaCalendarAlt, FaTag, FaImage } from "react-icons/fa";
+import { FaTrash, FaEdit, FaSave, FaTimes, FaClock, FaCalendarAlt, FaTag, FaImage, FaLayerGroup, FaBoxOpen } from "react-icons/fa";
 import { useFormik } from "formik";
 import { CircularProgress } from "@mui/material";
 import { baseURL } from "../../Utils/URLS";
@@ -127,6 +127,22 @@ const DealsCard = ({ deal, setIsDeleted, setIsUpdated }) => {
         </span>
       </div>
 
+        {/* Deal Type Badge */}
+        <div className="absolute top-3 left-3 z-10">
+          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+            deal.dealType === 'segment' 
+              ? 'bg-purple-100 text-purple-800 border border-purple-300' 
+              : 'bg-blue-100 text-blue-800 border border-blue-300'
+          }`}>
+            {deal.dealType === 'segment' ? (
+              <><FaLayerGroup className="inline mr-1" />Segment Deal</>
+            ) : (
+              <><FaBoxOpen className="inline mr-1" />Article Deal</>
+            )}
+          </span>
+        </div>
+
+
       {/* Image Container with Gradient Overlay */}
       <div className="relative h-48 overflow-hidden">
         <img
@@ -151,7 +167,11 @@ const DealsCard = ({ deal, setIsDeleted, setIsUpdated }) => {
         {/* Article Name */}
         <div className="space-y-1">
           <h3 className="text-lg font-bold text-gray-900 line-clamp-1 capitalize">
-            {deal?.articleName || "No Name"}
+            {deal.dealType === 'segment' 
+              ? `${deal.segmentName.split(' ').map(word => 
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                ).join(' ')} Articles`
+              : deal?.articleName || "No Name"}
           </h3>
         </div>
 

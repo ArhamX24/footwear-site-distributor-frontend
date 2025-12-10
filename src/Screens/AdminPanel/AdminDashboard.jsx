@@ -166,7 +166,6 @@ const handleViewOrder = async (id) => {
     {/* Left Column - Action Buttons (3/4 width on large screens) */}
     <div className="lg:col-span-3">
       <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4'>
-        <AddDialog getProducts={getProducts} />
         <AddProductsUsingExcel/>
         <AddFestivleImageDialog />
       </div>

@@ -13,13 +13,17 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
   // Edit form states
-  const [editForm, setEditForm] = useState({
+   const [editForm, setEditForm] = useState({
     name: product.name,
     segment: product.segment,
     gender: product.gender,
     variantName: product.variantName,
     existingImages: product.images || [],
-    newImages: []
+    newImages: [],
+    // ✅ Add keyword fields
+    segmentKeywords: (product.segmentKeywords || []).join(", "),
+    variantKeywords: (product.variantKeywords || []).join(", "),
+    articleKeywords: (product.articleKeywords || []).join(", ")
   });
   const [editLoading, setEditLoading] = useState(false);
   const [previewImages, setPreviewImages] = useState([]);
@@ -84,14 +88,18 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
     setCurrentImageIndex(0);
   };
 
-  const openEditModal = () => {
+   const openEditModal = () => {
     setEditForm({
       name: product.name,
       segment: product.segment,
       gender: product.gender,
       variantName: product.variantName,
       existingImages: product.images || [],
-      newImages: []
+      newImages: [],
+      // ✅ Convert arrays to comma-separated strings
+      segmentKeywords: (product.segmentKeywords || []).join(", "),
+      variantKeywords: (product.variantKeywords || []).join(", "),
+      articleKeywords: (product.articleKeywords || []).join(", ")
     });
     setPreviewImages([]);
     setShowEditModal(true);
@@ -148,9 +156,11 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
     setPreviewImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  
+
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (editForm.existingImages.length + editForm.newImages.length === 0) {
       Swal.fire({
         title: "No Images",
@@ -163,26 +173,29 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
 
     try {
       setEditLoading(true);
-
       const formData = new FormData();
-      formData.append('name', editForm.name.trim().toLowerCase());
-      formData.append('segment', editForm.segment.trim().toLowerCase());
-      formData.append('gender', editForm.gender.trim().toLowerCase());
-      formData.append('variantName', editForm.variantName.trim().toLowerCase());
-      formData.append('existingImages', JSON.stringify(editForm.existingImages));
-      
+
+      formData.append("name", editForm.name.trim().toLowerCase());
+      formData.append("segment", editForm.segment.trim().toLowerCase());
+      formData.append("gender", editForm.gender.trim().toLowerCase());
+      formData.append("variantName", editForm.variantName.trim().toLowerCase());
+      formData.append("existingImages", JSON.stringify(editForm.existingImages));
+
+      // ✅ Append keywords as comma-separated strings
+      formData.append("segmentKeywords", editForm.segmentKeywords);
+      formData.append("variantKeywords", editForm.variantKeywords);
+      formData.append("articleKeywords", editForm.articleKeywords);
+
       editForm.newImages.forEach((file) => {
-        formData.append('images', file);
+        formData.append("images", file);
       });
 
       const res = await axios.put(
         `${baseURL}/api/v1/admin/products/updateproduct/${product._id}`,
         formData,
         {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          },
-          withCredentials: true
+          headers: { "Content-Type": "multipart/form-data" },
+          withCredentials: true,
         }
       );
 
@@ -519,189 +532,270 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
 
       {/* Edit Product Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white relative">
-              <button
-                onClick={closeEditModal}
-                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-all"
-              >
-                <X size={20} />
-              </button>
-              <div className="flex items-center space-x-4">
-                <div className="bg-white/20 p-3 rounded-xl">
-                  <FaEdit className="text-2xl" size={24} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold">Edit Product</h2>
-                  <p className="text-blue-100">Update product information</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Content */}
-            <form onSubmit={handleEditSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <div className="space-y-6">
-                {/* Basic Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Article Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.name}
-                      onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Segment <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.segment}
-                      onChange={(e) => setEditForm({...editForm, segment: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Category (Gender) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.gender}
-                      onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Variant Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.variantName}
-                      onChange={(e) => setEditForm({...editForm, variantName: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Image Management */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Product Images <span className="text-red-500">*</span>
-                  </label>
-                  
-                  {/* Existing Images */}
-                  {editForm.existingImages.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 mb-2">Existing Images</p>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                        {editForm.existingImages.map((img, index) => (
-                          <div key={`existing-${index}`} className="relative group">
-                            <img
-                              src={img}
-                              alt={`Existing ${index + 1}`}
-                              className="w-full h-24 object-cover rounded-lg border-2 border-gray-200"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeExistingImage(index)}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* New Images Preview */}
-                  {previewImages.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 mb-2">New Images</p>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                        {previewImages.map((preview, index) => (
-                          <div key={`new-${index}`} className="relative group">
-                            <img
-                              src={preview}
-                              alt={`New ${index + 1}`}
-                              className="w-full h-24 object-cover rounded-lg border-2 border-blue-400"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeNewImage(index)}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Upload Button */}
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
-                    <input
-                      type="file"
-                      id="image-upload"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="image-upload"
-                      className="cursor-pointer flex flex-col items-center space-y-2"
-                    >
-                      <Upload className="text-gray-400" size={32} />
-                      <span className="text-sm text-gray-600">
-                        Click to upload new images
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        Maximum 10 images total (Current: {editForm.existingImages.length + editForm.newImages.length})
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex justify-end space-x-3 pt-4 border-t">
-                  <button
-                    type="button"
-                    onClick={closeEditModal}
-                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={editLoading}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Save size={18} />
-                    {editLoading ? "Updating..." : "Update Product"}
-                  </button>
-                </div>
-              </div>
-            </form>
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      {/* Modal Header - Changed to Dark Gray */}
+      <div className="bg-gradient-to-r from-gray-700 to-gray-800 p-6 text-white relative">
+        <button
+          onClick={closeEditModal}
+          className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-all"
+        >
+          <X size={20} />
+        </button>
+        <div className="flex items-center space-x-4">
+          <div className="bg-white/20 p-3 rounded-xl">
+            <FaEdit className="text-2xl" size={24} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold">Edit Product</h2>
+            <p className="text-gray-100">Update product information</p>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Modal Content */}
+      <form onSubmit={handleEditSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+        <div className="space-y-6">
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Article Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={editForm.name}
+                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Segment <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={editForm.segment}
+                onChange={(e) => setEditForm({...editForm, segment: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Gender <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={editForm.gender}
+                onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={editForm.variantName}
+                onChange={(e) => setEditForm({...editForm, variantName: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Keywords Section - Single Line Grid */}
+          <div className="border-t border-gray-200 pt-4">
+  <h3 className="text-sm font-semibold text-gray-700 mb-3">
+    Search Keywords (Optional)
+  </h3>
+  
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    {/* Segment Keywords */}
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">
+        Segment Keywords
+      </label>
+      <input
+        type="text"
+        value={editForm.segmentKeywords}
+        onChange={(e) => setEditForm({...editForm, segmentKeywords: e.target.value})}
+        onKeyDown={(e) => {
+          if (e.key === ' ' && e.target.value.trim()) {
+            e.preventDefault();
+            const currentValue = e.target.value.trim();
+            // Only add comma if the last character isn't already a comma
+            if (!currentValue.endsWith(',')) {
+              setEditForm({...editForm, segmentKeywords: currentValue + ', '});
+            }
+          }
+        }}
+        placeholder="e.g., hawai, havai, eba"
+        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+      />
+    </div>
+
+    {/* Variant Keywords */}
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">
+        Category Keywords
+      </label>
+      <input
+        type="text"
+        value={editForm.variantKeywords}
+        onChange={(e) => setEditForm({...editForm, variantKeywords: e.target.value})}
+        onKeyDown={(e) => {
+          if (e.key === ' ' && e.target.value.trim()) {
+            e.preventDefault();
+            const currentValue = e.target.value.trim();
+            if (!currentValue.endsWith(',')) {
+              setEditForm({...editForm, variantKeywords: currentValue + ', '});
+            }
+          }
+        }}
+        placeholder="e.g., 5-stud, heera"
+        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+      />
+    </div>
+
+    {/* Article Keywords */}
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">
+        Article Keywords
+      </label>
+      <input
+        type="text"
+        value={editForm.articleKeywords}
+        onChange={(e) => setEditForm({...editForm, articleKeywords: e.target.value})}
+        onKeyDown={(e) => {
+          if (e.key === ' ' && e.target.value.trim()) {
+            e.preventDefault();
+            const currentValue = e.target.value.trim();
+            if (!currentValue.endsWith(',')) {
+              setEditForm({...editForm, articleKeywords: currentValue + ', '});
+            }
+          }
+        }}
+        placeholder="e.g., croxy, krocci"
+        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+      />
+    </div>
+  </div>
+</div>
+
+
+          {/* Image Management - Original Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Product Images <span className="text-red-500">*</span>
+            </label>
+            
+            {/* Existing Images */}
+            {editForm.existingImages.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">Existing Images</p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {editForm.existingImages.map((img, index) => (
+                    <div key={`existing-${index}`} className="relative group">
+                      <img
+                        src={img}
+                        alt={`Existing ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* New Images Preview */}
+            {previewImages.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">New Images</p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {previewImages.map((preview, index) => (
+                    <div key={`new-${index}`} className="relative group">
+                      <img
+                        src={preview}
+                        alt={`New ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border-2 border-blue-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeNewImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upload Button */}
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-500 transition-colors">
+              <input
+                type="file"
+                id="image-upload"
+                multiple
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <label
+                htmlFor="image-upload"
+                className="cursor-pointer flex flex-col items-center space-y-2"
+              >
+                <Upload className="text-gray-400" size={32} />
+                <span className="text-sm text-gray-600">
+                  Click to upload new images
+                </span>
+                <span className="text-xs text-gray-500">
+                  Maximum 10 images total (Current: {editForm.existingImages.length + editForm.newImages.length})
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <button
+              type="button"
+              onClick={closeEditModal}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editLoading}
+              className="flex items-center gap-2 px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save size={18} />
+              {editLoading ? "Updating..." : "Update Product"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
     </>
   );
 };

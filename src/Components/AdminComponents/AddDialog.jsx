@@ -11,16 +11,17 @@ const AddDialog = ({ getProducts }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState([]);
-  const [isVariant, setIsVariant] = useState(false);
-  const [allColorsAvailable, setAllColorsAvailable] = useState(false);
 
   const handleOpen = () => setOpen(!open);
 
   const formik = useFormik({
     initialValues: {
       segment: "",
+      segmentKeywords: "",      // ✅ New
       variant: "",
+      variantKeywords: "",      // ✅ New
       articleName: "",
+      articleKeywords: "",      // ✅ New
       gender: "",
       colors: "",
       sizes: "",
@@ -44,9 +45,28 @@ const AddDialog = ({ getProducts }) => {
           .split(",")
           .map((color) => color.trim())
           .filter(Boolean);
+        
         const sizeArr = values.sizes
           .split(",")
           .map((size) => size.trim())
+          .filter(Boolean);
+
+        // ✅ Process segment keywords
+        const segmentKeywordsArr = values.segmentKeywords
+          .split(",")
+          .map((kw) => kw.trim().toLowerCase())
+          .filter(Boolean);
+
+        // ✅ Process variant keywords
+        const variantKeywordsArr = values.variantKeywords
+          .split(",")
+          .map((kw) => kw.trim().toLowerCase())
+          .filter(Boolean);
+
+        // ✅ Process article keywords
+        const articleKeywordsArr = values.articleKeywords
+          .split(",")
+          .map((kw) => kw.trim().toLowerCase())
           .filter(Boolean);
 
         formData.append("segment", values.segment);
@@ -56,9 +76,10 @@ const AddDialog = ({ getProducts }) => {
         sizeArr.forEach((size) => formData.append("sizes", size));
         formData.append("variant", values.variant);
 
-        if (isVariant) {
-          formData.append("variantName", values.variantName);
-        }
+        // ✅ Append all keywords
+        segmentKeywordsArr.forEach((kw) => formData.append("segmentKeywords", kw));
+        variantKeywordsArr.forEach((kw) => formData.append("variantKeywords", kw));
+        articleKeywordsArr.forEach((kw) => formData.append("articleKeywords", kw));
 
         values.images.forEach((image) => {
           formData.append("images", image);
@@ -91,11 +112,8 @@ const AddDialog = ({ getProducts }) => {
         action.resetForm();
         setOpen(false);
         setPreview([]);
-        getProducts(); // Refresh products list in parent component
-        setIsVariant(false);
-        setAllColorsAvailable(false);
+        getProducts();
       } catch (error) {
-
         setLoading(false);
         Swal.fire({
           icon: "error",
@@ -117,7 +135,7 @@ const AddDialog = ({ getProducts }) => {
         + Add New Article
       </button>
 
-      {/* Modal Overlay */}
+      {/* Modal */}
       {open && (
         <div
           className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4"
@@ -161,7 +179,24 @@ const AddDialog = ({ getProducts }) => {
                 )}
               </div>
 
-              {/* Category Input */}
+              {/* ✅ Segment Keywords */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Segment Keywords (Optional)
+                </label>
+                <input
+                  type="text"
+                  name="segmentKeywords"
+                  placeholder="e.g., hawai, havai, havayi"
+                  {...formik.getFieldProps("segmentKeywords")}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Comma-separated keywords for segment search
+                </p>
+              </div>
+
+              {/* Category/Variant Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Category
@@ -173,6 +208,23 @@ const AddDialog = ({ getProducts }) => {
                   {...formik.getFieldProps("variant")}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 />
+              </div>
+
+              {/* ✅ Variant Keywords */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category Keywords (Optional)
+                </label>
+                <input
+                  type="text"
+                  name="variantKeywords"
+                  placeholder="e.g., shuz, shoz, footwear"
+                  {...formik.getFieldProps("variantKeywords")}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Comma-separated keywords for category search
+                </p>
               </div>
 
               {/* Article Name Input */}
@@ -194,6 +246,23 @@ const AddDialog = ({ getProducts }) => {
                 {formik.errors.articleName && formik.touched.articleName && (
                   <p className="text-red-500 text-xs mt-1">{formik.errors.articleName}</p>
                 )}
+              </div>
+
+              {/* ✅ Article Keywords */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Article Keywords (Optional)
+                </label>
+                <input
+                  type="text"
+                  name="articleKeywords"
+                  placeholder="e.g., croxy, crocy, krocci"
+                  {...formik.getFieldProps("articleKeywords")}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Comma-separated keywords for article search
+                </p>
               </div>
 
               {/* Gender Select */}
@@ -219,56 +288,6 @@ const AddDialog = ({ getProducts }) => {
                   <p className="text-red-500 text-xs mt-1">{formik.errors.gender}</p>
                 )}
               </div>
-
-              {/* Colors Input
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Colors
-                </label>
-                <input
-                  type="text"
-                  name="colors"
-                  placeholder="e.g., Red, Blue, Black"
-                  value={allColorsAvailable ? "All Colors" : formik.values.colors}
-                  disabled={allColorsAvailable}
-                  onChange={(e) => {
-                    formik.setFieldValue("colors", e.target.value.replace(/\s/g, ","));
-                  }}
-                  className={`w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-                    allColorsAvailable ? "bg-gray-100 cursor-not-allowed" : ""
-                  }`}
-                />
-                <label className="inline-flex items-center mt-2 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={allColorsAvailable}
-                    onChange={(e) => {
-                      setAllColorsAvailable(e.target.checked);
-                      const presetValue = e.target.checked ? "All Colors" : "";
-                      formik.setFieldValue("colors", presetValue);
-                    }}
-                    className="mr-2 text-blue-600 focus:ring-blue-500"
-                  />
-                  All Colors Available
-                </label>
-              </div> */}
-
-              {/* Sizes Input */}
-              {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sizes
-                </label>
-                <input
-                  type="text"
-                  name="sizes"
-                  placeholder="e.g., UK-6,7,8"
-                  value={formik.values.sizes}
-                  onChange={(e) => {
-                    formik.setFieldValue("sizes", e.target.value.replace(/\s/g, ","));
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                />
-              </div> */}
 
               {/* Image Upload */}
               <div>

@@ -1,21 +1,20 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-let NavSlice = createSlice({
+const NavSlice = createSlice({
     name: 'nav',
     initialState: {
         isOpen: false,
-        searchQuery: ""
+        searchQuery: "",
     },
-    reducers : {
-        toogleMenu: (state) =>{
-            state.isOpen = !state.isOpen
+    reducers: {
+        toogleMenu: (state) => {
+            state.isOpen = !state.isOpen;
         },
         setSearchQuery: (state, action) => {
-            state.searchQuery = action.payload
-        }
+            state.searchQuery = action.payload;
+        },
     }
-})
+});
 
-export const {toogleMenu, setSearchQuery} = NavSlice.actions
-
-export default NavSlice.reducer
+export const { toogleMenu, setSearchQuery } = NavSlice.actions;
+export default NavSlice.reducer;
