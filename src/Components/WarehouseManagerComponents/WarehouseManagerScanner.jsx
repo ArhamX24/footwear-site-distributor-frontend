@@ -280,13 +280,13 @@ const WarehouseManagerScanner = () => {
         }
       } catch (jsonError) {
         vibrate([300, 100, 300]);
-        Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error');
+        Swal.fire('Error', `Please Try Again`, 'error');
         return;
       }
 
       if (!qrData || typeof qrData !== 'object') {
         vibrate([300, 100, 300]);
-        Swal.fire('Invalid QR Data', 'QR code does not contain valid data', 'error');
+        Swal.fire('Invalid QR Data', 'QR code not valid', 'error');
         return;
       }
 
@@ -572,7 +572,7 @@ SUMMARY:
           showConfirmButton: false
         });
         setTimeout(() => {
-          window.location.href = '/login';
+          window.location.href = '/';
         }, 1500);
       }
     } catch (error) {
