@@ -616,7 +616,7 @@ SUMMARY:
           showConfirmButton: false
         });
         setTimeout(() => {
-          window.location.href = '/';
+          window.location.href = '/login';
         }, 1500);
       }
     } catch (error) {
