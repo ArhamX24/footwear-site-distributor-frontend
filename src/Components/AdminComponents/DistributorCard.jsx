@@ -20,7 +20,6 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
       );
       
       if (response.data.result) {
-        console.log(response.data.data);
         
         setDistributorDetails(response.data.data);
         setViewModalOpen(true);

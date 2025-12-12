@@ -22,12 +22,11 @@ const ManageInventory = () => {
 
       if (response.data.result) {
         setInventoryData(response.data.data.inventoryData || []);
-        // Don't set error for empty inventory, it's a valid state
       } else {
         setError(response.data.message || 'Failed to fetch inventory data');
       }
     } catch (err) {
-      console.error(err)
+      console.error(err);
       setError(err.response?.data?.message || 'Failed to load inventory data');
     } finally {
       setLoading(false);
@@ -36,57 +35,21 @@ const ManageInventory = () => {
 
   // Filter data based on search term
   const filteredData = inventoryData.filter(item => {
-    const articleNames = Object.keys(item.articleBreakdown || {}).join(' ').toLowerCase();
-    const segment = (item.productInfo?.segment || '').toLowerCase();
-    return articleNames.includes(searchTerm.toLowerCase()) || 
+    const articleName = (item.articleName || '').toLowerCase();
+    const segment = (item.segment || '').toLowerCase();
+    return articleName.includes(searchTerm.toLowerCase()) || 
            segment.includes(searchTerm.toLowerCase());
   });
 
-  // Extract all articles from breakdown for display
-  const getTableRows = () => {
-    const rows = [];
-    filteredData.forEach((product) => {
-      const articles = Object.entries(product.articleBreakdown || {});
-      
-      if (articles.length === 0) {
-        // If no articles, show product-level info
-        rows.push({
-          productId: product.productId,
-          articleName: 'No Articles',
-          segment: product.productInfo?.segment || 'Unknown',
-          totalVariants: product.productInfo?.totalVariants || 0,
-          totalArticles: product.productInfo?.totalArticles || 0,
-          availableQuantity: product.inventoryMetrics?.availableQuantity || 0,
-          received: product.inventoryMetrics?.quantityByStage?.received || 0,
-          shipped: product.inventoryMetrics?.quantityByStage?.shipped || 0,
-          qrsGenerated: product.qrCodeStats?.totalQRs || 0,
-          qrsScanned: product.qrCodeStats?.scannedQRs || 0,
-          lastActivity: product.lastUpdated,
-          status: product.inventoryMetrics?.availableQuantity > 0 ? 'In Stock' : 'Out of Stock'
-        });
-      } else {
-        articles.forEach(([articleName, articleStats]) => {
-          rows.push({
-            productId: product.productId,
-            articleName: articleName,
-            segment: product.productInfo?.segment || 'Unknown',
-            totalVariants: product.productInfo?.totalVariants || 0,
-            totalArticles: product.productInfo?.totalArticles || 0,
-            availableQuantity: product.inventoryMetrics?.availableQuantity || 0,
-            received: product.inventoryMetrics?.quantityByStage?.received || 0,
-            shipped: product.inventoryMetrics?.quantityByStage?.shipped || 0,
-            qrsGenerated: articleStats.qrsGenerated || 0,
-            qrsScanned: articleStats.qrsScanned || 0,
-            lastActivity: articleStats.lastActivity || product.lastUpdated,
-            status: product.inventoryMetrics?.availableQuantity > 0 ? 'In Stock' : 'Out of Stock'
-          });
-        });
-      }
-    });
-    return rows;
-  };
-
-  const tableRows = getTableRows();
+  // Calculate totals
+  const totalAvailable = filteredData.reduce((sum, item) => 
+    sum + (item.inventoryMetrics?.availableQuantity || 0), 0);
+  const totalShipped = filteredData.reduce((sum, item) => 
+    sum + (item.inventoryMetrics?.shippedQuantity || 0), 0);
+  const inStockCount = filteredData.filter(item => 
+    (item.inventoryMetrics?.availableQuantity || 0) > 0).length;
+  const outOfStockCount = filteredData.filter(item => 
+    (item.inventoryMetrics?.availableQuantity || 0) === 0).length;
 
   if (loading) {
     return (
@@ -141,18 +104,18 @@ const ManageInventory = () => {
             {/* Summary Stats */}
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
               <div className="text-center bg-gray-50 p-3 rounded-lg">
-                <div className="text-sm text-gray-500">Total Products</div>
+                <div className="text-sm text-gray-500">Total Articles</div>
                 <div className="text-xl font-bold text-gray-600">{inventoryData.length}</div>
               </div>
-              <div className="text-center bg-gray-50 p-3 rounded-lg">
-                <div className="text-sm text-gray-500">Total Articles</div>
-                <div className="text-xl font-bold text-gray-600">{tableRows.length}</div>
+              <div className="text-center bg-green-50 p-3 rounded-lg">
+                <div className="text-sm text-gray-500">Available</div>
+                <div className="text-xl font-bold text-green-600">{totalAvailable}</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Show search only if there's data */}
+        {/* Search Bar - Show only if there's data */}
         {inventoryData.length > 0 && (
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
             <div className="flex items-center space-x-4">
@@ -185,7 +148,7 @@ const ManageInventory = () => {
                 No Inventory Data Found
               </h3>
               <p className="text-gray-500 mb-6">
-                Start adding products to your inventory to see them here
+                Start scanning products to see inventory here
               </p>
               <button
                 onClick={fetchInventoryData}
@@ -198,7 +161,7 @@ const ManageInventory = () => {
             <>
               {/* Mobile Cards View (Hidden on Desktop) */}
               <div className="block md:hidden">
-                {tableRows.length === 0 ? (
+                {filteredData.length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="text-4xl mb-4">🔍</div>
                     <p className="text-gray-500">No results found for "{searchTerm}"</p>
@@ -211,23 +174,23 @@ const ManageInventory = () => {
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-200">
-                    {tableRows.map((row, index) => (
-                      <div key={index} className="p-4">
+                    {filteredData.map((item, index) => (
+                      <div key={item.articleId || index} className="p-4">
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <h3 className="font-semibold text-gray-800 capitalize">
-                              {row.articleName}
+                              {item.articleName || 'Unknown'}
                             </h3>
                             <p className="text-sm text-gray-500 capitalize">
-                              {row.segment}
+                              {item.segment || 'Unknown'}
                             </p>
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            row.status === 'In Stock' 
+                            (item.inventoryMetrics?.availableQuantity || 0) > 0
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-red-100 text-red-800'
                           }`}>
-                            {row.status}
+                            {(item.inventoryMetrics?.availableQuantity || 0) > 0 ? 'In Stock' : 'Out of Stock'}
                           </span>
                         </div>
                         
@@ -235,21 +198,19 @@ const ManageInventory = () => {
                           <div>
                             <span className="text-gray-500">Available:</span>
                             <span className="ml-2 font-semibold text-green-600">
-                              {row.availableQuantity}
+                              {item.inventoryMetrics?.availableQuantity || 0}
                             </span>
                           </div>
                           <div>
-                            <span className="text-gray-500">Received:</span>
-                            <span className="ml-2 font-semibold">{row.received}</span>
-                          </div>
-                          <div>
                             <span className="text-gray-500">Shipped:</span>
-                            <span className="ml-2 font-semibold">{row.shipped}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">QRs:</span>
                             <span className="ml-2 font-semibold">
-                              {row.qrsScanned}/{row.qrsGenerated}
+                              {item.inventoryMetrics?.shippedQuantity || 0}
+                            </span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-500">Last Updated:</span>
+                            <span className="ml-2 text-xs">
+                              {item.lastUpdated ? new Date(item.lastUpdated).toLocaleString() : 'N/A'}
                             </span>
                           </div>
                         </div>
@@ -277,23 +238,17 @@ const ManageInventory = () => {
                         Available Qty
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Received
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Shipped
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        QRs (Scanned/Total)
-                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Last Activity
+                        Last Updated
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {tableRows.length === 0 ? (
+                    {filteredData.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-6 py-8 text-center">
+                        <td colSpan={6} className="px-6 py-8 text-center">
                           <div className="text-4xl mb-4">🔍</div>
                           <p className="text-gray-500">No results found for "{searchTerm}"</p>
                           <button
@@ -305,56 +260,58 @@ const ManageInventory = () => {
                         </td>
                       </tr>
                     ) : (
-                      tableRows.map((row, index) => (
-                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900 capitalize">
-                              {row.articleName}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500 capitalize">
-                              {row.segment}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              row.status === 'In Stock' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {row.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="text-sm font-semibold text-green-600">
-                              {row.availableQuantity < 0 ? 0 : row.availableQuantity}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="text-sm font-semibold text-gray-900">
-                              {row.received}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="text-sm font-semibold text-gray-900">
-                              {row.shipped}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="text-sm text-gray-900">
-                              <span className="font-semibold text-blue-600">{row.qrsScanned}</span>
-                              <span className="text-gray-400"> / </span>
-                              <span className="font-semibold">{row.qrsGenerated}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">
-                              {row.lastActivity ? new Date(row.lastActivity).toLocaleDateString() : 'N/A'}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                      filteredData.map((item, index) => {
+                        const availableQty = item.inventoryMetrics?.availableQuantity || 0;
+                        const shippedQty = item.inventoryMetrics?.shippedQuantity || 0;
+                        const status = availableQty > 0 ? 'In Stock' : 'Out of Stock';
+                        
+                        return (
+                          <tr key={item.articleId || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900 capitalize">
+                                {item.articleName || 'Unknown'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500 capitalize">
+                                {item.segment || 'Unknown'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                status === 'In Stock' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <div className="text-sm font-semibold text-green-600">
+                                {availableQty}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <div className="text-sm font-semibold text-gray-900">
+                                {shippedQty}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {item.lastUpdated 
+                                  ? new Date(item.lastUpdated).toLocaleString('en-IN', {
+                                      day: '2-digit',
+                                      month: 'short',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })
+                                  : 'N/A'}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -364,30 +321,30 @@ const ManageInventory = () => {
         </div>
 
         {/* Footer Stats - Only show if there's data */}
-        {tableRows.length > 0 && (
+        {filteredData.length > 0 && (
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mt-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">
-                  {tableRows.filter(row => row.status === 'In Stock').length}
+                  {inStockCount}
                 </div>
                 <div className="text-sm text-gray-500">In Stock</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">
-                  {tableRows.filter(row => row.status === 'Out of Stock').length}
+                  {outOfStockCount}
                 </div>
                 <div className="text-sm text-gray-500">Out of Stock</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">
-                  {tableRows.reduce((sum, row) => sum + row.received, 0)}
+                  {totalAvailable}
                 </div>
-                <div className="text-sm text-gray-500">Total Received</div>
+                <div className="text-sm text-gray-500">Total Available</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">
-                  {tableRows.reduce((sum, row) => sum + row.shipped, 0)}
+                  {totalShipped}
                 </div>
                 <div className="text-sm text-gray-500">Total Shipped</div>
               </div>

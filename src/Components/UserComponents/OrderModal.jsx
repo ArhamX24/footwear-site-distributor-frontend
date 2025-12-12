@@ -34,14 +34,12 @@ const OrderModal = ({ setPlaceOrderModal, selectedProductDetails, clearSearch })
         setLoadingInventory(true);
         setInventoryError(null);
 
-        console.log('[ORDERMODAL] Fetching inventory for article ID:', articleId);
 
         const response = await axios.get(
           `${baseURL}/api/v1/distributor/article-details/${articleId}`,
           { withCredentials: true }
         );
 
-        console.log('[ORDERMODAL] Full Response:', response.data);
 
         if (response.data.success && response.data.data) {
           const data = response.data.data;
@@ -55,7 +53,6 @@ const OrderModal = ({ setPlaceOrderModal, selectedProductDetails, clearSearch })
             inStock: data.colors?.length > 0 && data.sizes?.length > 0,
           };
 
-          console.log('[ORDERMODAL] Transformed Data:', transformedData);
           setInventoryData(transformedData);
         } else {
           setInventoryError("No inventory found for this article");

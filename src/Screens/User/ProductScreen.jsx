@@ -212,10 +212,10 @@ const ProductScreen = () => {
             const response = await axios.get(`${baseURL}/api/v1/distributor/offers/all`);
 
             if (response.data.result && response.data.data) {
-                console.log("✅ Offers fetched:", response.data.data);
+
                 setOffers(response.data.data);
             } else {
-                console.log("⚠️ No offers found");
+
                 setOffers([]);
             }
         } catch (error) {

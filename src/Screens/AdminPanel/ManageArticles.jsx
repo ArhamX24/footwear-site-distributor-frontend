@@ -28,7 +28,7 @@ const AddProduct = () => {
         setInventoryDataCount(data.inventoryCount || 0);
       }
     } catch (err) {
-      console.log(err);
+
     }
   };
 

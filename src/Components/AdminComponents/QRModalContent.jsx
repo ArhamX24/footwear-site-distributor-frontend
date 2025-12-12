@@ -75,7 +75,6 @@ const QRModalContent = ({ products, getProducts }) => {
         
         action.resetForm();
       } catch (err) {
-        console.log(err);
         Swal.fire(
           "Error", 
           err.response?.data?.message || "Failed to generate QR codes", 

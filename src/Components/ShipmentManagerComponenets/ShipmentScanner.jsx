@@ -4,7 +4,6 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { baseURL } from '../../Utils/URLS';
 
-
 const ShipmentScanner = () => {
   const [scannedItems, setScannedItems] = useState([]);
   const [selectedDistributor, setSelectedDistributor] = useState('');
@@ -14,10 +13,8 @@ const ShipmentScanner = () => {
   const [loading, setLoading] = useState(false);
   const [cameraPermission, setCameraPermission] = useState(null);
   const [availableCameras, setAvailableCameras] = useState([]);
-  const [manualId, setManualId] = useState(''); // ✅ Manual ID input
   const qrReaderRef = useRef(null);
   const isProcessingRef = useRef(false);
-
 
   useEffect(() => {
     fetchDistributors();
@@ -28,7 +25,6 @@ const ShipmentScanner = () => {
     };
   }, []);
 
-
   useEffect(() => {
     if (isScanning) {
       startScanning();
@@ -37,19 +33,16 @@ const ShipmentScanner = () => {
     }
   }, [isScanning]);
 
-
-  // ✅ FIXED: Force cleanup
   const forceCleanup = async () => {
     try {
       if (qrReaderRef.current) {
         const state = qrReaderRef.current.getState();
-        if (state === 2) { // Html5QrcodeScannerState.SCANNING
+        if (state === 2) {
           await qrReaderRef.current.stop();
         }
         await qrReaderRef.current.clear();
       }
     } catch (error) {
-      console.log('Cleanup error:', error);
     } finally {
       qrReaderRef.current = null;
       const container = document.getElementById("qr-scanner-container");
@@ -61,21 +54,15 @@ const ShipmentScanner = () => {
     }
   };
 
-
-  // ✅ FIXED: Vibrate function with better support detection
   const vibrate = (pattern = [100]) => {
     try {
       if ('vibrate' in navigator && navigator.vibrate) {
         navigator.vibrate(pattern);
-        console.log('✅ Vibration triggered:', pattern);
       } else {
-        console.log('⚠️ Vibration API not supported');
       }
     } catch (error) {
-      console.log('❌ Vibration error:', error);
     }
   };
-
 
   const initializeCamera = async () => {
     try {
@@ -89,7 +76,6 @@ const ShipmentScanner = () => {
       setCameraPermission('denied');
     }
   };
-
 
   const getBackCamera = () => {
     if (availableCameras.length === 0) return null;
@@ -118,7 +104,6 @@ const ShipmentScanner = () => {
     
     return backCamera;
   };
-
 
   const startScanning = async () => {
     try {
@@ -154,7 +139,6 @@ const ShipmentScanner = () => {
         }
       };
 
-
       await qrReader.start(
         cameraId,
         config,
@@ -166,7 +150,7 @@ const ShipmentScanner = () => {
           }
         },
         (error) => {
-          // Suppress common errors
+          // Suppress common scanning errors
         }
       );
       
@@ -177,16 +161,15 @@ const ShipmentScanner = () => {
       setIsScanning(false);
       vibrate([500]);
       
-      let errorMessage = 'Failed to start camera scanner';
+      let errorMessage = 'Unable to start camera. Please grant camera permission and try again.';
       
       if (error.name === 'NotAllowedError') {
-        errorMessage = 'Camera permission denied. Please allow camera access.';
+        errorMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
       } else if (error.name === 'NotFoundError') {
         errorMessage = 'No camera found on this device.';
       } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Camera is already in use by another application.';
+        errorMessage = 'Camera is busy. Please close other apps using the camera and try again.';
       }
-
 
       Swal.fire({
         title: 'Camera Error',
@@ -197,18 +180,14 @@ const ShipmentScanner = () => {
     }
   };
 
-
-  // ✅ FIXED: Stop scanner properly [web:109][web:110][web:116]
   const stopScanning = async () => {
     try {
       if (qrReaderRef.current) {
         const state = qrReaderRef.current.getState();
-        if (state === 2) { // SCANNING state
+        if (state === 2) {
           await qrReaderRef.current.stop();
-          console.log('✅ Scanner stopped');
         }
         await qrReaderRef.current.clear();
-        console.log('✅ Scanner cleared');
         qrReaderRef.current = null;
       }
     } catch (error) {
@@ -224,7 +203,6 @@ const ShipmentScanner = () => {
     }
   };
 
-
   const fetchDistributors = async () => {
     try {
       const response = await axios.get(`${baseURL}/api/v1/admin/distributor/get`, {
@@ -235,18 +213,16 @@ const ShipmentScanner = () => {
         setDistributors(response.data.data || []);
       }
     } catch (error) {
-      Swal.fire('Error', 'Failed to fetch distributors', 'error');
+      Swal.fire('Error', 'Failed to load distributors. Please refresh the page.', 'error');
     }
   };
 
-
   const handleScanSuccess = async (decodedText) => {
-    console.log('🔍 Scan detected:', decodedText);
+
     
     try {
       let qrData;
       
-      // Parse JSON
       try {
         if (typeof decodedText === 'string') {
           const trimmed = decodedText.trim();
@@ -255,14 +231,9 @@ const ShipmentScanner = () => {
             qrData = JSON.parse(trimmed);
           } else {
             vibrate([300, 100, 300]);
-            
             Swal.fire({
               title: 'Invalid QR Code',
-              html: `
-                <p>This QR code doesn't contain the expected shipment data format.</p>
-                <p><strong>Content found:</strong></p>
-                <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
-              `,
+              text: 'Please try scanning again. Make sure you are scanning a valid carton QR code.',
               icon: 'warning',
               confirmButtonText: 'OK'
             });
@@ -274,39 +245,23 @@ const ShipmentScanner = () => {
         }
       } catch (jsonError) {
         vibrate([300, 100, 300]);
-        Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error');
+        Swal.fire('Invalid QR Code', 'Please try scanning again.', 'error');
         isProcessingRef.current = false;
         return;
       }
 
-
-      // Validate structure
       if (!qrData || typeof qrData !== 'object') {
         vibrate([300, 100, 300]);
-        Swal.fire({
-          title: 'Invalid QR Data',
-          html: `
-            <p>QR code does not contain valid data structure.</p>
-            <details style="text-align: left; margin-top: 10px;">
-              <summary style="cursor: pointer;">Show raw data</summary>
-              <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 200px;">${JSON.stringify(qrData, null, 2)}</pre>
-            </details>
-          `,
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
+        Swal.fire('Invalid QR Code', 'Please try scanning again.', 'error');
         isProcessingRef.current = false;
         return;
       }
 
-
-      // Extract fields
       const uniqueId = qrData.uniqueId || null;
       const articleName = qrData.articleName 
         || qrData.contractorInput?.articleName 
         || qrData.productReference?.articleName 
         || null;
-
 
       // Check duplicates
       const shouldProceed = await new Promise((resolve) => {
@@ -314,7 +269,7 @@ const ShipmentScanner = () => {
           const alreadyScanned = currentItems.find(item => item.uniqueId === uniqueId);
           if (alreadyScanned) {
             vibrate([100, 50, 100, 50, 100]);
-            Swal.fire('Warning', 'This carton has already been scanned!', 'warning');
+            Swal.fire('Already Scanned', 'This carton has already been scanned!', 'warning');
             resolve(false);
             return currentItems;
           }
@@ -323,37 +278,22 @@ const ShipmentScanner = () => {
         });
       });
 
-
       if (!shouldProceed) {
         isProcessingRef.current = false;
         return;
       }
 
-
-      // Validate required fields
       if (!uniqueId || !articleName) {
         vibrate([300, 100, 300]);
-        
         Swal.fire({
-          title: 'Invalid QR Code Data',
-          html: `
-            <p>QR code is missing required information:</p>
-            <ul style="text-align: left; margin: 10px 0;">
-              <li>Unique ID: ${uniqueId ? '✅' : '❌ Missing'}</li>
-              <li>Article Name: ${articleName ? '✅' : '❌ Missing'}</li>
-            </ul>
-            <details style="text-align: left; margin-top: 10px;">
-              <summary style="cursor: pointer;">Show QR data structure</summary>
-              <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 200px; font-size: 11px;">${JSON.stringify(qrData, null, 2)}</pre>
-            </details>
-          `,
+          title: 'Invalid QR Code',
+          text: 'QR code is missing required information. Please try scanning again.',
           icon: 'error',
           confirmButtonText: 'OK'
         });
         isProcessingRef.current = false;
         return;
       }
-
 
       // Get current distributor
       let currentDistributor;
@@ -362,13 +302,11 @@ const ShipmentScanner = () => {
         return current;
       });
 
-
       let currentDistributors;
       setDistributors((current) => {
         currentDistributors = current;
         return current;
       });
-
 
       if (!currentDistributor) {
         vibrate([300, 100, 300]);
@@ -376,7 +314,6 @@ const ShipmentScanner = () => {
         isProcessingRef.current = false;
         return;
       }
-
 
       // Send to backend
       const response = await axios.post(
@@ -400,7 +337,6 @@ const ShipmentScanner = () => {
         }
       );
 
-
       if (response.data.result) {
         const formatSizeRange = (sizes) => {
           if (!sizes) return 'N/A';
@@ -412,11 +348,9 @@ const ShipmentScanner = () => {
           return `${sorted[0]}X${sorted[sorted.length - 1]}`;
         };
 
-
         const colors = qrData.contractorInput?.colors || qrData.colors || ['Not specified'];
         const sizes = qrData.contractorInput?.sizes || qrData.sizes || [];
         const cartonNumber = qrData.contractorInput?.cartonNumber || qrData.cartonNumber || 'N/A';
-
 
         const newItem = {
           uniqueId: uniqueId,
@@ -428,7 +362,6 @@ const ShipmentScanner = () => {
           scannedAt: new Date().toLocaleTimeString(),
           status: 'shipped'
         };
-
 
         setScannedItems(prev => [...prev, newItem]);
         
@@ -444,245 +377,32 @@ const ShipmentScanner = () => {
           position: 'top-end'
         });
         
-        // ✅ FIXED: Auto-close scanner after successful scan [web:109][web:110]
-        console.log('🎯 Stopping scanner after successful scan...');
         setTimeout(async () => {
           await stopScanning();
           setIsScanning(false);
-          console.log('✅ Scanner stopped automatically');
         }, 1500);
         
       } else {
         throw new Error(response.data.message || 'Server returned failure');
       }
 
-
     } catch (error) {      
       vibrate([500, 200, 500]);
-      
-      let errorMessage = 'Failed to process scan';
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
       
       console.error('❌ Scan error:', error);
       
       Swal.fire({
-        title: 'Scan Error',
-        html: `
-          <p>${errorMessage}</p>
-          <details style="text-align: left; margin-top: 10px; font-size: 12px;">
-            <summary style="cursor: pointer; color: #666;">Show technical details</summary>
-            <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 150px;">${error.stack || error.message}</pre>
-          </details>
-        `,
+        title: 'Scan Failed',
+        text: 'Unable to process the scan. Please try again.',
         icon: 'error',
         confirmButtonText: 'OK'
       });
     } finally {
-      // Reset processing flag
       setTimeout(() => {
         isProcessingRef.current = false;
       }, 1000);
     }
   };
-
-
-// ✅ FIXED: Manual ID upload that actually scans/uploads to backend
-const handleManualUpload = async () => {
-  if (!manualId.trim()) {
-    Swal.fire('Warning', 'Please enter a unique ID or QR data', 'warning');
-    return;
-  }
-
-  if (!selectedDistributor) {
-    Swal.fire('Warning', 'Please select a distributor first', 'warning');
-    return;
-  }
-
-  try {
-    vibrate([100, 50, 100]);
-    setLoading(true);
-
-    const trimmedId = manualId.trim();
-    let uniqueIdToUpload;
-    let articleNameToDisplay = 'Manual Upload';
-
-    // ✅ Parse the input
-    try {
-      if (trimmedId.startsWith('{') || trimmedId.startsWith('[')) {
-        // It's JSON - parse it
-        const parsedData = JSON.parse(trimmedId);
-        uniqueIdToUpload = parsedData.uniqueId || parsedData.contractorInput?.uniqueId || trimmedId;
-        articleNameToDisplay = parsedData.articleName || 
-                               parsedData.contractorInput?.articleName || 
-                               'Manual Upload';
-        console.log('📋 Parsed JSON - UniqueID:', uniqueIdToUpload);
-      } else {
-        // Plain unique ID
-        uniqueIdToUpload = trimmedId;
-        console.log('🔑 Plain UniqueID:', uniqueIdToUpload);
-      }
-    } catch (parseError) {
-      // If parsing fails, use as plain unique ID
-      uniqueIdToUpload = trimmedId;
-      console.log('⚠️ Parse failed, using as plain ID:', uniqueIdToUpload);
-    }
-
-    // ✅ Check for duplicates
-    const isDuplicate = scannedItems.find(item => item.uniqueId === uniqueIdToUpload);
-    if (isDuplicate) {
-      vibrate([100, 50, 100, 50, 100]);
-      Swal.fire('Warning', 'This carton has already been scanned!', 'warning');
-      setLoading(false);
-      return;
-    }
-
-    // ✅ Get current distributor details
-    const selectedDist = distributors.find(d => d._id === selectedDistributor);
-
-    // ✅ Send to backend - SAME AS QR SCAN
-    console.log('🚀 Uploading to backend:', uniqueIdToUpload);
-    
-    const response = await axios.post(
-      `${baseURL}/api/v1/shipment/scan/${uniqueIdToUpload}`,
-      {
-        event: 'shipped',
-        scannedBy: {
-          userType: 'shipment_manager'
-        },
-        distributorDetails: {
-          distributorId: selectedDistributor,
-          distributorName: selectedDist?.distributorDetails?.partyName || 
-                         selectedDist?.name || ''
-        },
-        trackingNumber: `TRACK_${Date.now()}`,
-        notes: 'Manual upload for debugging/testing'
-      },
-      {
-        withCredentials: true,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
-
-    if (response.data.result) {
-      console.log('✅ Backend response:', response.data);
-
-      // ✅ Parse the original input again to get all details
-      let qrData;
-      try {
-        if (trimmedId.startsWith('{') || trimmedId.startsWith('[')) {
-          qrData = JSON.parse(trimmedId);
-        } else {
-          qrData = {
-            uniqueId: uniqueIdToUpload,
-            articleName: 'Manual Upload',
-            contractorInput: {
-              colors: ['Unknown'],
-              sizes: [],
-              cartonNumber: 'Manual'
-            }
-          };
-        }
-      } catch {
-        qrData = {
-          uniqueId: uniqueIdToUpload,
-          articleName: 'Manual Upload',
-          contractorInput: {
-            colors: ['Unknown'],
-            sizes: [],
-            cartonNumber: 'Manual'
-          }
-        };
-      }
-
-      // ✅ Format size range helper
-      const formatSizeRange = (sizes) => {
-        if (!sizes) return 'N/A';
-        if (!Array.isArray(sizes)) return sizes.toString();
-        if (sizes.length === 0) return 'N/A';
-        if (sizes.length === 1) return sizes[0].toString();
-        
-        const sorted = [...sizes].sort((a, b) => a - b);
-        return `${sorted[0]}X${sorted[sorted.length - 1]}`;
-      };
-
-      const colors = qrData.contractorInput?.colors || qrData.colors || ['Unknown'];
-      const sizes = qrData.contractorInput?.sizes || qrData.sizes || [];
-      const cartonNumber = qrData.contractorInput?.cartonNumber || qrData.cartonNumber || 'Manual';
-
-      // ✅ Add to scanned items
-      const newItem = {
-        uniqueId: uniqueIdToUpload,
-        articleName: qrData.articleName || qrData.contractorInput?.articleName || 'Manual Upload',
-        colors: colors,
-        sizes: sizes,
-        sizesFormatted: formatSizeRange(sizes),
-        cartonNumber: cartonNumber,
-        scannedAt: new Date().toLocaleTimeString(),
-        status: 'shipped'
-      };
-
-      setScannedItems(prev => [...prev, newItem]);
-      
-      vibrate([100, 50, 100, 50, 200]);
-      
-      Swal.fire({
-        icon: 'success',
-        title: '✅ Manual Upload Success!',
-        text: `${newItem.articleName} - Carton ${newItem.cartonNumber}`,
-        timer: 2000,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end'
-      });
-
-      // Clear input
-      setManualId('');
-
-    } else {
-      throw new Error(response.data.message || 'Backend returned failure');
-    }
-
-  } catch (error) {
-    vibrate([500, 200, 500]);
-    console.error('❌ Manual upload error:', error);
-
-    let errorMessage = 'Failed to upload to backend';
-    
-    if (error.response?.status === 404) {
-      errorMessage = `Carton with ID "${manualId.trim()}" not found in database. Make sure this ID exists.`;
-    } else if (error.response?.data?.message) {
-      errorMessage = error.response.data.message;
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
-    
-    Swal.fire({
-      title: 'Upload Error',
-      html: `
-        <p>${errorMessage}</p>
-        <p class="text-sm text-gray-600 mt-2">Unique ID: <code class="bg-gray-100 px-2 py-1 rounded">${manualId.trim()}</code></p>
-        <details style="text-align: left; margin-top: 10px; font-size: 12px;">
-          <summary style="cursor: pointer; color: #666;">Show technical details</summary>
-          <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 150px;">${JSON.stringify({
-            error: error.message,
-            response: error.response?.data,
-            status: error.response?.status
-          }, null, 2)}</pre>
-        </details>
-      `,
-      icon: 'error',
-      confirmButtonText: 'OK'
-    });
-  } finally {
-    setLoading(false);
-  }
-};
-
 
   const handleStartScanning = () => {
     if (!selectedDistributor) {
@@ -693,13 +413,11 @@ const handleManualUpload = async () => {
     setIsScanning(true);
   };
 
-
   const handleStopScanning = async () => {
     vibrate([100]);
     await forceCleanup();
     setIsScanning(false);
   };
-
 
   const createShipment = async () => {
     if (scannedItems.length === 0) {
@@ -707,17 +425,14 @@ const handleManualUpload = async () => {
       return;
     }
 
-
     if (!selectedDistributor) {
       Swal.fire('Warning', 'Please select a distributor', 'warning');
       return;
     }
 
-
     try {
       setLoading(true);
       vibrate([50, 50]);
-
 
       const selectedDist = distributors.find(d => d._id === selectedDistributor);
       const shipmentId = `SHIP_${Date.now()}_${selectedDistributor.slice(-6)}`;
@@ -742,81 +457,75 @@ const handleManualUpload = async () => {
         confirmButtonText: 'OK'
       });
 
-
       setScannedItems([]);
       setSelectedDistributor('');
       handleStopScanning();
 
-
     } catch (error) {
       vibrate([300]);
-      Swal.fire('Error', error.response?.data?.message || 'Failed to create shipment', 'error');
+      Swal.fire('Error', 'Failed to create shipment. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
   };
-
 
   const removeScannedItem = (uniqueId) => {
     vibrate([100]);
     setScannedItems(prev => prev.filter(item => item.uniqueId !== uniqueId));
   };
 
+  const downloadShipmentReceipt = async () => {
+    if (!shipmentCreated) return;
 
- const downloadShipmentReceipt = async () => {
-  if (!shipmentCreated) return;
+    try {
+      setLoading(true);
+      vibrate([50, 50]);
 
-  try {
-    setLoading(true);
-    vibrate([50, 50]);
 
-    console.log('📄 Sending items to PDF:', shipmentCreated.items);
+      const response = await axios.post(
+        `${baseURL}/api/v1/shipment/receipt/generate`,
+        {
+          shipmentId: shipmentCreated.shipmentId,
+          distributorName: shipmentCreated.distributorName,
+          distributorPhoneNo: shipmentCreated.distributorPhoneNo,
+          totalCartons: shipmentCreated.totalCartons,
+          shippedAt: shipmentCreated.shippedAt,
+          items: shipmentCreated.items
+        },
+        {
+          withCredentials: true,
+          responseType: 'blob'
+        }
+      );
 
-    const response = await axios.post(
-      `${baseURL}/api/v1/shipment/receipt/generate`,
-      {
-        shipmentId: shipmentCreated.shipmentId,
-        distributorName: shipmentCreated.distributorName,
-        distributorPhoneNo: shipmentCreated.distributorPhoneNo,
-        totalCartons: shipmentCreated.totalCartons,
-        shippedAt: shipmentCreated.shippedAt,
-        items: shipmentCreated.items  // ✅ This contains colors, sizes, cartonNumber
-      },
-      {
-        withCredentials: true,
-        responseType: 'blob'
-      }
-    );
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Shipment_${shipmentCreated.shipmentId}_Receipt.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-    const blob = new Blob([response.data], { type: 'application/pdf' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Shipment_${shipmentCreated.shipmentId}_Receipt.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+      vibrate([100, 50, 100]);
 
-    vibrate([100, 50, 100]);
+      Swal.fire({
+        icon: 'success',
+        title: 'Receipt Downloaded!',
+        text: 'PDF receipt has been downloaded successfully',
+        timer: 2000,
+        showConfirmButton: false
+      });
 
-    Swal.fire({
-      icon: 'success',
-      title: 'Receipt Downloaded!',
-      text: 'PDF receipt has been downloaded successfully',
-      timer: 2000,
-      showConfirmButton: false
-    });
-
-  } catch (error) {
-    vibrate([300]);
-    console.error('PDF Download Error:', error);
-    Swal.fire('Error', 'Failed to download receipt', 'error');
-  } finally {
-    setLoading(false);
-  }
-};
-
+    } catch (error) {
+      vibrate([300]);
+      console.error('PDF Download Error:', error);
+      Swal.fire('Error', 'Failed to download receipt. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -829,7 +538,6 @@ const handleManualUpload = async () => {
         cancelButtonText: 'Cancel',
         confirmButtonColor: '#d33',
       });
-
 
       if (result.isConfirmed) {
         vibrate([100, 100, 100]);
@@ -857,7 +565,6 @@ const handleManualUpload = async () => {
       });
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -905,7 +612,6 @@ const handleManualUpload = async () => {
           </div>
         </div>
 
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Panel - Scanner */}
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
@@ -933,84 +639,6 @@ const handleManualUpload = async () => {
               </select>
             </div>
 
-
-{/* ✅ UPDATED: Manual ID Upload for Testing */}
-<div className="mb-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4">
-  <div className="flex items-center mb-2">
-    <label className="block text-sm font-bold text-purple-900">
-      🧪 Manual Upload (Backend Testing)
-    </label>
-    <span className="ml-2 bg-purple-200 text-purple-800 text-xs px-2 py-0.5 rounded-full">
-      Debug Mode
-    </span>
-  </div>
-  
-  <div className="flex gap-2">
-    <textarea
-      value={manualId}
-      onChange={(e) => setManualId(e.target.value)}
-      placeholder="Enter Unique ID or paste full QR JSON data here..."
-      className="flex-1 border-2 border-purple-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm font-mono resize-y min-h-[70px] bg-white"
-      disabled={isScanning || loading}
-      rows="3"
-    />
-    <button
-      onClick={handleManualUpload}
-      disabled={!selectedDistributor || isScanning || loading || !manualId.trim()}
-      className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition duration-200 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-sm font-bold whitespace-nowrap self-start shadow-md"
-    >
-      {loading ? (
-        <span>⏳ Uploading...</span>
-      ) : (
-        <span>🚀 Upload to Backend</span>
-      )}
-    </button>
-  </div>
-  
-  <div className="mt-3 space-y-2 bg-white bg-opacity-50 rounded p-2">
-    <div className="flex items-start gap-2">
-      <span className="text-green-600 font-bold">✅</span>
-      <p className="text-xs text-gray-700">
-        <strong>Plain ID:</strong> Just paste unique ID (e.g., <code className="bg-purple-100 px-1 rounded">CARTON_12345</code>)
-      </p>
-    </div>
-    <div className="flex items-start gap-2">
-      <span className="text-green-600 font-bold">✅</span>
-      <p className="text-xs text-gray-700">
-        <strong>Full JSON:</strong> Paste complete QR data with all details
-      </p>
-    </div>
-    <div className="flex items-start gap-2">
-      <span className="text-blue-600 font-bold">📡</span>
-      <p className="text-xs text-blue-700 font-medium">
-        Sends actual POST request to backend API (same as QR scan)
-      </p>
-    </div>
-    
-    <details className="text-xs text-purple-800 mt-2">
-      <summary className="cursor-pointer font-bold hover:text-purple-600">
-        📘 Click for JSON Example
-      </summary>
-      <pre className="bg-white border border-purple-200 p-2 rounded mt-1 overflow-x-auto text-[10px] leading-relaxed">{`{
-  "uniqueId": "CARTON_ABC123",
-  "articleName": "Nike Air Max Pro",
-  "contractorInput": {
-    "articleName": "Nike Air Max Pro",
-    "colors": ["Black", "White", "Red"],
-    "sizes": [7, 8, 9, 10, 11],
-    "cartonNumber": "001"
-  }
-}`}</pre>
-      <p className="text-xs text-gray-600 mt-1 italic">
-        💡 Copy this example, modify the uniqueId, and paste above
-      </p>
-    </details>
-  </div>
-</div>
-
-
-
-
             {/* Scanner Controls */}
             <div className="mb-4">
               {!isScanning ? (
@@ -1037,7 +665,6 @@ const handleManualUpload = async () => {
               )}
             </div>
 
-
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] sm:min-h-[400px] flex items-center justify-center bg-black">
               {isScanning ? (
                 <div id="qr-scanner-container" className="w-full h-full"></div>
@@ -1055,7 +682,6 @@ const handleManualUpload = async () => {
               )}
             </div>
 
-
             {/* Instructions */}
             <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-3 sm:p-4">
               <div className="text-xs sm:text-sm text-blue-700">
@@ -1064,13 +690,11 @@ const handleManualUpload = async () => {
                   <li>Select the destination distributor</li>
                   <li>Start scanner and point at QR codes</li>
                   <li>Scanner auto-stops after successful scan</li>
-                  <li>Use manual ID upload for debugging</li>
                   <li>Create shipment when all items are scanned</li>
                 </ul>
               </div>
             </div>
           </div>
-
 
           {/* Right Panel - Scanned Items */}
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
@@ -1086,7 +710,6 @@ const handleManualUpload = async () => {
                 </button>
               )}
             </div>
-
 
             <div className="space-y-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
               {scannedItems.length === 0 ? (
@@ -1126,7 +749,6 @@ const handleManualUpload = async () => {
               )}
             </div>
 
-
             {/* Summary */}
             {scannedItems.length > 0 && (
               <div className="mt-4 pt-4 border-t">
@@ -1141,26 +763,29 @@ const handleManualUpload = async () => {
           </div>
         </div>
 
-
         {/* Shipment Success Modal */}
         {shipmentCreated && (
           <div className="mt-6 bg-white rounded-lg shadow-md p-4 sm:p-6">
             <div className="text-center">
               <div className="text-4xl sm:text-6xl mb-4">🎉</div>
               <h2 className="text-xl sm:text-2xl font-bold text-green-600 mb-2">Shipment Created Successfully!</h2>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <div className="text-left space-y-2 text-sm sm:text-base">
+              <p className="text-gray-600 mb-4">Your shipment has been created and is ready for delivery</p>
+              
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   <div><strong>Shipment ID:</strong> {shipmentCreated.shipmentId}</div>
                   <div><strong>Distributor:</strong> {shipmentCreated.distributorName}</div>
                   <div><strong>Total Cartons:</strong> {shipmentCreated.totalCartons}</div>
                   <div><strong>Created:</strong> {new Date(shipmentCreated.shippedAt).toLocaleString()}</div>
                 </div>
               </div>
+
               <button
                 onClick={downloadShipmentReceipt}
-                className="bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-blue-700 transition duration-200 text-sm sm:text-base"
+                disabled={loading}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition duration-200 disabled:bg-blue-400 font-medium"
               >
-                📄 Download Receipt
+                {loading ? '⏳ Generating PDF...' : '📥 Download Receipt'}
               </button>
             </div>
           </div>
@@ -1169,6 +794,5 @@ const handleManualUpload = async () => {
     </div>
   );
 };
-
 
 export default ShipmentScanner;

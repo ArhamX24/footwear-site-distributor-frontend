@@ -329,7 +329,7 @@ const CartPage = () => {
         dispatch(dealGrasped(false));
       }
     } catch (error) {
-      console.log(error);
+
       setLoading(false);
       Swal.fire({
         title: "Error",

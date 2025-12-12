@@ -61,7 +61,6 @@ const formik = useFormik({
 
       action.resetForm();
     } catch (error) {
-      console.log(error)
       if (error.response) {
     // Server responded with error status
     if (error.response.status === 502) {

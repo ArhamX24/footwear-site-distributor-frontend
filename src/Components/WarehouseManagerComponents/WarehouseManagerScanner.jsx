@@ -4,7 +4,6 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { baseURL } from '../../Utils/URLS';
 
-
 const WarehouseManagerScanner = () => {
   const [scannedItems, setScannedItems] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
@@ -16,10 +15,8 @@ const WarehouseManagerScanner = () => {
   });
   const [loading, setLoading] = useState(false);
   const [availableCameras, setAvailableCameras] = useState([]);
-  const [qrIdInput, setQrIdInput] = useState(''); // ✅ NEW: For ID input
   const html5QrCodeRef = useRef(null);
   const isProcessingRef = useRef(false);
-
 
   useEffect(() => {
     fetchInventoryStats();
@@ -30,7 +27,6 @@ const WarehouseManagerScanner = () => {
     };
   }, []);
 
-
   useEffect(() => {
     if (isScanning) {
       startCameraScanning();
@@ -39,17 +35,15 @@ const WarehouseManagerScanner = () => {
     }
   }, [isScanning]);
 
-
   const vibrate = (pattern = [100]) => {
     try {
       if ('vibrate' in navigator) {
         navigator.vibrate(pattern);
       }
     } catch (error) {
-      console.log('Vibration not supported:', error);
+
     }
   };
-
 
   const forceCleanup = async () => {
     try {
@@ -61,7 +55,7 @@ const WarehouseManagerScanner = () => {
         await html5QrCodeRef.current.clear();
       }
     } catch (error) {
-      console.log('Cleanup error:', error);
+
     } finally {
       html5QrCodeRef.current = null;
       const container = document.getElementById("qr-scanner-container");
@@ -73,11 +67,9 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-
   const getCameras = async () => {
     try {
       const devices = await Html5Qrcode.getCameras();
-      console.log('Available cameras:', devices);
       setAvailableCameras(devices);
       if (devices && devices.length > 0) {
         setCameraPermission('available');
@@ -87,7 +79,6 @@ const WarehouseManagerScanner = () => {
       setCameraPermission('denied');
     }
   };
-
 
   const getBackCamera = () => {
     if (availableCameras.length === 0) return null;
@@ -117,10 +108,8 @@ const WarehouseManagerScanner = () => {
     return backCamera;
   };
 
-
   const startCameraScanning = async () => {
     try {
-      console.log('Starting camera...');
       
       await forceCleanup();
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -130,7 +119,6 @@ const WarehouseManagerScanner = () => {
       const backCamera = getBackCamera();
       const cameraId = backCamera ? backCamera.id : { facingMode: "environment" };
       
-      console.log('Using camera:', cameraId);
       
       const config = {
         fps: 10,
@@ -155,7 +143,6 @@ const WarehouseManagerScanner = () => {
         }
       };
 
-
       await html5QrCodeRef.current.start(
         cameraId,
         config,
@@ -175,7 +162,6 @@ const WarehouseManagerScanner = () => {
         }
       );
       
-      console.log('Camera started successfully');
       setCameraPermission('granted');
       
     } catch (error) {
@@ -184,38 +170,24 @@ const WarehouseManagerScanner = () => {
       setIsScanning(false);
       vibrate([500]);
       
-      let errorMessage = 'Failed to start camera scanner';
+      let errorMessage = 'Unable to start camera. Please grant camera permission and try again.';
       
       if (error.name === 'NotAllowedError') {
-        errorMessage = 'Camera permission denied. Please allow camera access.';
+        errorMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
       } else if (error.name === 'NotFoundError') {
         errorMessage = 'No camera found on this device.';
       } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Camera is already in use by another application.';
-      } else if (error.message) {
-        errorMessage = error.message;
+        errorMessage = 'Camera is busy. Please close other apps using the camera and try again.';
       }
-
 
       Swal.fire({
         title: 'Camera Error',
-        html: `
-          <p>${errorMessage}</p>
-          <br>
-          <p><strong>Troubleshooting:</strong></p>
-          <ul style="text-align: left; margin: 10px 0;">
-            <li>Make sure you're using HTTPS or localhost</li>
-            <li>Grant camera permissions when prompted</li>
-            <li>Close other apps using the camera</li>
-            <li>Try refreshing the page</li>
-          </ul>
-        `,
+        text: errorMessage,
         icon: 'error',
         confirmButtonText: 'OK'
       });
     }
   };
-
 
   const stopCameraScanning = async () => {
     try {
@@ -240,7 +212,6 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-
   const fetchInventoryStats = async () => {
     try {
       const response = await axios.get(`${baseURL}/api/v1/warehouse/inventory`, { withCredentials: true });
@@ -252,54 +223,7 @@ const WarehouseManagerScanner = () => {
     }
   };
 
-
-  // ✅ NEW: Fetch QR by ID
-  const handleFetchQRById = async () => {
-    if (!qrIdInput.trim()) {
-      Swal.fire('Error', 'Please enter a QR ID', 'error');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      vibrate([50]);
-
-      console.log(`[FETCH_QR] Fetching QR by ID: ${qrIdInput}`);
-
-      const response = await axios.get(
-        `${baseURL}/api/v1/warehouse/qr/${qrIdInput.trim()}`,
-        { withCredentials: true }
-      );
-
-      console.log('[FETCH_QR] Response:', response.data);
-
-      if (response.data.result) {
-        const qrData = response.data.data;
-        console.log('[FETCH_QR] QR Data received:', qrData);
-        
-        // Process the QR data as if it was scanned
-        await handleScanSuccess(JSON.stringify(qrData));
-        
-        // Clear input
-        setQrIdInput('');
-      } else {
-        throw new Error(response.data.message || 'Failed to fetch QR code');
-      }
-
-    } catch (error) {
-      console.error('[FETCH_QR] Error:', error);
-      vibrate([300]);
-      
-      const msg = error.response?.data?.message || error.message || 'Failed to fetch QR code';
-      Swal.fire('Error', msg, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
   const handleScanSuccess = async (decodedText) => {
-    console.log('[SCAN] Decoded text:', decodedText);
     
     if (isScanning) {
       setIsScanning(false);
@@ -317,14 +241,9 @@ const WarehouseManagerScanner = () => {
             qrData = JSON.parse(trimmed);
           } else {
             vibrate([300, 100, 300]);
-            
             Swal.fire({
               title: 'Invalid QR Code',
-              html: `
-                <p>This QR code doesn't contain JSON data.</p>
-                <p><strong>Content found:</strong></p>
-                <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
-              `,
+              text: 'Please try scanning again. Make sure you are scanning a valid carton QR code.',
               icon: 'warning',
               confirmButtonText: 'OK'
             });
@@ -335,17 +254,15 @@ const WarehouseManagerScanner = () => {
         }
       } catch (jsonError) {
         vibrate([300, 100, 300]);
-        Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error');
+        Swal.fire('Invalid QR Code', 'Please try scanning again.', 'error');
         return;
       }
-
 
       if (!qrData || typeof qrData !== 'object') {
         vibrate([300, 100, 300]);
-        Swal.fire('Invalid QR Data', 'QR code does not contain valid data', 'error');
+        Swal.fire('Invalid QR Code', 'Please try scanning again.', 'error');
         return;
       }
-
 
       const uniqueId = qrData.uniqueId || null;
       const articleId = qrData.contractorInput?.articleId || qrData.productReference?.articleId;
@@ -354,15 +271,13 @@ const WarehouseManagerScanner = () => {
         || qrData.productReference?.articleName 
         || null;
 
-      console.log('[SCAN] Extracted:', { uniqueId, articleId, articleName });
-
 
       const shouldProceed = await new Promise((resolve) => {
         setScannedItems((currentItems) => {
           const alreadyScanned = currentItems.find((item) => item.uniqueId === uniqueId);
           if (alreadyScanned) {
             vibrate([100, 50, 100, 50, 100]);
-            Swal.fire('Warning', 'This carton has already been received!', 'warning');
+            Swal.fire('Already Scanned', 'This carton has already been received!', 'warning');
             resolve(false);
             return currentItems;
           }
@@ -371,25 +286,15 @@ const WarehouseManagerScanner = () => {
         });
       });
 
-
       if (!shouldProceed) {
         return;
       }
 
-
       if (!uniqueId || !articleName) {
         vibrate([300, 100, 300]);
-        
         Swal.fire({
-          title: 'Invalid QR Code Data',
-          html: `
-            <p>QR code is missing required information:</p>
-            <ul style="text-align: left; margin: 10px 0;">
-              <li>Unique ID: ${uniqueId ? '✅' : '❌ Missing'}</li>
-              <li>Article ID: ${articleId ? '✅' : '❌ Missing'}</li>
-              <li>Article Name: ${articleName ? '✅' : '❌ Missing'}</li>
-            </ul>
-          `,
+          title: 'Invalid QR Code',
+          text: 'QR code is missing required information. Please try scanning again.',
           icon: 'error',
           confirmButtonText: 'OK'
         });
@@ -398,11 +303,6 @@ const WarehouseManagerScanner = () => {
       
       const qualityCheck = await checkItemQuality(qrData);
 
-      console.log('[SCAN] Sending to backend:', {
-        url: `${baseURL}/api/v1/warehouse/scan/${uniqueId}`,
-        articleId,
-        articleName
-      });
 
       const response = await axios.post(
         `${baseURL}/api/v1/warehouse/scan/${uniqueId}`,
@@ -416,13 +316,11 @@ const WarehouseManagerScanner = () => {
         { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
       );
 
-      console.log('[SCAN] Backend response:', response.data);
 
       if (response.data.result) {
         const colors = qrData.contractorInput?.colors || qrData.colors || ['Not specified'];
         const sizes = qrData.contractorInput?.sizes || qrData.sizes || [];
         const cartonNumber = qrData.contractorInput?.cartonNumber || qrData.cartonNumber || 'N/A';
-
 
         const newItem = {
           uniqueId: uniqueId,
@@ -436,7 +334,6 @@ const WarehouseManagerScanner = () => {
           qualityNotes: qualityCheck.notes || ''
         };
 
-
         setScannedItems((prev) => [...prev, newItem]);
         setInventoryStats((prev) => ({
           ...prev,
@@ -444,9 +341,7 @@ const WarehouseManagerScanner = () => {
           todayReceived: prev.todayReceived + 1
         }));
 
-
         vibrate([100, 50, 100, 50, 200]);
-
 
         const qualityEmoji = qualityCheck.passed ? '✅' : '⚠️';
         
@@ -467,7 +362,6 @@ const WarehouseManagerScanner = () => {
       vibrate([500, 200, 500]);
       
       console.error('[SCAN] Error:', error);
-      console.error('[SCAN] Error response:', error.response?.data);
       
       const msg = error.response?.data?.message || error.message || 'Failed to process scan';
       
@@ -482,11 +376,7 @@ const WarehouseManagerScanner = () => {
         Swal.fire({
           icon: 'error',
           title: 'Scan Failed',
-          html: `
-            <p><strong>Error:</strong> ${msg}</p>
-            <br>
-            <p style="font-size: 12px; color: #666;">Check the browser console for detailed logs</p>
-          `,
+          text: 'Unable to process the scan. Please try again.',
           confirmButtonText: 'OK'
         });
       }
@@ -494,7 +384,6 @@ const WarehouseManagerScanner = () => {
       isProcessingRef.current = false;
     }
   };
-
 
   const formatSizeRange = (sizes) => {
     if (!sizes || sizes.length === 0) return 'N/A';
@@ -505,21 +394,17 @@ const WarehouseManagerScanner = () => {
     return `${sortedSizes[0]}X${sortedSizes[sortedSizes.length - 1]}`;
   };
 
-
   const checkItemQuality = async (qrData) => {
     const articleName = qrData.articleName || qrData.contractorInput?.articleName || 'Unknown Article';
     const colors = qrData.contractorInput?.colors || qrData.colors || [];
     const sizes = qrData.contractorInput?.sizes || qrData.sizes || [];
     const cartonNumber = qrData.contractorInput?.cartonNumber || qrData.cartonNumber || 'N/A';
 
-
     const colorsDisplay = Array.isArray(colors) && colors.length > 0 
       ? colors.join(', ') 
       : (typeof colors === 'string' ? colors : 'N/A');
 
-
     const sizesDisplay = formatSizeRange(sizes);
-
 
     const result = await Swal.fire({
       title: 'Confirm Receipt',
@@ -555,7 +440,6 @@ const WarehouseManagerScanner = () => {
       allowOutsideClick: false
     });
 
-
     if (result.isConfirmed) {
       return { 
         passed: true, 
@@ -566,19 +450,16 @@ const WarehouseManagerScanner = () => {
     throw new Error('Receipt cancelled');
   };
 
-
   const startScanning = () => {
     vibrate([50]);
     setIsScanning(true);
   };
-
 
   const stopScanning = async () => {
     vibrate([100]);
     await forceCleanup();
     setIsScanning(false);
   };
-
 
   const exportInventoryReport = async () => {
     try {
@@ -632,7 +513,6 @@ SUMMARY:
     }
   };
 
-
   const removeScannedItem = (uniqueId) => {
     vibrate([100]);
     setScannedItems((prev) => prev.filter((item) => item.uniqueId !== uniqueId));
@@ -642,7 +522,6 @@ SUMMARY:
       todayReceived: Math.max(0, prev.todayReceived - 1)
     }));
   };
-
 
   const handleLogout = async () => {
     try {
@@ -655,7 +534,6 @@ SUMMARY:
         cancelButtonText: 'Cancel',
         confirmButtonColor: '#d33',
       });
-
 
       if (result.isConfirmed) {
         vibrate([100, 100, 100]);
@@ -683,7 +561,6 @@ SUMMARY:
       });
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -731,46 +608,12 @@ SUMMARY:
           </div>
         </div>
 
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Panel - Scanner */}
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 sm:mb-0">📱 QR Scanner</h2>
             </div>
-
-            {/* ✅ NEW: Upload ID Section */}
-            <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center mb-2">
-                <span className="text-blue-600 font-semibold mr-2">🆔 Test Mode:</span>
-                <span className="text-sm text-gray-600">Enter MongoDB ID</span>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={qrIdInput}
-                  onChange={(e) => setQrIdInput(e.target.value)}
-                  placeholder="Paste QR ID (e.g., 6939e869ea3c80ca4a042c66)"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleFetchQRById();
-                    }
-                  }}
-                />
-                <button
-                  onClick={handleFetchQRById}
-                  disabled={loading || !qrIdInput.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 font-medium disabled:bg-blue-400 disabled:cursor-not-allowed"
-                >
-                  {loading ? '⏳' : '🔍'}
-                </button>
-              </div>
-              <div className="text-xs text-gray-500 mt-2">
-                💡 For testing: Copy QR ID from MongoDB and paste here
-              </div>
-            </div>
-
 
             <div className="mb-4">
               {!isScanning ? (
@@ -790,7 +633,6 @@ SUMMARY:
               )}
             </div>
 
-
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] sm:min-h-[400px] flex items-center justify-center bg-black">
               {isScanning ? (
                 <div id="qr-scanner-container" className="w-full h-full"></div>
@@ -799,16 +641,15 @@ SUMMARY:
                   <div className="text-4xl sm:text-6xl mb-4">📦</div>
                   <p className="text-white">Scanner ready for carton receipt</p>
                   <p className="text-sm text-gray-300 mt-2">
-                    Use camera or enter ID above for testing
+                    Click "Start Camera Scanner" to begin
                   </p>
                   <p className="text-xs text-gray-400 mt-2">
-                    📱 Mobile • 🖥️ Desktop Testing • 📳 Vibration feedback
+                    📱 Mobile • 🖥️ Desktop • 📳 Vibration feedback
                   </p>
                 </div>
               )}
             </div>
           </div>
-
 
           {/* Right Panel - Received Items */}
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
@@ -827,7 +668,6 @@ SUMMARY:
                 )}
               </div>
             </div>
-
 
             <div className="space-y-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
               {scannedItems.length === 0 ? (
@@ -875,6 +715,5 @@ SUMMARY:
     </div>
   );
 };
-
 
 export default WarehouseManagerScanner;
