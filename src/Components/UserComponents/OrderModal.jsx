@@ -1,307 +1,444 @@
-import { useState } from "react"; 
-import { useFormik } from "formik"; 
-import Swal from "sweetalert2"; 
-import { FaChevronDown, FaChevronUp } from "react-icons/fa"; 
-import { useDispatch, useSelector } from "react-redux"; 
-import { addItem, dealGrasped, updateItem } from "../../Slice/CartSlice"; 
+import { useState, useEffect } from "react";
+import axios from "axios";
+import Swal from "sweetalert2";
+import { useDispatch, useSelector } from "react-redux"; // ✅ Added useSelector
+import { addItem } from "../../Slice/CartSlice";
+import { baseURL } from "../../Utils/URLS";
 
-const OrderModal = ({ setPlaceOrderModal, selectedProductDetails, clearSearch }) => { 
-  const [selectedSizes, setSelectedSizes] = useState([]); 
-  const [selectedColors, setSelectedColors] = useState([]); 
-  const [colorInput, setColorInput] = useState(""); 
-  const [showDropdown, setShowDropdown] = useState(""); 
+const OrderModal = ({ setPlaceOrderModal, selectedProductDetails, clearSearch }) => {
+  const [selectedColors, setSelectedColors] = useState([]);
+  const [selectedSizes, setSelectedSizes] = useState([]);
+  const [quantity, setQuantity] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  const dispatch = useDispatch();
+  const cartItems = useSelector((state) => state.cart.items); // ✅ Get cart items
+  
+  // Inventory state
+  const [inventoryData, setInventoryData] = useState(null);
+  const [loadingInventory, setLoadingInventory] = useState(true);
+  const [inventoryError, setInventoryError] = useState(null);
 
-  const dispatch = useDispatch(); 
-  const cartItems = useSelector((Store) => Store.cart.items);
+  // Fetch real-time inventory data (only for colors and sizes)
+  useEffect(() => {
+    const fetchInventory = async () => {
+      const articleId = selectedProductDetails?.product?._id;
+      
+      if (!articleId) {
+        setInventoryError("Product ID not available");
+        setLoadingInventory(false);
+        return;
+      }
 
-  const minCartonsForDeal = selectedProductDetails?.product?.deal?.minQuantity || null; 
-  const reward = selectedProductDetails?.product?.deal?.reward || null; 
+      try {
+        setLoadingInventory(true);
+        setInventoryError(null);
 
-  const formik = useFormik({ 
-    initialValues: { quantity: "" }, 
-    onSubmit: (values, action) => { 
-      const sortedSizes = selectedSizes.sort((a, b) => a - b); 
-      const finalSizes = selectedSizes.length > 0 
-        ? sortedSizes[0] + "X" + sortedSizes[sortedSizes.length - 1]
-        : ""; 
-      const finalPrice = selectedProductDetails.product.price * values.quantity; 
-      const isDealClaimed = 
-        selectedProductDetails.product.indeal && 
-        values.quantity >= minCartonsForDeal; 
+        console.log('[ORDERMODAL] Fetching inventory for article ID:', articleId);
 
-      const data = { 
-        productid: selectedProductDetails.product._id, 
-        articlename: selectedProductDetails.product.name, 
-        variant: selectedProductDetails.variant, 
-        segment: selectedProductDetails.segment, 
-        productImg: selectedProductDetails.product.images[0], 
-        quantity: parseInt(values.quantity), 
-        colors: selectedColors, 
-        sizes: finalSizes, 
-        price: finalPrice, 
-        singlePrice: selectedProductDetails.product.price, 
-        indeal: selectedProductDetails.product.indeal, 
-        ...(isDealClaimed && { 
-          dealReward: reward, 
-          dealClaimed: true, 
-        }), 
-        allColorsAvailable: selectedProductDetails.product.allColorsAvailable,
-        availableSizes: selectedProductDetails.product.sizes || [],
-        availableColors: selectedProductDetails.product.colors || [], 
-      }; 
+        const response = await axios.get(
+          `${baseURL}/api/v1/distributor/article-details/${articleId}`,
+          { withCredentials: true }
+        );
 
-      // Check if item already exists in cart
-      const existingItemIndex = cartItems.findIndex(
-        item => item.productid === data.productid &&
-                item.variant === data.variant &&
-                item.segment === data.segment &&
-                JSON.stringify(item.colors) === JSON.stringify(data.colors) &&
-                item.sizes === data.sizes
+        console.log('[ORDERMODAL] Full Response:', response.data);
+
+        if (response.data.success && response.data.data) {
+          const data = response.data.data;
+          
+          const transformedData = {
+            articleId: data.articleId,
+            articleName: data.articleName,
+            colors: (data.colors || []).filter(c => c && c !== 'N/A' && c.toLowerCase() !== 'unknown'),
+            sizes: (data.sizes || []).filter(s => s && s !== 0),
+            sizeRange: data.sizeRange || 'N/A',
+            inStock: data.colors?.length > 0 && data.sizes?.length > 0,
+          };
+
+          console.log('[ORDERMODAL] Transformed Data:', transformedData);
+          setInventoryData(transformedData);
+        } else {
+          setInventoryError("No inventory found for this article");
+        }
+      } catch (error) {
+        console.error('[ORDERMODAL] Error:', error);
+        console.error('[ORDERMODAL] Error Response:', error.response?.data);
+        
+        if (error.response?.status === 404) {
+          setInventoryError("This article is not yet added to inventory");
+        } else {
+          setInventoryError(error.response?.data?.message || "Failed to load inventory data");
+        }
+      } finally {
+        setLoadingInventory(false);
+      }
+    };
+
+    fetchInventory();
+  }, [selectedProductDetails]);
+
+  const handleColorToggle = (color) => {
+    setSelectedColors((prev) =>
+      prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]
+    );
+  };
+
+  const handleSizeToggle = (size) => {
+    setSelectedSizes((prev) =>
+      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
+    );
+  };
+
+  const handleAddToCart = () => {
+    // Validation
+    if (selectedColors.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Select Colors",
+        text: "Please select at least one color",
+      });
+      return;
+    }
+
+    if (selectedSizes.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Select Sizes",
+        text: "Please select at least one size",
+      });
+      return;
+    }
+
+    if (!quantity || quantity <= 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Enter Quantity",
+        text: "Please enter a valid quantity (minimum 1 carton)",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Format sizes like "6X10"
+      const sortedSizes = [...selectedSizes].sort((a, b) => a - b);
+      const finalSizes = sortedSizes.length > 0 
+        ? `${sortedSizes[0]}X${sortedSizes[sortedSizes.length - 1]}`
+        : "";
+
+      // Create cart item data matching your Redux structure
+      const cartItem = {
+        productid: selectedProductDetails.product._id,
+        articlename: selectedProductDetails.product.name,
+        variant: selectedProductDetails.variant,
+        segment: selectedProductDetails.segment,
+        productImg: selectedProductDetails.product.images?.[0] || null,
+        quantity: Number(quantity),
+        colors: selectedColors,
+        sizes: finalSizes,
+        // Store available options for editing later
+        availableSizes: inventoryData.sizes,
+        availableColors: inventoryData.colors,
+        allColorsAvailable: false,
+      };
+
+      // Dispatch to Redux
+      dispatch(addItem(cartItem));
+
+      // ✅ Create cart preview HTML
+      const updatedCart = [...cartItems];
+      
+      // Check if this exact item already exists
+      const existingIndex = updatedCart.findIndex(
+        (item) =>
+          item.productid === cartItem.productid &&
+          item.variant === cartItem.variant &&
+          item.segment === cartItem.segment &&
+          item.sizes === cartItem.sizes &&
+          JSON.stringify([...item.colors].sort()) === JSON.stringify([...cartItem.colors].sort())
       );
 
-      let isAddedAgain = false;
-      
-      if (existingItemIndex !== -1) {
-        // Item exists - update quantity
-        dispatch(updateItem({
-          index: existingItemIndex,
-          quantity: cartItems[existingItemIndex].quantity + data.quantity
-        }));
-        isAddedAgain = true;
+      if (existingIndex !== -1) {
+        // Update existing item quantity
+        updatedCart[existingIndex].quantity += cartItem.quantity;
       } else {
-        // New item - add to cart
-        dispatch(addItem(data));
+        // Add new item
+        updatedCart.push(cartItem);
       }
 
-      if (isDealClaimed) dispatch(dealGrasped(selectedProductDetails._id)); 
-
-      // Show Cart Preview with current items + newly added
-      const updatedCartItems = [...cartItems];
-      
-      if (existingItemIndex !== -1) {
-        updatedCartItems[existingItemIndex] = {
-          ...updatedCartItems[existingItemIndex],
-          quantity: updatedCartItems[existingItemIndex].quantity + data.quantity
-        };
-      } else {
-        updatedCartItems.push(data);
-      }
-
-      const cartPreviewHTML = `
-        <div class="text-left max-h-96 overflow-y-auto px-2">
-          <h3 class="text-base md:text-lg font-bold mb-3 sticky top-0 bg-white pb-2 flex items-center justify-between border-b">
-            <span>Cart Items (${updatedCartItems.length})</span>
-            ${isAddedAgain 
-              ? '<span class="text-xs md:text-sm text-orange-600 font-semibold bg-orange-50 px-2 py-1 rounded">⟳ Updated</span>' 
-              : '<span class="text-xs md:text-sm text-green-600 font-semibold bg-green-50 px-2 py-1 rounded">✓ Added</span>'}
-          </h3>
-          <div class="space-y-2">
-            ${updatedCartItems.map(item => `
-              <div class="flex items-center gap-2 md:gap-3 p-2 bg-gray-50 rounded-lg border-2 ${
-                item.productid === data.productid && 
-                item.variant === data.variant && 
-                item.sizes === data.sizes 
-                  ? 'border-indigo-400 bg-indigo-50' 
-                  : 'border-gray-200'
-              }">
-                <img src="${item.productImg}" alt="${item.articlename}" class="w-12 h-12 md:w-14 md:h-14 object-cover rounded-md flex-shrink-0" />
-                <div class="flex-1 min-w-0">
-                  <p class="text-xs md:text-sm font-semibold capitalize text-gray-800 truncate">${item.articlename}</p>
-                  <p class="text-10px md:text-xs text-gray-600 capitalize truncate">${item.variant} - ${item.segment}</p>
-                  <p class="text-10px md:text-xs text-gray-600">Qty: <span class="font-medium text-indigo-600">${item.quantity}</span></p>
-                  ${item.sizes ? `<p class="text-10px md:text-xs text-gray-500">Size: ${item.sizes}</p>` : ''}
-                  ${item.colors.length > 0 ? `<p class="text-10px md:text-xs text-gray-500 truncate">Colors: ${item.colors.slice(0, 3).join(', ')}${item.colors.length > 3 ? '...' : ''}</p>` : ''}
-                </div>
-                ${item.productid === data.productid && item.variant === data.variant && item.sizes === data.sizes 
-                  ? `<span class="text-xs ${isAddedAgain ? 'text-orange-600' : 'text-green-600'} font-bold flex-shrink-0">${isAddedAgain ? '⟳' : '✓'}</span>` 
-                  : ''}
-              </div>
-            `).join('')}
+      // Generate cart items HTML
+      const cartHTML = updatedCart.map((item, index) => `
+        <div style="
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 12px;
+          margin-bottom: 10px;
+          text-align: left;
+        ">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <img 
+              src="${item.productImg}" 
+              alt="${item.articlename}"
+              style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb;"
+            />
+            <div style="flex: 1;">
+              <p style="margin: 0; font-weight: 600; color: #1f2937; font-size: 14px; text-transform: capitalize;">
+                ${item.articlename}
+              </p>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b7280;">
+                <span style="font-weight: 500;">Qty:</span> ${item.quantity} cartons
+              </p>
+              <p style="margin: 2px 0 0 0; font-size: 12px; color: #6b7280;">
+                <span style="font-weight: 500;">Size:</span> ${item.sizes}
+              </p>
+              <p style="margin: 2px 0 0 0; font-size: 12px; color: #6b7280; text-transform: capitalize;">
+                <span style="font-weight: 500;">Colors:</span> ${item.colors.join(', ')}
+              </p>
+            </div>
           </div>
         </div>
-      `;
+      `).join('');
 
-      Swal.fire({ 
-        title: isAddedAgain ? "Quantity Updated!" : "Added to Cart!",
-        html: cartPreviewHTML,
+      // Show success alert with cart preview
+      Swal.fire({
         icon: "success",
+        title: "✅ Added to Cart!",
+        html: `
+          <div style="text-align: left; max-height: 400px; overflow-y: auto; margin-top: 20px;">
+            <p style="margin: 0 0 16px 0; font-weight: 600; color: #4b5563; font-size: 14px;">
+              🛒 Your Cart (${updatedCart.length} ${updatedCart.length === 1 ? 'item' : 'items'}):
+            </p>
+            ${cartHTML}
+          </div>
+        `,
         confirmButtonText: "OK",
-        confirmButtonColor: "#4F46E5",
-        width: '90%',
-        maxWidth: '500px'
-      }); 
+        confirmButtonColor: "#4f46e5",
+        customClass: {
+          popup: 'swal-wide',
+          htmlContainer: 'swal-cart-container'
+        },
+        didOpen: () => {
+          // Add custom CSS for better scrolling
+          const style = document.createElement('style');
+          style.innerHTML = `
+            .swal-wide {
+              width: 600px !important;
+              max-width: 90% !important;
+            }
+            .swal-cart-container {
+              padding: 0 10px;
+            }
+            .swal-cart-container::-webkit-scrollbar {
+              width: 6px;
+            }
+            .swal-cart-container::-webkit-scrollbar-track {
+              background: #f1f1f1;
+              border-radius: 10px;
+            }
+            .swal-cart-container::-webkit-scrollbar-thumb {
+              background: #888;
+              border-radius: 10px;
+            }
+            .swal-cart-container::-webkit-scrollbar-thumb:hover {
+              background: #555;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Reset form and close modal
+          setSelectedColors([]);
+          setSelectedSizes([]);
+          setQuantity("");
+          setPlaceOrderModal(false);
+          
+          if (clearSearch) {
+            clearSearch();
+          }
+        }
+      });
 
-      // Clear search after adding to cart
-      if (clearSearch) {
-        clearSearch();
-      }
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Add",
+        text: "Please try again",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      action.resetForm(); 
-      setSelectedColors([]); 
-      setSelectedSizes([]); 
-      setColorInput("");
-      setPlaceOrderModal(false); 
-    }, 
-  }); 
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-2 md:p-4">
+      <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-md md:max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200">
+        {/* Header */}
+        <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 md:p-6 rounded-t-xl md:rounded-t-2xl shadow-lg z-10">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-white">
+                {selectedProductDetails?.variant}
+              </h2>
+              <p className="text-xs md:text-sm text-indigo-100 mt-1">
+                {selectedProductDetails?.product?.name} • {selectedProductDetails?.segment}
+              </p>
+            </div>
+            <button
+              onClick={() => setPlaceOrderModal(false)}
+              className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
 
-  const handleColorInputChange = (e) => { 
-    const value = e.target.value; 
-    setColorInput(value); 
-    setSelectedColors( 
-      value.split(",").map((c) => c.trim()).filter(Boolean) 
-    ); 
-  }; 
+        {/* Content */}
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+          {loadingInventory ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+              <p className="text-gray-600 text-sm md:text-base">Loading inventory data...</p>
+            </div>
+          ) : inventoryError ? (
+            <div className="bg-red-50 border border-red-300 rounded-lg p-4 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-red-700 font-semibold text-sm md:text-base">This Article Is Not In Stock</p>
+            </div>
+          ) : !inventoryData?.inStock ? (
+            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-yellow-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <p className="text-yellow-700 font-semibold text-sm md:text-base">No Colors or Sizes Available</p>
+              <p className="text-yellow-600 text-xs md:text-sm mt-2">This article needs inventory configuration</p>
+            </div>
+          ) : (
+            <>
+              {/* Info Banner */}
+              <div className="bg-blue-50 border border-blue-300 rounded-lg p-3 flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-blue-800 font-semibold text-sm md:text-base">Available Options</p>
+                  <p className="text-blue-700 text-xs md:text-sm">
+                    {inventoryData.colors.length} colors • {inventoryData.sizes.length} sizes
+                  </p>
+                </div>
+              </div>
 
-  const handleColorKeyDown = (e) => { 
-    if (e.key === " ") { 
-      e.preventDefault(); 
-      const newValue = colorInput.trim() + ", "; 
-      setColorInput(newValue); 
-      setSelectedColors( 
-        newValue.split(",").map((c) => c.trim()).filter(Boolean) 
-      ); 
-    } 
-  }; 
+              {/* Colors Section */}
+              <div>
+                <label className="block text-sm md:text-base font-semibold text-gray-800 mb-2 md:mb-3">
+                  Select Colors
+                  <span className="text-xs font-normal text-gray-500 ml-2">
+                    ({selectedColors.length} selected)
+                  </span>
+                </label>
+                {inventoryData.colors.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic bg-gray-100 p-3 rounded-lg border border-gray-200">No colors available in inventory</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {inventoryData.colors.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => handleColorToggle(color)}
+                        className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium capitalize transition-all ${
+                          selectedColors.includes(color)
+                            ? "bg-indigo-600 text-white shadow-md scale-105 ring-2 ring-indigo-300"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105 border border-gray-300"
+                        }`}
+                      >
+                        {color}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-  return ( 
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-800/50 z-50 p-4"> 
-      <div className="bg-gray-100 w-full max-w-md p-6 rounded-lg shadow-lg max-h-[90vh] overflow-y-auto"> 
-        <h2 className="text-lg font-semibold mb-2">Place Your Order</h2> 
-        <form onSubmit={formik.handleSubmit}> 
-          {/* Carton Quantity */} 
-          <label className="block"> 
-            <span className="font-medium">Cartons:</span> 
-            <input 
-              type="number" 
-              min="1" 
-              name="quantity" 
-              onChange={formik.handleChange} 
-              value={formik.values.quantity} 
-              placeholder="Enter no. of cartons" 
-              className="w-full mt-1 p-2 border rounded outline-none focus:ring-2 focus:ring-indigo-500" 
-              required
-            /> 
-          </label> 
+              {/* Sizes Section */}
+              <div>
+                <label className="block text-sm md:text-base font-semibold text-gray-800 mb-2 md:mb-3">
+                  Select Sizes
+                  <span className="text-xs font-normal text-gray-500 ml-2">
+                    ({selectedSizes.length} selected) • Range: {inventoryData.sizeRange}
+                  </span>
+                </label>
+                {inventoryData.sizes.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic bg-gray-100 p-3 rounded-lg border border-gray-200">No sizes available in inventory</p>
+                ) : (
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                    {inventoryData.sizes.map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => handleSizeToggle(size)}
+                        className={`px-2 md:px-3 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+                          selectedSizes.includes(size)
+                            ? "bg-indigo-600 text-white shadow-md scale-105 ring-2 ring-indigo-300"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105 border border-gray-300"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-          {/* Deal Notice */} 
-          {minCartonsForDeal && ( 
-            <p className="text-sm mt-2 font-medium capitalize"> 
-              {formik.values.quantity >= minCartonsForDeal ? ( 
-                <span className="text-green-600"> 
-                  🎉 You will get *{reward}* on your purchase! 
-                </span> 
-              ) : ( 
-                <span className="text-blue-600 capitalize"> 
-                  📢 Add *{minCartonsForDeal - formik.values.quantity}* more cartons for a free *{reward}!* 
-                </span> 
-              )} 
-            </p> 
-          )} 
+              {/* Quantity Section - No Max Limit */}
+              <div>
+                <label className="block text-sm md:text-base font-semibold text-gray-800 mb-2 md:mb-3">
+                  Quantity (Cartons)
+                </label>
+                <input
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  min="1"
+                  placeholder="Enter number of cartons"
+                  className="w-full px-3 md:px-4 py-2 md:py-3 bg-white border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-sm md:text-base text-gray-900 placeholder-gray-400"
+                />
+                <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Enter any quantity - no limit
+                </p>
+              </div>
 
-          {/* Sizes Dropdown - ALWAYS SHOW */} 
-          <label className="block mt-4 relative"> 
-            <span className="font-medium">Sizes: <span className="text-red-500">*</span></span> 
-            <div 
-              className="w-full mt-1 p-2 border rounded outline-none cursor-pointer flex items-center justify-between bg-white" 
-              onClick={() => setShowDropdown(showDropdown === "sizes" ? "" : "sizes")} 
-            > 
-              {selectedSizes.length > 0 ? selectedSizes.join(", ") : "Select sizes"} 
-              {showDropdown === "sizes" ? <FaChevronUp /> : <FaChevronDown />} 
-            </div> 
-
-            {showDropdown === "sizes" && ( 
-              <div className="absolute left-0 right-0 mt-1 bg-white shadow-lg rounded border max-h-40 overflow-y-auto z-50"> 
-                {selectedProductDetails.product.sizes.map((size, index) => ( 
-                  <div 
-                    key={index} 
-                    className={`p-2 cursor-pointer hover:bg-gray-200 ${selectedSizes.includes(size) ? "bg-indigo-200" : ""}`} 
-                    onClick={() => { 
-                      setSelectedSizes((prev) => 
-                        prev.includes(size) 
-                          ? prev.filter((s) => s !== size) 
-                          : [...prev, size] 
-                      ); 
-                    }} 
-                  > 
-                    {size} 
-                  </div> 
-                ))} 
-              </div> 
-            )} 
-          </label> 
-
-          {/* Colors: Input vs Dropdown - ALWAYS SHOW */} 
-          <label className="block mt-4 relative"> 
-            <span className="font-medium">Colors: <span className="text-red-500">*</span></span> 
-
-            {selectedProductDetails.product.allColorsAvailable ? ( 
-              <> 
-                <input 
-                  type="text" 
-                  placeholder="Enter colors (comma separated)" 
-                  value={colorInput} 
-                  onChange={handleColorInputChange} 
-                  onKeyDown={handleColorKeyDown} 
-                  className="w-full mt-1 p-2 border rounded bg-white outline-none focus:ring-2 focus:ring-indigo-500" 
-                  required
-                /> 
-                <p className="text-sm text-gray-600 mt-2"> 
-                  Available colors: <span className="font-medium">All Colors</span> 
-                </p> 
-              </> 
-            ) : ( 
-              <> 
-                <div 
-                  className="w-full mt-1 p-2 border rounded outline-none cursor-pointer flex items-center justify-between bg-white" 
-                  onClick={() => setShowDropdown(showDropdown === "colors" ? "" : "colors")} 
-                > 
-                  {selectedColors.length > 0 ? selectedColors.join(", ") : "Select colors"} 
-                  {showDropdown === "colors" ? <FaChevronUp /> : <FaChevronDown />} 
-                </div> 
-
-                {showDropdown === "colors" && ( 
-                  <div className="absolute left-0 right-0 mt-1 bg-white shadow-lg rounded border max-h-40 overflow-y-auto z-50 capitalize"> 
-                    {selectedProductDetails.product.colors.map((color, index) => ( 
-                      <div 
-                        key={index}
-                        className={`p-2 cursor-pointer hover:bg-gray-200 ${selectedColors.includes(color) ? "bg-indigo-200" : ""}`} 
-                        onClick={() => { 
-                          setSelectedColors((prev) => 
-                            prev.includes(color) 
-                              ? prev.filter((c) => c !== color) 
-                              : [...prev, color] 
-                          ); 
-                        }} 
-                      > 
-                        {color} 
-                      </div> 
-                    ))} 
-                  </div> 
-                )} 
-              </> 
-            )} 
-          </label> 
-
-          {/* Buttons */} 
-          <div className="flex justify-end gap-3 mt-6"> 
-            <button 
-              type="button" 
-              onClick={() => setPlaceOrderModal(false)} 
-              className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-all duration-300" 
-            > 
-              Cancel 
-            </button> 
-            <button 
-              type="submit" 
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-300" 
-            > 
-              Add to Cart 
-            </button> 
-          </div> 
-        </form> 
-      </div> 
-    </div> 
-  ); 
-}; 
+              {/* Add to Cart Button */}
+              <button
+                onClick={handleAddToCart}
+                disabled={loading || !inventoryData.inStock || inventoryData.colors.length === 0 || inventoryData.sizes.length === 0}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-3 md:py-4 rounded-lg font-bold text-sm md:text-base shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 disabled:from-gray-400 disabled:to-gray-400"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Adding to Cart...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Add to Cart
+                  </span>
+                )}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default OrderModal;

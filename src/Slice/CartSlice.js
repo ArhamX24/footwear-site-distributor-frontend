@@ -5,52 +5,74 @@ const CartSlice = createSlice({
   initialState: {
     items: [],
     totalItems: 0,
-    totalPrice: 0,
     dealGrasped: [],
   },
   reducers: {
     addItem: (state, action) => {
-      let product = action.payload;
-      state.items.push(product);
-      state.totalPrice += product.price;
-      state.totalItems += 1;
+      const newProduct = action.payload;
+      
+      const existingItemIndex = state.items.findIndex(
+        (item) =>
+          item.productid === newProduct.productid &&
+          item.variant === newProduct.variant &&
+          item.segment === newProduct.segment &&
+          item.sizes === newProduct.sizes &&
+          JSON.stringify([...item.colors].sort()) === JSON.stringify([...newProduct.colors].sort())
+      );
+
+      if (existingItemIndex !== -1) {
+        state.items[existingItemIndex].quantity += newProduct.quantity;
+      } else {
+        state.items.push(newProduct);
+      }
+      
+      state.totalItems = state.items.length;
     },
+    
     updateItem: (state, action) => {
       const { index, quantity, colors, sizes } = action.payload;
       if (state.items[index]) {
-        // Update quantity
         if (quantity !== undefined) {
-          const oldQuantity = state.items[index].quantity;
           state.items[index].quantity = quantity;
-          // Recalculate price
-          state.items[index].price = state.items[index].singlePrice * quantity;
-          // Update total price
-          const priceDiff = (quantity - oldQuantity) * state.items[index].singlePrice;
-          state.totalPrice += priceDiff;
         }
-        // Update colors if provided
         if (colors !== undefined) {
           state.items[index].colors = colors;
         }
-        // Update sizes if provided
         if (sizes !== undefined) {
           state.items[index].sizes = sizes;
         }
+        
+        state.totalItems = state.items.length;
       }
     },
+    
     clearCart: (state) => {
       state.items = [];
       state.totalItems = 0;
-      state.totalPrice = 0;
     },
+    
     removeItem: (state, action) => {
-      let product = action.payload;
-      state.items = state.items.filter((item) => item.productid !== product.productid);
-      state.totalPrice -= product.price;
-      state.totalItems -= 1;
+      const product = action.payload;
+      
+      // ✅ FIX: Use array index to remove specific item
+      state.items = state.items.filter((item, index) => {
+        // Match exact item including colors and sizes
+        const isMatch = 
+          item.productid === product.productid &&
+          item.variant === product.variant &&
+          item.segment === product.segment &&
+          item.sizes === product.sizes &&
+          JSON.stringify([...item.colors].sort()) === JSON.stringify([...product.colors].sort());
+        
+        // Return true to KEEP the item, false to REMOVE it
+        return !isMatch;
+      });
+      
+      state.totalItems = state.items.length;
     },
+    
     dealGrasped: (state, action) => {
-      let productId = action.payload;
+      const productId = action.payload;
       state.dealGrasped.push(productId);
     },
   },

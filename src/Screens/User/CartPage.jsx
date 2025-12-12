@@ -350,6 +350,47 @@ const CartPage = () => {
     });
   };
 
+  // ✅ NEW: Delete with confirmation
+  const handleDeleteItem = (item) => {
+    Swal.fire({
+      title: 'Remove Item?',
+      html: `
+        <div style="text-align: left; margin-top: 10px;">
+          <p style="margin: 0; font-weight: 600; color: #1f2937; text-transform: capitalize;">
+            ${item.articlename}
+          </p>
+          <p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;">
+            <span style="font-weight: 500;">Quantity:</span> ${item.quantity} cartons
+          </p>
+          <p style="margin: 2px 0 0 0; font-size: 14px; color: #6b7280;">
+            <span style="font-weight: 500;">Size:</span> ${item.sizes}
+          </p>
+          <p style="margin: 2px 0 0 0; font-size: 14px; color: #6b7280; text-transform: capitalize;">
+            <span style="font-weight: 500;">Colors:</span> ${item.colors.join(', ')}
+          </p>
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, remove it!',
+      cancelButtonText: 'Cancel'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        dispatch(removeItem(item));
+        
+        Swal.fire({
+          title: 'Removed!',
+          text: 'Item has been removed from cart.',
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+    });
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto p-4 min-h-screen">
       <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">Your Cart</h2>
@@ -367,7 +408,7 @@ const CartPage = () => {
           {cart.map((item, index) => {
             return (
               <div
-                key={index}
+                key={`${item.productid}-${item.variant}-${item.sizes}-${item.colors.join('-')}-${index}`}
                 className="flex items-center gap-3 p-3 md:p-4 bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow"
               >
                 {/* Product Image */}
@@ -383,6 +424,11 @@ const CartPage = () => {
                   <h3 className="text-sm md:text-base font-semibold text-gray-800 capitalize truncate mb-2">
                     {item.articlename || "No Name Provided"}
                   </h3>
+                  
+                  {/* Variant & Segment */}
+                  <p className="text-xs md:text-sm text-gray-600 mb-1">
+                    <span className="capitalize">{item.segment}</span>
+                  </p>
                   
                   {/* Size */}
                   <p className="text-xs md:text-sm text-gray-600 mb-1">
@@ -404,7 +450,6 @@ const CartPage = () => {
                     <p className="text-lg md:text-xl font-bold text-indigo-600">
                       {item.quantity}
                     </p>
-                    <p className="text-xs text-gray-500">cartons</p>
                   </div>
                 </div>
 
@@ -418,7 +463,7 @@ const CartPage = () => {
                     <FaEdit size={16} />
                   </button>
                   <button
-                    onClick={() => dispatch(removeItem(item))}
+                    onClick={() => handleDeleteItem(item)} // ✅ Changed to use confirmation
                     className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
                     title="Delete"
                   >

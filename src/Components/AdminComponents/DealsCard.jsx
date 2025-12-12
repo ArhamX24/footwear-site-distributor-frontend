@@ -165,13 +165,10 @@ const DealsCard = ({ deal, setIsDeleted, setIsUpdated }) => {
       {/* Content Section */}
       <div className="p-4 space-y-3">
         {/* Article Name */}
-        <div className="space-y-1">
-          <h3 className="text-lg font-bold text-gray-900 line-clamp-1 capitalize">
-            {deal.dealType === 'segment' 
-              ? `${deal.segmentName.split(' ').map(word => 
-                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                ).join(' ')} Articles`
-              : deal?.articleName || "No Name"}
+        
+          <div className="mb-2">
+          <h3 className="text-lg font-bold text-gray-900 truncate">
+            {deal.dealName}
           </h3>
         </div>
 

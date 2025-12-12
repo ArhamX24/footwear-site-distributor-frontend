@@ -1,0 +1,40 @@
+/* Import Tailwind CSS v4 */
+@import "tailwindcss";
+
+/* ✅ Import DaisyUI plugin */
+@plugin "daisyui";
+
+/* ✅ Custom theme configuration */
+@theme {
+  /* Custom animations */
+  --animate-shimmer: shimmer 2s infinite;
+  
+  /* Custom keyframes - Note: In v4, you might need to define this differently */
+}
+
+/* ✅ Custom keyframes for shimmer animation */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Your custom styles */
+@layer base {
+  body {
+    @apply bg-gray-50;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

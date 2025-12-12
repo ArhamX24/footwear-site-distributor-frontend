@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef, useCallback } from "react"; 
-import ProductCard from "../../Components/UserComponents/ProductCard"; 
+import ProductCard, { ProductCardSkeleton } from "../../Components/UserComponents/ProductCard"; 
 import axios from "axios"; 
 import OrderModal from "../../Components/UserComponents/OrderModal"; 
 import { baseURL } from "../../Utils/URLS"; 
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+
 
 const useOutsideAlerter = (ref, callback) => { 
     useEffect(() => { 
@@ -17,6 +19,163 @@ const useOutsideAlerter = (ref, callback) => {
         }; 
     }, [ref, callback]); 
 }; 
+
+
+// ✅ Carousel Skeleton Component
+const CarouselSkeleton = () => {
+    return (
+        <div className="w-full bg-gray-200 rounded-lg shadow-md overflow-hidden mb-4 md:mb-6 lg:mb-8 h-48 sm:h-56 md:h-64 lg:h-72">
+            <div className="w-full h-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-[shimmer_2s_infinite]"></div>
+        </div>
+    );
+};
+
+
+// ✅ FIXED: Combined Deals & Festival Carousel Component
+const OffersCarousel = ({ offers }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+    const [loadedImages, setLoadedImages] = useState(new Set());
+    const [initialLoading, setInitialLoading] = useState(true);
+    const autoPlayRef = useRef(null);
+
+
+    const nextSlide = useCallback(() => {
+        setCurrentIndex((prev) => (prev + 1) % offers.length);
+    }, [offers.length]);
+
+
+    const prevSlide = () => {
+        setCurrentIndex((prev) => (prev - 1 + offers.length) % offers.length);
+    };
+
+    useEffect(() => {
+        if (isAutoPlaying && offers.length > 1) {
+            autoPlayRef.current = setInterval(nextSlide, 7000); 
+        }
+        return () => {
+            if (autoPlayRef.current) {
+                clearInterval(autoPlayRef.current);
+            }
+        };
+    }, [isAutoPlaying, offers.length, nextSlide]);
+
+
+    const handleMouseEnter = () => {
+        setIsAutoPlaying(false);
+    };
+
+
+    const handleMouseLeave = () => {
+        setIsAutoPlaying(true);
+    };
+
+    // ✅ Handle image load
+    const handleImageLoad = (index) => {
+        setLoadedImages(prev => new Set([...prev, index]));
+        if (index === 0) {
+            setInitialLoading(false);
+        }
+    };
+
+
+    if (!offers || offers.length === 0) return null;
+
+
+    return (
+        <div 
+            className="relative w-full bg-white rounded-lg shadow-md overflow-hidden mb-4 md:mb-6 lg:mb-8"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+        >
+            {/* Carousel Container */}
+            <div className="relative h-48 sm:h-56 md:h-64 lg:h-72">
+                {/* ✅ Initial Loading Skeleton (only for first image) */}
+                {initialLoading && (
+                    <div className="absolute inset-0 bg-gray-200 z-20">
+                        <div className="w-full h-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-[shimmer_2s_infinite]"></div>
+                    </div>
+                )}
+
+                {/* Images */}
+                <div className="relative w-full h-full">
+                    {offers.map((offer, index) => (
+                        <div
+                            key={`${offer._id || index}`}
+                            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                                index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                            }`}
+                        >
+                            {/* ✅ Show skeleton only for images that haven't loaded yet */}
+                            {!loadedImages.has(index) && index === currentIndex && (
+                                <div className="absolute inset-0 bg-gray-200 z-5">
+                                    <div className="w-full h-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-[shimmer_2s_infinite]"></div>
+                                </div>
+                            )}
+
+                            <img
+                                src={offer.image}
+                                alt={offer.type === 'deal' ? `Deal: ${offer.name || 'Special Offer'}` : 'Festival Offer'}
+                                className="w-full h-full object-cover"
+                                onLoad={() => handleImageLoad(index)}
+                                onError={(e) => {
+                                    e.target.src = 'https://via.placeholder.com/800x400?text=Offer+Image';
+                                    handleImageLoad(index);
+                                }}
+                                loading={index === 0 ? "eager" : "lazy"}
+                            />
+                            {/* Gradient Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                        </div>
+                    ))}
+                </div>
+
+
+                {/* Previous Button */}
+                {offers.length > 1 && (
+                    <button
+                        onClick={prevSlide}
+                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-gray-800 p-2 md:p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+                        aria-label="Previous offer"
+                    >
+                        <FaChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                )}
+
+
+                {/* Next Button */}
+                {offers.length > 1 && (
+                    <button
+                        onClick={nextSlide}
+                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-gray-800 p-2 md:p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+                        aria-label="Next offer"
+                    >
+                        <FaChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                )}
+
+                {/* ✅ Indicator Dots */}
+                {offers.length > 1 && (
+                    <div className="absolute bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-20">
+                        {offers.map((_, index) => (
+                            <button
+                                key={index}
+                                onClick={() => setCurrentIndex(index)}
+                                className={`w-2 h-2 md:w-2.5 md:h-2.5 rounded-full transition-all duration-300 ${
+                                    index === currentIndex 
+                                        ? 'bg-white w-6 md:w-8' 
+                                        : 'bg-white/50 hover:bg-white/75'
+                                }`}
+                                aria-label={`Go to slide ${index + 1}`}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 
 const ProductScreen = () => { 
     const [allProducts, setAllProducts] = useState([]); 
@@ -35,13 +194,39 @@ const ProductScreen = () => {
     const [loading, setLoading] = useState(false); 
     const [searchInput, setSearchInput] = useState("");
     const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const [offers, setOffers] = useState([]);
+    const [offersLoading, setOffersLoading] = useState(false);
     
     const dropdownRef = useRef(null); 
     const observerRef = useRef(null);
 
+
     useOutsideAlerter(dropdownRef, () => setOpenDropdown(null)); 
 
-    // Fetch products function (with filters)
+
+    // ✅ Fetch combined offers
+    const getCombinedOffers = async () => {
+        try {
+            setOffersLoading(true);
+            
+            const response = await axios.get(`${baseURL}/api/v1/distributor/offers/all`);
+
+            if (response.data.result && response.data.data) {
+                console.log("✅ Offers fetched:", response.data.data);
+                setOffers(response.data.data);
+            } else {
+                console.log("⚠️ No offers found");
+                setOffers([]);
+            }
+        } catch (error) {
+            console.error("❌ Error fetching offers:", error);
+            setOffers([]);
+        } finally {
+            setOffersLoading(false);
+        }
+    };
+
+
     const getProducts = async (pageNum = 1, isLoadMore = false) => { 
         try { 
             if (pageNum === 1) {
@@ -86,7 +271,7 @@ const ProductScreen = () => {
         } 
     };
 
-    // NEW: Search products function (when search is active)
+
     const searchProducts = async (pageNum = 1, isLoadMore = false) => {
         try {
             if (pageNum === 1) {
@@ -130,7 +315,7 @@ const ProductScreen = () => {
         }
     };
 
-    // Fetch filters
+
     const getFilters = async () => { 
         try { 
             const response = await axios.get(`${baseURL}/api/v1/distributor/products/filters/get`); 
@@ -142,7 +327,7 @@ const ProductScreen = () => {
         } 
     }; 
 
-    // Fetch article details (variants) based on selected segment
+
     const getArticleDetails = async () => { 
         if (!selectedArticle) { 
             setArticleDetails([]); 
@@ -159,7 +344,7 @@ const ProductScreen = () => {
         } 
     }; 
 
-    // Toggle dropdown
+
     const toggleDropdown = (category) => { 
         if (category === "Variant" && !selectedArticle) {
             return;
@@ -167,7 +352,7 @@ const ProductScreen = () => {
         setOpenDropdown(openDropdown === category ? null : category); 
     }; 
 
-    // Handle filter changes
+
     const handleFilterChange = (filterName, selectedOption, isChecked) => { 
         setSelectedFilters((prev) => { 
             let updatedFilterNames = [...prev.filterNames]; 
@@ -224,18 +409,18 @@ const ProductScreen = () => {
         }); 
     }; 
 
-    // Handle search input change
+
     const handleSearchChange = (e) => {
         const value = e.target.value;
         setSearchInput(value);
     };
 
-    // Clear search
+
     const clearSearch = () => {
         setSearchInput("");
     };
 
-    // Infinite scroll observer
+
     const lastProductRef = useCallback((node) => {
         if (loading || isFetchingMore) return;
         if (observerRef.current) observerRef.current.disconnect();
@@ -249,23 +434,23 @@ const ProductScreen = () => {
         if (node) observerRef.current.observe(node);
     }, [loading, isFetchingMore, hasMore]);
 
-    // Initial load
+
     useEffect(() => { 
-        getFilters(); 
+        getFilters();
+        getCombinedOffers();
     }, []); 
 
-    // Fetch article details when segment changes
+
     useEffect(() => { 
         getArticleDetails(); 
     }, [selectedArticle]); 
 
-    // Fetch products when search or filters change (reset to page 1)
+
     useEffect(() => { 
         const handler = setTimeout(() => { 
             setPage(1);
             setHasMore(true);
             
-            // Use search API if search input exists, otherwise use filter API
             if (searchInput.trim()) {
                 searchProducts(1, false);
             } else {
@@ -276,10 +461,9 @@ const ProductScreen = () => {
         return () => clearTimeout(handler); 
     }, [searchInput, selectedFilters]); 
 
-    // Load more products when page changes
+
     useEffect(() => {
         if (page > 1) {
-            // Use appropriate API based on search state
             if (searchInput.trim()) {
                 searchProducts(page, true);
             } else {
@@ -287,6 +471,7 @@ const ProductScreen = () => {
             }
         }
     }, [page]);
+
 
     return ( 
         <div className="w-full bg-gray-50 min-h-screen"> 
@@ -299,7 +484,7 @@ const ProductScreen = () => {
                     /> 
                 )} 
 
-                {/* Search Bar - Mobile Optimized */}
+                {/* Search Bar */}
                 <div className="mb-4">
                     <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -328,7 +513,7 @@ const ProductScreen = () => {
                     </div>
                 </div>
 
-                {/* Filter Section - Disabled during search */}
+                {/* Filter Section */}
                 <div ref={dropdownRef} className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3 lg:gap-4 mb-4 md:mb-6 lg:mb-8 ${searchInput ? 'opacity-50 pointer-events-none' : ''}`}> 
                     {/* Segment Filter */} 
                     <div className="relative"> 
@@ -358,37 +543,6 @@ const ProductScreen = () => {
                             </div> 
                         )} 
                     </div> 
-
-                    {/* Category/Variant Filter */} 
-                    {/* <div className="relative"> 
-                        <button 
-                            onClick={() => toggleDropdown("Variant")} 
-                            disabled={!selectedArticle || !!searchInput} 
-                            className="w-full flex items-center justify-between text-left bg-white px-3 md:px-4 py-2 md:py-3 rounded-md md:rounded-lg shadow-sm border border-gray-200 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed hover:enabled:border-indigo-500 text-sm" 
-                        > 
-                            <span className="font-semibold text-gray-700 truncate"> 
-                                {selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("variant")]?.length > 0  
-                                    ? `Categories: ${selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("variant")].join(', ')}`  
-                                    : "Select Category"} 
-                            </span> 
-                            <svg className={`w-4 h-4 md:w-5 md:h-5 text-gray-500 transform transition-transform flex-shrink-0 ml-2 ${openDropdown === 'Variant' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg> 
-                        </button> 
-                        {openDropdown === "Variant" && selectedArticle && articleDetails.length > 0 && !searchInput && ( 
-                            <div className="absolute z-20 mt-2 w-full bg-white rounded-md md:rounded-lg shadow-xl border border-gray-200 p-2 max-h-60 overflow-y-auto"> 
-                                {articleDetails.map((option) => ( 
-                                    <label key={option} className="flex items-center gap-2 md:gap-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer"> 
-                                        <input 
-                                            type="checkbox" 
-                                            className="form-checkbox h-4 w-4 md:h-5 md:w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 flex-shrink-0" 
-                                            checked={selectedFilters.filterOptions[selectedFilters.filterNames.indexOf("variant")]?.includes(option.toLowerCase())} 
-                                            onChange={(e) => handleFilterChange("variant", option.toLowerCase(), e.target.checked)} 
-                                        /> 
-                                        <span className="text-gray-800 capitalize text-sm md:text-base">{option}</span> 
-                                    </label> 
-                                ))} 
-                            </div> 
-                        )} 
-                    </div>  */}
 
                     {/* Gender Filter */} 
                     <div className="relative"> 
@@ -422,12 +576,20 @@ const ProductScreen = () => {
                     </div> 
                 </div> 
 
+                {/* ✅ Offers Carousel with Skeleton */}
+                {offersLoading ? (
+                    <CarouselSkeleton />
+                ) : (
+                    offers.length > 0 && <OffersCarousel offers={offers} />
+                )}
 
-                {/* Products Section - MOBILE OPTIMIZED GRID WITH INFINITE SCROLL */} 
+                {/* ✅ Products Section with Skeleton */} 
                 {loading ? ( 
-                    <div className="flex items-center justify-center h-96"> 
-                        <div className="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-b-2 border-indigo-600"></div> 
-                    </div> 
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 lg:gap-6">
+                        {[...Array(12)].map((_, index) => (
+                            <ProductCardSkeleton key={index} />
+                        ))}
+                    </div>
                 ) : allProducts?.length > 0 ? ( 
                     <>
                         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 lg:gap-6"> 
@@ -462,15 +624,15 @@ const ProductScreen = () => {
                             )} 
                         </div>
                         
-                        {/* Loading More Indicator */}
+                        {/* ✅ Loading More Skeleton */}
                         {isFetchingMore && (
-                            <div className="flex justify-center items-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                                <span className="ml-3 text-gray-600">Loading more...</span>
+                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 lg:gap-6 mt-4">
+                                {[...Array(4)].map((_, index) => (
+                                    <ProductCardSkeleton key={`loading-${index}`} />
+                                ))}
                             </div>
                         )}
                         
-                        {/* End of Results */}
                         {!hasMore && allProducts.length > 0 && (
                             <div className="text-center py-8">
                                 <p className="text-gray-500">You've reached the end!</p>
@@ -480,11 +642,17 @@ const ProductScreen = () => {
                 ) : ( 
                     <div className="text-center py-12 md:py-20"> 
                         <h3 className="text-lg md:text-xl font-semibold text-gray-700">No Products Found</h3> 
+                        <p className="text-sm md:text-base text-gray-500 mt-2">
+                            {searchInput 
+                                ? `No results for "${searchInput}". Try different keywords.`
+                                : "Try adjusting your filters or use the search bar."}
+                        </p> 
                     </div> 
                 )} 
             </main> 
         </div> 
     ); 
 }; 
+
 
 export default ProductScreen;

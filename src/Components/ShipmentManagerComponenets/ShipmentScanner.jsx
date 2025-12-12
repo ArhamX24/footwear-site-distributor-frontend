@@ -4,6 +4,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { baseURL } from '../../Utils/URLS';
 
+
 const ShipmentScanner = () => {
   const [scannedItems, setScannedItems] = useState([]);
   const [selectedDistributor, setSelectedDistributor] = useState('');
@@ -13,8 +14,10 @@ const ShipmentScanner = () => {
   const [loading, setLoading] = useState(false);
   const [cameraPermission, setCameraPermission] = useState(null);
   const [availableCameras, setAvailableCameras] = useState([]);
+  const [manualId, setManualId] = useState(''); // ✅ Manual ID input
   const qrReaderRef = useRef(null);
-  const isProcessingRef = useRef(false); // ✅ Prevent multiple scans
+  const isProcessingRef = useRef(false);
+
 
   useEffect(() => {
     fetchDistributors();
@@ -25,6 +28,7 @@ const ShipmentScanner = () => {
     };
   }, []);
 
+
   useEffect(() => {
     if (isScanning) {
       startScanning();
@@ -33,7 +37,8 @@ const ShipmentScanner = () => {
     }
   }, [isScanning]);
 
-  // ✅ Force cleanup
+
+  // ✅ FIXED: Force cleanup
   const forceCleanup = async () => {
     try {
       if (qrReaderRef.current) {
@@ -56,15 +61,21 @@ const ShipmentScanner = () => {
     }
   };
 
+
+  // ✅ FIXED: Vibrate function with better support detection
   const vibrate = (pattern = [100]) => {
     try {
-      if ('vibrate' in navigator) {
+      if ('vibrate' in navigator && navigator.vibrate) {
         navigator.vibrate(pattern);
+        console.log('✅ Vibration triggered:', pattern);
+      } else {
+        console.log('⚠️ Vibration API not supported');
       }
     } catch (error) {
-      console.log('Vibration not supported:', error);
+      console.log('❌ Vibration error:', error);
     }
   };
+
 
   const initializeCamera = async () => {
     try {
@@ -78,6 +89,7 @@ const ShipmentScanner = () => {
       setCameraPermission('denied');
     }
   };
+
 
   const getBackCamera = () => {
     if (availableCameras.length === 0) return null;
@@ -106,6 +118,7 @@ const ShipmentScanner = () => {
     
     return backCamera;
   };
+
 
   const startScanning = async () => {
     try {
@@ -141,11 +154,11 @@ const ShipmentScanner = () => {
         }
       };
 
+
       await qrReader.start(
         cameraId,
         config,
         (decodedText) => {
-          // ✅ Prevent multiple simultaneous scans
           if (!isProcessingRef.current) {
             isProcessingRef.current = true;
             vibrate([200, 100, 200]);
@@ -153,10 +166,7 @@ const ShipmentScanner = () => {
           }
         },
         (error) => {
-          if (!error.includes('NotFoundException') && 
-              !error.includes('No QR code found')) {
-            // Suppress common errors
-          }
+          // Suppress common errors
         }
       );
       
@@ -177,6 +187,7 @@ const ShipmentScanner = () => {
         errorMessage = 'Camera is already in use by another application.';
       }
 
+
       Swal.fire({
         title: 'Camera Error',
         text: errorMessage,
@@ -186,18 +197,22 @@ const ShipmentScanner = () => {
     }
   };
 
+
+  // ✅ FIXED: Stop scanner properly [web:109][web:110][web:116]
   const stopScanning = async () => {
     try {
       if (qrReaderRef.current) {
         const state = qrReaderRef.current.getState();
-        if (state === 2) {
+        if (state === 2) { // SCANNING state
           await qrReaderRef.current.stop();
+          console.log('✅ Scanner stopped');
         }
         await qrReaderRef.current.clear();
+        console.log('✅ Scanner cleared');
         qrReaderRef.current = null;
       }
     } catch (error) {
-      console.error('Stop error:', error);
+      console.error('❌ Stop error:', error);
     } finally {
       const container = document.getElementById("qr-scanner-container");
       if (container) {
@@ -208,6 +223,7 @@ const ShipmentScanner = () => {
       setCameraPermission('available');
     }
   };
+
 
   const fetchDistributors = async () => {
     try {
@@ -223,150 +239,328 @@ const ShipmentScanner = () => {
     }
   };
 
+
   const handleScanSuccess = async (decodedText) => {
-  console.log('Scan detected:', decodedText);
-  
-  try {
-    let qrData;
+    console.log('🔍 Scan detected:', decodedText);
     
-    // ✅ STEP 1: Parse the JSON first
     try {
-      if (typeof decodedText === 'string') {
-        const trimmed = decodedText.trim();
-        
-        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-          qrData = JSON.parse(trimmed);
-        } else {
-          vibrate([300, 100, 300]);
+      let qrData;
+      
+      // Parse JSON
+      try {
+        if (typeof decodedText === 'string') {
+          const trimmed = decodedText.trim();
           
-          Swal.fire({
-            title: 'Invalid QR Code',
-            html: `
-              <p>This QR code doesn't contain the expected shipment data format.</p>
-              <p><strong>Content found:</strong></p>
-              de style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
-            `,
-            icon: 'warning',
-            confirmButtonText: 'OK'
-          });
-          isProcessingRef.current = false;
-          return;
+          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            qrData = JSON.parse(trimmed);
+          } else {
+            vibrate([300, 100, 300]);
+            
+            Swal.fire({
+              title: 'Invalid QR Code',
+              html: `
+                <p>This QR code doesn't contain the expected shipment data format.</p>
+                <p><strong>Content found:</strong></p>
+                <code style="background: #f5f5f5; padding: 8px; border-radius: 4px; display: block; margin: 8px 0; word-break: break-all;">${decodedText}</code>
+              `,
+              icon: 'warning',
+              confirmButtonText: 'OK'
+            });
+            isProcessingRef.current = false;
+            return;
+          }
+        } else {
+          qrData = decodedText;
         }
-      } else {
-        qrData = decodedText;
+      } catch (jsonError) {
+        vibrate([300, 100, 300]);
+        Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error');
+        isProcessingRef.current = false;
+        return;
       }
-    } catch (jsonError) {
-      vibrate([300, 100, 300]);
-      Swal.fire('Error', `Invalid QR format: ${jsonError.message}`, 'error');
-      isProcessingRef.current = false;
-      return;
-    }
 
-    // ✅ STEP 2: Now validate qrData structure (AFTER parsing)
-    if (!qrData || typeof qrData !== 'object') {
-      vibrate([300, 100, 300]);
-      Swal.fire({
-        title: 'Invalid QR Data',
-        html: `
-          <p>QR code does not contain valid data structure.</p>
-          <details style="text-align: left; margin-top: 10px;">
-            <summary style="cursor: pointer;">Show raw data</summary>
-            <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 200px;">${JSON.stringify(qrData, null, 2)}</pre>
-          </details>
-        `,
-        icon: 'error',
-        confirmButtonText: 'OK'
-      });
-      isProcessingRef.current = false;
-      return;
-    }
 
-    // ✅ STEP 3: Extract required fields
-    const uniqueId = qrData.uniqueId || null;
-    const articleName = qrData.articleName 
-      || qrData.contractorInput?.articleName 
-      || qrData.productReference?.articleName 
-      || null;
+      // Validate structure
+      if (!qrData || typeof qrData !== 'object') {
+        vibrate([300, 100, 300]);
+        Swal.fire({
+          title: 'Invalid QR Data',
+          html: `
+            <p>QR code does not contain valid data structure.</p>
+            <details style="text-align: left; margin-top: 10px;">
+              <summary style="cursor: pointer;">Show raw data</summary>
+              <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 200px;">${JSON.stringify(qrData, null, 2)}</pre>
+            </details>
+          `,
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+        isProcessingRef.current = false;
+        return;
+      }
 
-    // ✅ STEP 4: Check for duplicates
-    const shouldProceed = await new Promise((resolve) => {
-      setScannedItems((currentItems) => {
-        const alreadyScanned = currentItems.find(item => item.uniqueId === uniqueId);
-        if (alreadyScanned) {
-          vibrate([100, 50, 100, 50, 100]);
-          Swal.fire('Warning', 'This carton has already been scanned!', 'warning');
-          resolve(false);
+
+      // Extract fields
+      const uniqueId = qrData.uniqueId || null;
+      const articleName = qrData.articleName 
+        || qrData.contractorInput?.articleName 
+        || qrData.productReference?.articleName 
+        || null;
+
+
+      // Check duplicates
+      const shouldProceed = await new Promise((resolve) => {
+        setScannedItems((currentItems) => {
+          const alreadyScanned = currentItems.find(item => item.uniqueId === uniqueId);
+          if (alreadyScanned) {
+            vibrate([100, 50, 100, 50, 100]);
+            Swal.fire('Warning', 'This carton has already been scanned!', 'warning');
+            resolve(false);
+            return currentItems;
+          }
+          resolve(true);
           return currentItems;
-        }
-        resolve(true);
-        return currentItems;
+        });
       });
-    });
 
-    if (!shouldProceed) {
-      isProcessingRef.current = false;
-      return;
-    }
 
-    // ✅ STEP 5: Validate required fields
-    if (!uniqueId || !articleName) {
-      vibrate([300, 100, 300]);
+      if (!shouldProceed) {
+        isProcessingRef.current = false;
+        return;
+      }
+
+
+      // Validate required fields
+      if (!uniqueId || !articleName) {
+        vibrate([300, 100, 300]);
+        
+        Swal.fire({
+          title: 'Invalid QR Code Data',
+          html: `
+            <p>QR code is missing required information:</p>
+            <ul style="text-align: left; margin: 10px 0;">
+              <li>Unique ID: ${uniqueId ? '✅' : '❌ Missing'}</li>
+              <li>Article Name: ${articleName ? '✅' : '❌ Missing'}</li>
+            </ul>
+            <details style="text-align: left; margin-top: 10px;">
+              <summary style="cursor: pointer;">Show QR data structure</summary>
+              <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 200px; font-size: 11px;">${JSON.stringify(qrData, null, 2)}</pre>
+            </details>
+          `,
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+        isProcessingRef.current = false;
+        return;
+      }
+
+
+      // Get current distributor
+      let currentDistributor;
+      setSelectedDistributor((current) => {
+        currentDistributor = current;
+        return current;
+      });
+
+
+      let currentDistributors;
+      setDistributors((current) => {
+        currentDistributors = current;
+        return current;
+      });
+
+
+      if (!currentDistributor) {
+        vibrate([300, 100, 300]);
+        Swal.fire('Warning', 'Please select a distributor first', 'warning');
+        isProcessingRef.current = false;
+        return;
+      }
+
+
+      // Send to backend
+      const response = await axios.post(
+        `${baseURL}/api/v1/shipment/scan/${uniqueId}`,
+        {
+          event: 'shipped',
+          scannedBy: {
+            userType: 'shipment_manager'
+          },
+          distributorDetails: {
+            distributorId: currentDistributor,
+            distributorName: currentDistributors.find(d => d._id === currentDistributor)?.distributorDetails?.partyName || 
+                           currentDistributors.find(d => d._id === currentDistributor)?.name || ''
+          },
+          trackingNumber: `TRACK_${Date.now()}`,
+          notes: 'Scanned for shipment to distributor'
+        },
+        {
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+
+
+      if (response.data.result) {
+        const formatSizeRange = (sizes) => {
+          if (!sizes) return 'N/A';
+          if (!Array.isArray(sizes)) return sizes.toString();
+          if (sizes.length === 0) return 'N/A';
+          if (sizes.length === 1) return sizes[0].toString();
+          
+          const sorted = [...sizes].sort((a, b) => a - b);
+          return `${sorted[0]}X${sorted[sorted.length - 1]}`;
+        };
+
+
+        const colors = qrData.contractorInput?.colors || qrData.colors || ['Not specified'];
+        const sizes = qrData.contractorInput?.sizes || qrData.sizes || [];
+        const cartonNumber = qrData.contractorInput?.cartonNumber || qrData.cartonNumber || 'N/A';
+
+
+        const newItem = {
+          uniqueId: uniqueId,
+          articleName: articleName,
+          colors: colors,
+          sizes: sizes,
+          sizesFormatted: formatSizeRange(sizes),
+          cartonNumber: cartonNumber,
+          scannedAt: new Date().toLocaleTimeString(),
+          status: 'shipped'
+        };
+
+
+        setScannedItems(prev => [...prev, newItem]);
+        
+        vibrate([100, 50, 100, 50, 200]);
+        
+        Swal.fire({
+          icon: 'success',
+          title: '✅ Carton Scanned!',
+          text: `${newItem.articleName} - Carton ${newItem.cartonNumber}`,
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end'
+        });
+        
+        // ✅ FIXED: Auto-close scanner after successful scan [web:109][web:110]
+        console.log('🎯 Stopping scanner after successful scan...');
+        setTimeout(async () => {
+          await stopScanning();
+          setIsScanning(false);
+          console.log('✅ Scanner stopped automatically');
+        }, 1500);
+        
+      } else {
+        throw new Error(response.data.message || 'Server returned failure');
+      }
+
+
+    } catch (error) {      
+      vibrate([500, 200, 500]);
+      
+      let errorMessage = 'Failed to process scan';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      console.error('❌ Scan error:', error);
       
       Swal.fire({
-        title: 'Invalid QR Code Data',
+        title: 'Scan Error',
         html: `
-          <p>QR code is missing required information:</p>
-          <ul style="text-align: left; margin: 10px 0;">
-            <li>Unique ID: ${uniqueId ? '✅' : '❌ Missing'}</li>
-            <li>Article Name: ${articleName ? '✅' : '❌ Missing'}</li>
-          </ul>
-          <details style="text-align: left; margin-top: 10px;">
-            <summary style="cursor: pointer;">Show QR data structure</summary>
-            <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 200px; font-size: 11px;">${JSON.stringify(qrData, null, 2)}</pre>
+          <p>${errorMessage}</p>
+          <details style="text-align: left; margin-top: 10px; font-size: 12px;">
+            <summary style="cursor: pointer; color: #666;">Show technical details</summary>
+            <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 150px;">${error.stack || error.message}</pre>
           </details>
         `,
         icon: 'error',
         confirmButtonText: 'OK'
       });
-      isProcessingRef.current = false;
+    } finally {
+      // Reset processing flag
+      setTimeout(() => {
+        isProcessingRef.current = false;
+      }, 1000);
+    }
+  };
+
+
+// ✅ FIXED: Manual ID upload that actually scans/uploads to backend
+const handleManualUpload = async () => {
+  if (!manualId.trim()) {
+    Swal.fire('Warning', 'Please enter a unique ID or QR data', 'warning');
+    return;
+  }
+
+  if (!selectedDistributor) {
+    Swal.fire('Warning', 'Please select a distributor first', 'warning');
+    return;
+  }
+
+  try {
+    vibrate([100, 50, 100]);
+    setLoading(true);
+
+    const trimmedId = manualId.trim();
+    let uniqueIdToUpload;
+    let articleNameToDisplay = 'Manual Upload';
+
+    // ✅ Parse the input
+    try {
+      if (trimmedId.startsWith('{') || trimmedId.startsWith('[')) {
+        // It's JSON - parse it
+        const parsedData = JSON.parse(trimmedId);
+        uniqueIdToUpload = parsedData.uniqueId || parsedData.contractorInput?.uniqueId || trimmedId;
+        articleNameToDisplay = parsedData.articleName || 
+                               parsedData.contractorInput?.articleName || 
+                               'Manual Upload';
+        console.log('📋 Parsed JSON - UniqueID:', uniqueIdToUpload);
+      } else {
+        // Plain unique ID
+        uniqueIdToUpload = trimmedId;
+        console.log('🔑 Plain UniqueID:', uniqueIdToUpload);
+      }
+    } catch (parseError) {
+      // If parsing fails, use as plain unique ID
+      uniqueIdToUpload = trimmedId;
+      console.log('⚠️ Parse failed, using as plain ID:', uniqueIdToUpload);
+    }
+
+    // ✅ Check for duplicates
+    const isDuplicate = scannedItems.find(item => item.uniqueId === uniqueIdToUpload);
+    if (isDuplicate) {
+      vibrate([100, 50, 100, 50, 100]);
+      Swal.fire('Warning', 'This carton has already been scanned!', 'warning');
+      setLoading(false);
       return;
     }
 
-    // ✅ STEP 6: Get current state values
-    let currentDistributor;
-    setSelectedDistributor((current) => {
-      currentDistributor = current;
-      return current;
-    });
+    // ✅ Get current distributor details
+    const selectedDist = distributors.find(d => d._id === selectedDistributor);
 
-    let currentDistributors;
-    setDistributors((current) => {
-      currentDistributors = current;
-      return current;
-    });
-
-    if (!currentDistributor) {
-      vibrate([300, 100, 300]);
-      Swal.fire('Warning', 'Please select a distributor first', 'warning');
-      isProcessingRef.current = false;
-      return;
-    }
-
-    // ✅ STEP 7: Send to backend
+    // ✅ Send to backend - SAME AS QR SCAN
+    console.log('🚀 Uploading to backend:', uniqueIdToUpload);
+    
     const response = await axios.post(
-      `${baseURL}/api/v1/shipment/scan/${uniqueId}`,
+      `${baseURL}/api/v1/shipment/scan/${uniqueIdToUpload}`,
       {
         event: 'shipped',
         scannedBy: {
           userType: 'shipment_manager'
         },
         distributorDetails: {
-          distributorId: currentDistributor,
-          distributorName: currentDistributors.find(d => d._id === currentDistributor)?.distributorDetails?.partyName || 
-                         currentDistributors.find(d => d._id === currentDistributor)?.name || ''
+          distributorId: selectedDistributor,
+          distributorName: selectedDist?.distributorDetails?.partyName || 
+                         selectedDist?.name || ''
         },
         trackingNumber: `TRACK_${Date.now()}`,
-        notes: 'Scanned for shipment to distributor'
+        notes: 'Manual upload for debugging/testing'
       },
       {
         withCredentials: true,
@@ -375,6 +569,37 @@ const ShipmentScanner = () => {
     );
 
     if (response.data.result) {
+      console.log('✅ Backend response:', response.data);
+
+      // ✅ Parse the original input again to get all details
+      let qrData;
+      try {
+        if (trimmedId.startsWith('{') || trimmedId.startsWith('[')) {
+          qrData = JSON.parse(trimmedId);
+        } else {
+          qrData = {
+            uniqueId: uniqueIdToUpload,
+            articleName: 'Manual Upload',
+            contractorInput: {
+              colors: ['Unknown'],
+              sizes: [],
+              cartonNumber: 'Manual'
+            }
+          };
+        }
+      } catch {
+        qrData = {
+          uniqueId: uniqueIdToUpload,
+          articleName: 'Manual Upload',
+          contractorInput: {
+            colors: ['Unknown'],
+            sizes: [],
+            cartonNumber: 'Manual'
+          }
+        };
+      }
+
+      // ✅ Format size range helper
       const formatSizeRange = (sizes) => {
         if (!sizes) return 'N/A';
         if (!Array.isArray(sizes)) return sizes.toString();
@@ -385,13 +610,14 @@ const ShipmentScanner = () => {
         return `${sorted[0]}X${sorted[sorted.length - 1]}`;
       };
 
-      const colors = qrData.contractorInput?.colors || qrData.colors || ['Not specified'];
+      const colors = qrData.contractorInput?.colors || qrData.colors || ['Unknown'];
       const sizes = qrData.contractorInput?.sizes || qrData.sizes || [];
-      const cartonNumber = qrData.contractorInput?.cartonNumber || qrData.cartonNumber || 'N/A';
+      const cartonNumber = qrData.contractorInput?.cartonNumber || qrData.cartonNumber || 'Manual';
 
+      // ✅ Add to scanned items
       const newItem = {
-        uniqueId: uniqueId,
-        articleName: articleName,
+        uniqueId: uniqueIdToUpload,
+        articleName: qrData.articleName || qrData.contractorInput?.articleName || 'Manual Upload',
         colors: colors,
         sizes: sizes,
         sizesFormatted: formatSizeRange(sizes),
@@ -406,50 +632,57 @@ const ShipmentScanner = () => {
       
       Swal.fire({
         icon: 'success',
-        title: '✅ Carton Scanned!',
+        title: '✅ Manual Upload Success!',
         text: `${newItem.articleName} - Carton ${newItem.cartonNumber}`,
         timer: 2000,
         showConfirmButton: false,
         toast: true,
         position: 'top-end'
       });
-      
+
+      // Clear input
+      setManualId('');
+
     } else {
-      throw new Error(response.data.message || 'Server returned failure');
+      throw new Error(response.data.message || 'Backend returned failure');
     }
 
-  } catch (error) {      
+  } catch (error) {
     vibrate([500, 200, 500]);
+    console.error('❌ Manual upload error:', error);
+
+    let errorMessage = 'Failed to upload to backend';
     
-    let errorMessage = 'Failed to process scan';
-    
-    if (error.response?.data?.message) {
+    if (error.response?.status === 404) {
+      errorMessage = `Carton with ID "${manualId.trim()}" not found in database. Make sure this ID exists.`;
+    } else if (error.response?.data?.message) {
       errorMessage = error.response.data.message;
     } else if (error.message) {
       errorMessage = error.message;
     }
     
-    console.error('Scan error:', error);
-    
     Swal.fire({
-      title: 'Scan Error',
+      title: 'Upload Error',
       html: `
         <p>${errorMessage}</p>
+        <p class="text-sm text-gray-600 mt-2">Unique ID: <code class="bg-gray-100 px-2 py-1 rounded">${manualId.trim()}</code></p>
         <details style="text-align: left; margin-top: 10px; font-size: 12px;">
           <summary style="cursor: pointer; color: #666;">Show technical details</summary>
-          <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 150px;">${error.stack || error.message}</pre>
+          <pre style="background: #f5f5f5; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 150px;">${JSON.stringify({
+            error: error.message,
+            response: error.response?.data,
+            status: error.response?.status
+          }, null, 2)}</pre>
         </details>
       `,
       icon: 'error',
       confirmButtonText: 'OK'
     });
   } finally {
-    // ✅ Reset processing flag after 1 second to allow next scan
-    setTimeout(() => {
-      isProcessingRef.current = false;
-    }, 1000);
+    setLoading(false);
   }
 };
+
 
   const handleStartScanning = () => {
     if (!selectedDistributor) {
@@ -460,11 +693,13 @@ const ShipmentScanner = () => {
     setIsScanning(true);
   };
 
+
   const handleStopScanning = async () => {
     vibrate([100]);
     await forceCleanup();
     setIsScanning(false);
   };
+
 
   const createShipment = async () => {
     if (scannedItems.length === 0) {
@@ -472,14 +707,17 @@ const ShipmentScanner = () => {
       return;
     }
 
+
     if (!selectedDistributor) {
       Swal.fire('Warning', 'Please select a distributor', 'warning');
       return;
     }
 
+
     try {
       setLoading(true);
       vibrate([50, 50]);
+
 
       const selectedDist = distributors.find(d => d._id === selectedDistributor);
       const shipmentId = `SHIP_${Date.now()}_${selectedDistributor.slice(-6)}`;
@@ -504,9 +742,11 @@ const ShipmentScanner = () => {
         confirmButtonText: 'OK'
       });
 
+
       setScannedItems([]);
       setSelectedDistributor('');
       handleStopScanning();
+
 
     } catch (error) {
       vibrate([300]);
@@ -516,61 +756,67 @@ const ShipmentScanner = () => {
     }
   };
 
+
   const removeScannedItem = (uniqueId) => {
     vibrate([100]);
     setScannedItems(prev => prev.filter(item => item.uniqueId !== uniqueId));
   };
 
-  const downloadShipmentReceipt = async () => {
-    if (!shipmentCreated) return;
 
-    try {
-      setLoading(true);
-      vibrate([50, 50]);
+ const downloadShipmentReceipt = async () => {
+  if (!shipmentCreated) return;
 
-      const response = await axios.post(
-        `${baseURL}/api/v1/shipment/receipt/generate`,
-        {
-          shipmentId: shipmentCreated.shipmentId,
-          distributorName: shipmentCreated.distributorName,
-          distributorPhoneNo: shipmentCreated.distributorPhoneNo,
-          totalCartons: shipmentCreated.totalCartons,
-          shippedAt: shipmentCreated.shippedAt,
-          items: shipmentCreated.items
-        },
-        {
-          withCredentials: true,
-          responseType: 'blob'
-        }
-      );
+  try {
+    setLoading(true);
+    vibrate([50, 50]);
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Shipment_${shipmentCreated.shipmentId}_Receipt.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+    console.log('📄 Sending items to PDF:', shipmentCreated.items);
 
-      vibrate([100, 50, 100]);
+    const response = await axios.post(
+      `${baseURL}/api/v1/shipment/receipt/generate`,
+      {
+        shipmentId: shipmentCreated.shipmentId,
+        distributorName: shipmentCreated.distributorName,
+        distributorPhoneNo: shipmentCreated.distributorPhoneNo,
+        totalCartons: shipmentCreated.totalCartons,
+        shippedAt: shipmentCreated.shippedAt,
+        items: shipmentCreated.items  // ✅ This contains colors, sizes, cartonNumber
+      },
+      {
+        withCredentials: true,
+        responseType: 'blob'
+      }
+    );
 
-      Swal.fire({
-        icon: 'success',
-        title: 'Receipt Downloaded!',
-        text: 'PDF receipt has been downloaded successfully',
-        timer: 2000,
-        showConfirmButton: false
-      });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Shipment_${shipmentCreated.shipmentId}_Receipt.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
 
-    } catch (error) {
-      vibrate([300]);
-      Swal.fire('Error', 'Failed to download receipt', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+    vibrate([100, 50, 100]);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Receipt Downloaded!',
+      text: 'PDF receipt has been downloaded successfully',
+      timer: 2000,
+      showConfirmButton: false
+    });
+
+  } catch (error) {
+    vibrate([300]);
+    console.error('PDF Download Error:', error);
+    Swal.fire('Error', 'Failed to download receipt', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleLogout = async () => {
     try {
@@ -583,6 +829,7 @@ const ShipmentScanner = () => {
         cancelButtonText: 'Cancel',
         confirmButtonColor: '#d33',
       });
+
 
       if (result.isConfirmed) {
         vibrate([100, 100, 100]);
@@ -610,6 +857,7 @@ const ShipmentScanner = () => {
       });
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -657,6 +905,7 @@ const ShipmentScanner = () => {
           </div>
         </div>
 
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Panel - Scanner */}
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
@@ -684,6 +933,84 @@ const ShipmentScanner = () => {
               </select>
             </div>
 
+
+{/* ✅ UPDATED: Manual ID Upload for Testing */}
+<div className="mb-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4">
+  <div className="flex items-center mb-2">
+    <label className="block text-sm font-bold text-purple-900">
+      🧪 Manual Upload (Backend Testing)
+    </label>
+    <span className="ml-2 bg-purple-200 text-purple-800 text-xs px-2 py-0.5 rounded-full">
+      Debug Mode
+    </span>
+  </div>
+  
+  <div className="flex gap-2">
+    <textarea
+      value={manualId}
+      onChange={(e) => setManualId(e.target.value)}
+      placeholder="Enter Unique ID or paste full QR JSON data here..."
+      className="flex-1 border-2 border-purple-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm font-mono resize-y min-h-[70px] bg-white"
+      disabled={isScanning || loading}
+      rows="3"
+    />
+    <button
+      onClick={handleManualUpload}
+      disabled={!selectedDistributor || isScanning || loading || !manualId.trim()}
+      className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition duration-200 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-sm font-bold whitespace-nowrap self-start shadow-md"
+    >
+      {loading ? (
+        <span>⏳ Uploading...</span>
+      ) : (
+        <span>🚀 Upload to Backend</span>
+      )}
+    </button>
+  </div>
+  
+  <div className="mt-3 space-y-2 bg-white bg-opacity-50 rounded p-2">
+    <div className="flex items-start gap-2">
+      <span className="text-green-600 font-bold">✅</span>
+      <p className="text-xs text-gray-700">
+        <strong>Plain ID:</strong> Just paste unique ID (e.g., <code className="bg-purple-100 px-1 rounded">CARTON_12345</code>)
+      </p>
+    </div>
+    <div className="flex items-start gap-2">
+      <span className="text-green-600 font-bold">✅</span>
+      <p className="text-xs text-gray-700">
+        <strong>Full JSON:</strong> Paste complete QR data with all details
+      </p>
+    </div>
+    <div className="flex items-start gap-2">
+      <span className="text-blue-600 font-bold">📡</span>
+      <p className="text-xs text-blue-700 font-medium">
+        Sends actual POST request to backend API (same as QR scan)
+      </p>
+    </div>
+    
+    <details className="text-xs text-purple-800 mt-2">
+      <summary className="cursor-pointer font-bold hover:text-purple-600">
+        📘 Click for JSON Example
+      </summary>
+      <pre className="bg-white border border-purple-200 p-2 rounded mt-1 overflow-x-auto text-[10px] leading-relaxed">{`{
+  "uniqueId": "CARTON_ABC123",
+  "articleName": "Nike Air Max Pro",
+  "contractorInput": {
+    "articleName": "Nike Air Max Pro",
+    "colors": ["Black", "White", "Red"],
+    "sizes": [7, 8, 9, 10, 11],
+    "cartonNumber": "001"
+  }
+}`}</pre>
+      <p className="text-xs text-gray-600 mt-1 italic">
+        💡 Copy this example, modify the uniqueId, and paste above
+      </p>
+    </details>
+  </div>
+</div>
+
+
+
+
             {/* Scanner Controls */}
             <div className="mb-4">
               {!isScanning ? (
@@ -710,6 +1037,7 @@ const ShipmentScanner = () => {
               )}
             </div>
 
+
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[300px] sm:min-h-[400px] flex items-center justify-center bg-black">
               {isScanning ? (
                 <div id="qr-scanner-container" className="w-full h-full"></div>
@@ -721,11 +1049,12 @@ const ShipmentScanner = () => {
                     Select distributor first, then click "Start Scanner"
                   </p>
                   <p className="text-xs text-gray-400 mt-2">
-                    📱 Continuous scanning • 🎯 Back camera • 📳 Vibration feedback
+                    📱 Auto-stops after scan • 🎯 Back camera • 📳 Vibration feedback
                   </p>
                 </div>
               )}
             </div>
+
 
             {/* Instructions */}
             <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-3 sm:p-4">
@@ -734,12 +1063,14 @@ const ShipmentScanner = () => {
                 <ul className="list-disc list-inside mt-2 space-y-1">
                   <li>Select the destination distributor</li>
                   <li>Start scanner and point at QR codes</li>
-                  <li>Scanner stays active for continuous scanning</li>
+                  <li>Scanner auto-stops after successful scan</li>
+                  <li>Use manual ID upload for debugging</li>
                   <li>Create shipment when all items are scanned</li>
                 </ul>
               </div>
             </div>
           </div>
+
 
           {/* Right Panel - Scanned Items */}
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
@@ -755,6 +1086,7 @@ const ShipmentScanner = () => {
                 </button>
               )}
             </div>
+
 
             <div className="space-y-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
               {scannedItems.length === 0 ? (
@@ -794,6 +1126,7 @@ const ShipmentScanner = () => {
               )}
             </div>
 
+
             {/* Summary */}
             {scannedItems.length > 0 && (
               <div className="mt-4 pt-4 border-t">
@@ -807,6 +1140,7 @@ const ShipmentScanner = () => {
             )}
           </div>
         </div>
+
 
         {/* Shipment Success Modal */}
         {shipmentCreated && (
@@ -835,5 +1169,6 @@ const ShipmentScanner = () => {
     </div>
   );
 };
+
 
 export default ShipmentScanner;
