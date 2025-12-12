@@ -452,16 +452,6 @@ const QRGenerator = () => {
                       />
                       Select from existing articles
                     </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="articleMode"
-                        checked={useCustomArticle}
-                        onChange={() => setUseCustomArticle(true)}
-                        className="mr-2"
-                      />
-                      Enter new article
-                    </label>
                   </div>
                 </div>
 
