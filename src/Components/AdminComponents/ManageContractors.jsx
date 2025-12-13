@@ -330,7 +330,7 @@ const ManageContractors = () => {
               </div>
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Manage Contractors
+              Bar Code Generator
             </h1>
             <div className="w-24 h-1 bg-gray-600 mx-auto rounded-full"></div>
           </div>
