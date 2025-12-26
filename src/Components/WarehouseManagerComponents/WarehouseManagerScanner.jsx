@@ -451,16 +451,13 @@ const WarehouseManagerScanner = () => {
     else if (errorMsg.toLowerCase().includes('already been shipped') || errorMsg.includes('has already been shipped')) {
       Swal.fire({
         icon: 'error',
-        title: '🚚 Already Shipped',
+        title: 'Already Shipped',
         html: `
           <div style="text-align: left;">
             <p style="margin-bottom: 10px;">This QR code has already been shipped to a distributor.</p>
             <div style="background: #fee; padding: 12px; border-radius: 6px; border-left: 4px solid #dc3545;">
               <strong>⚠️ Cannot receive this carton again</strong>
             </div>
-            <p style="margin-top: 10px; font-size: 14px; color: #666;">
-              Please check the QR code or contact your supervisor if this is a mistake.
-            </p>
           </div>
         `,
         confirmButtonText: 'Understood',
@@ -471,16 +468,13 @@ const WarehouseManagerScanner = () => {
     else if (errorMsg.toLowerCase().includes('already been received') || errorMsg.includes('has already been received')) {
       Swal.fire({
         icon: 'warning',
-        title: '📦 Already Received',
+        title: 'Already Received',
         html: `
           <div style="text-align: left;">
             <p style="margin-bottom: 10px;">This carton has already been received at the warehouse.</p>
             <div style="background: #fff3cd; padding: 12px; border-radius: 6px; border-left: 4px solid #ffc107;">
               <strong>⚠️ Duplicate scan detected</strong>
             </div>
-            <p style="margin-top: 10px; font-size: 14px; color: #666;">
-              This item is already in the inventory system.
-            </p>
           </div>
         `,
         confirmButtonText: 'OK',
@@ -491,16 +485,13 @@ const WarehouseManagerScanner = () => {
     else if (errorMsg.toLowerCase().includes('already been delivered') || errorMsg.includes('has been delivered')) {
       Swal.fire({
         icon: 'error',
-        title: '✅ Already Delivered',
+        title: 'Already Delivered',
         html: `
           <div style="text-align: left;">
             <p style="margin-bottom: 10px;">This carton has already been delivered to the final destination.</p>
             <div style="background: #d1ecf1; padding: 12px; border-radius: 6px; border-left: 4px solid #0dcaf0;">
               <strong>ℹ️ This carton has completed its journey</strong>
             </div>
-            <p style="margin-top: 10px; font-size: 14px; color: #666;">
-              Cannot receive delivered items. Please verify the QR code.
-            </p>
           </div>
         `,
         confirmButtonText: 'OK',
@@ -511,16 +502,13 @@ const WarehouseManagerScanner = () => {
     else if (errorMsg.toLowerCase().includes('not found') || errorMsg.includes('QR code not found')) {
       Swal.fire({
         icon: 'error',
-        title: '❌ QR Code Not Found',
+        title: 'QR Code Not Found',
         html: `
           <div style="text-align: left;">
             <p style="margin-bottom: 10px;">This QR code does not exist in our system.</p>
             <div style="background: #f8d7da; padding: 12px; border-radius: 6px; border-left: 4px solid #dc3545;">
               <strong>⚠️ Invalid or unregistered QR code</strong>
             </div>
-            <p style="margin-top: 10px; font-size: 14px; color: #666;">
-              Please verify that you're scanning a valid carton QR code.
-            </p>
           </div>
         `,
         confirmButtonText: 'Try Again',
@@ -531,16 +519,13 @@ const WarehouseManagerScanner = () => {
     else if (errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('connection')) {
       Swal.fire({
         icon: 'error',
-        title: '📡 Connection Error',
+        title: 'Connection Error',
         html: `
           <div style="text-align: left;">
             <p style="margin-bottom: 10px;">Unable to connect to the server.</p>
             <div style="background: #f8d7da; padding: 12px; border-radius: 6px; border-left: 4px solid #dc3545;">
               <strong>⚠️ Network issue detected</strong>
             </div>
-            <p style="margin-top: 10px; font-size: 14px; color: #666;">
-              Please check your internet connection and try again.
-            </p>
           </div>
         `,
         confirmButtonText: 'Retry',
@@ -557,7 +542,7 @@ const WarehouseManagerScanner = () => {
           <div style="text-align: left;">
             <p style="margin-bottom: 10px;">${errorMsg}</p>
             <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 4px solid #6c757d;">
-              <strong>ℹ️ If this issue persists, contact support</strong>
+              <strong>If this issue persists, contact support</strong>
             </div>
           </div>
         `,

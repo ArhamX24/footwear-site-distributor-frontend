@@ -419,7 +419,7 @@ const handleScanSuccess = async (decodedText) => {
       Swal.fire({
         icon: 'success',
         title: '✅ Carton Scanned!',
-        text: `${newItem.articleName} - Carton ${newItem.cartonNumber}`,
+        text: `${newItem.articleName}`,
         timer: 1500,
         showConfirmButton: false,
         toast: true,
