@@ -76,47 +76,44 @@ const PastOrdersPage = () => {
         }
     };
 
-const handleDownloadPerforma = async (shipmentId) => {
-    try {
-        setDownloadingId(shipmentId);
-        
-        const response = await axios.get(
-            `${baseURL}/api/v1/admin/shipments/performa/${shipmentId}`,
-            {
-                responseType: 'blob', // Important for PDF download
-                withCredentials: true
-            }
-        );
-        
-        // Create a blob URL from the response
-        const blob = new Blob([response.data], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        
-        // Create a temporary link and trigger download
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Performa_${shipmentId}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        
-        // Clean up
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        
-        Swal.fire({
-            icon: 'success',
-            title: 'Download Complete',
-            text: 'PDF has been downloaded',
-            timer: 2000,
-            showConfirmButton: false
-        });
-    } catch (error) {
-        console.error("Error downloading performa:", error);
-        Swal.fire('Error', 'Failed to download performa', 'error');
-    } finally {
-        setTimeout(() => setDownloadingId(null), 1000);
-    }
-};
+    const handleDownloadPerforma = async (shipmentId) => {
+        try {
+            setDownloadingId(shipmentId);
+            
+            const response = await axios.get(
+                `${baseURL}/api/v1/admin/shipments/performa/${shipmentId}`,
+                {
+                    responseType: 'blob',
+                    withCredentials: true
+                }
+            );
+            
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Performa_${shipmentId}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Download Complete',
+                text: 'PDF has been downloaded',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error("Error downloading performa:", error);
+            Swal.fire('Error', 'Failed to download performa', 'error');
+        } finally {
+            setTimeout(() => setDownloadingId(null), 1000);
+        }
+    };
 
     const deleteOldShipments = async () => {
         try {
@@ -199,7 +196,7 @@ const handleDownloadPerforma = async (shipmentId) => {
                                 onClick={deleteOldShipments}
                                 className='bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all text-sm font-medium'
                             >
-                             Delete Old Shipments
+                                🗑️ Delete Old Shipments
                             </button>
                         </div>
                     </div>
@@ -310,7 +307,7 @@ const handleDownloadPerforma = async (shipmentId) => {
                                                     className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5"
                                                     onClick={() => setSelectedShipment(shipment)}
                                                 >
-                                                    View
+                                                    View Details
                                                 </button>
                                             </div>
                                         ))
@@ -329,8 +326,8 @@ const handleDownloadPerforma = async (shipmentId) => {
                 {/* Modal for Viewing Shipment Details */}
                 {selectedShipment && (
                     <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
-                        <div className="bg-white w-full max-w-3xl mx-4 rounded-xl shadow-2xl border border-gray-200 transform transition-all">
-                            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                        <div className="bg-white w-full max-w-4xl mx-4 rounded-xl shadow-2xl border border-gray-200 transform transition-all max-h-[90vh] overflow-y-auto">
+                            <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
                                 <h2 className="text-xl font-semibold text-gray-900">Shipment Details</h2>
                                 <button
                                     className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
@@ -343,7 +340,8 @@ const handleDownloadPerforma = async (shipmentId) => {
                             </div>
 
                             <div className="p-6 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                {/* Shipment Summary */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-lg">
                                     <div>
                                         <p className="text-sm text-gray-500 mb-1">Distributor</p>
                                         <p className="font-semibold text-gray-900">{selectedShipment.distributorName}</p>
@@ -352,48 +350,96 @@ const handleDownloadPerforma = async (shipmentId) => {
                                         <p className="text-sm text-gray-500 mb-1">Shipped Date</p>
                                         <p className="font-semibold text-gray-900">{new Date(selectedShipment.shippedAt).toLocaleDateString("en-GB")}</p>
                                     </div>
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">Total Articles</p>
+                                        <p className="font-semibold text-gray-900">{selectedShipment.items?.length || 0}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">Total Cartons</p>
+                                        <p className="font-semibold text-blue-600 text-lg">{selectedShipment.totalCartons || 0}</p>
+                                    </div>
                                 </div>
 
                                 <div className="pt-2">
-                                    <h3 className="text-lg font-semibold mb-3 text-gray-900">Articles ({selectedShipment.items?.length || 0})</h3>
+                                    <h3 className="text-lg font-semibold mb-3 text-gray-900">Article Details</h3>
 
                                     {/* Table Header */}
-                                    <div className="grid grid-cols-5 bg-gray-50 text-gray-700 font-semibold text-sm p-3 rounded-t-lg border">
-                                        <span>Article</span>
+                                    <div className="grid grid-cols-6 bg-gray-100 text-gray-700 font-semibold text-sm p-3 rounded-t-lg border-x border-t border-gray-300">
+                                        <span className="col-span-2">Article</span>
                                         <span className="text-center">Category</span>
                                         <span className="text-center">Sizes</span>
                                         <span className="text-center">Colors</span>
-                                        <span className="text-center">Cartons</span>
+                                        <span className="text-center">Quantity</span>
                                     </div>
 
-                                   {/* Article Items */}
-                            <div className="border-l border-r border-b border-gray-200 rounded-b-lg overflow-hidden">
-                                <div className="divide-y divide-gray-200 max-h-60 overflow-y-auto">
-                                    {selectedShipment.items && selectedShipment.items.map((item, index) => (
-                                        <div key={index} className="grid grid-cols-5 items-center p-3 bg-white hover:bg-gray-50">
-                                            <span className="text-gray-800 text-sm font-medium capitalize">{item.articleName || 'N/A'}</span>
-                                            <span className="text-gray-600 text-sm text-center capitalize">{item.productReference?.variantName || 'N/A'}</span>
-                                            <span className="text-center">
-                                                <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                                                    {/* ✅ FIXED: Access sizes from articleDetails */}
-                                                    {formatSizeRange(item.articleDetails?.sizes)}
-                                                </span>
-                                            </span>
-                                            <span className="text-gray-600 text-xs text-center capitalize">
-                                                {item.articleDetails?.colors?.join(', ') || 'N/A'}
-                                            </span>
-                                            {/* ✅ FIXED: Access totalCartons from articleDetails */}
-                                            <span className="text-gray-800 text-sm font-semibold text-center">{selectedShipment.totalCartons || 0}</span>
+                                    {/* ✅ FIXED: Article Items - using new schema structure */}
+                                    <div className="border-l border-r border-b border-gray-300 rounded-b-lg overflow-hidden">
+                                        <div className="divide-y divide-gray-200 max-h-80 overflow-y-auto">
+                                            {selectedShipment.items && selectedShipment.items.map((item, index) => (
+                                                <div key={index} className="grid grid-cols-6 items-center p-3 bg-white hover:bg-gray-50 transition-colors">
+                                                    {/* Article Name */}
+                                                    <span className="col-span-2 text-gray-800 text-sm font-medium capitalize">
+                                                        {item.articleName || 'N/A'}
+                                                    </span>
+                                                    
+                                                    {/* Category (Variant) */}
+                                                    <span className="text-gray-600 text-sm text-center capitalize">
+                                                        {item.productReference?.variantName || 'N/A'}
+                                                    </span>
+                                                    
+                                                    {/* ✅ Sizes from articleDetails */}
+                                                    <span className="text-center">
+                                                        <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                                                            {formatSizeRange(item.articleDetails?.sizes)}
+                                                        </span>
+                                                    </span>
+                                                    
+                                                    {/* ✅ Colors from articleDetails */}
+                                                    <span className="text-gray-600 text-xs text-center capitalize">
+                                                        {item.articleDetails?.colors?.join(', ') || 'N/A'}
+                                                    </span>
+                                                    
+                                                    {/* ✅ FIXED: Show quantity for this article */}
+                                                    <span className="text-gray-800 text-sm font-bold text-center bg-green-50 py-1 rounded">
+                                                        {item.quantity || 0}
+                                                    </span>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
+                                    </div>
 
+                                    {/* ✅ NEW: Show QR Code details for selected article (expandable) */}
+                                    <details className="mt-4 bg-blue-50 rounded-lg border border-blue-200">
+                                        <summary className="p-3 cursor-pointer font-semibold text-blue-900 hover:bg-blue-100 transition-colors rounded-lg">
+                                            📋 View Scanned QR Codes ({selectedShipment.items?.reduce((total, item) => total + (item.qrCodes?.length || 0), 0) || 0} total)
+                                        </summary>
+                                        <div className="p-4 space-y-3">
+                                            {selectedShipment.items?.map((item, itemIndex) => (
+                                                <div key={itemIndex} className="bg-white rounded-lg p-3 border border-gray-200">
+                                                    <div className="font-semibold text-gray-800 mb-2">
+                                                        {item.articleName} ({item.qrCodes?.length || 0} cartons)
+                                                    </div>
+                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                                                        {item.qrCodes?.map((qr, qrIndex) => (
+                                                            <div key={qrIndex} className="bg-gray-50 p-2 rounded border border-gray-200">
+                                                                <div className="font-mono text-gray-600">
+                                                                    {qr.uniqueId?.substring(0, 12)}...
+                                                                </div>
+                                                                <div className="text-gray-500 mt-1">
+                                                                    Carton #{qr.cartonNumber || 'N/A'}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </details>
                                 </div>
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex justify-end gap-3 p-6 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+                            <div className="flex justify-end gap-3 p-6 bg-gray-50 border-t border-gray-200 rounded-b-xl sticky bottom-0">
                                 <button
                                     className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md font-medium"
                                     onClick={() => setSelectedShipment(null)}
@@ -401,11 +447,23 @@ const handleDownloadPerforma = async (shipmentId) => {
                                     Close
                                 </button>
                                 <button
-                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md font-medium disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
                                     onClick={() => handleDownloadPerforma(selectedShipment._id)}
                                     disabled={downloadingId === selectedShipment._id}
                                 >
-                                    {downloadingId === selectedShipment._id ? 'Downloading...' : 'Download PDF'}
+                                    {downloadingId === selectedShipment._id ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Downloading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            📄 Download PDF
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </div>
