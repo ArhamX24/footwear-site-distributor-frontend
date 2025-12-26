@@ -255,194 +255,202 @@ const ShipmentScanner = () => {
     }
   };
 
-  const handleScanSuccess = async (decodedText) => {
-    console.log('✅ [SCAN] Processing scan...');
+const handleScanSuccess = async (decodedText) => {
+  console.log('✅ [SCAN] Raw decoded text:', decodedText);
+  console.log('✅ [SCAN] Type:', typeof decodedText);
+  
+  try {
+    let qrData;
+    let uniqueId;
     
     try {
-      let qrData;
-      
-      try {
-        if (typeof decodedText === 'string') {
-          const trimmed = decodedText.trim();
-          
-          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-            qrData = JSON.parse(trimmed);
-            console.log('✅ Parsed JSON:', qrData);
-          } else {
-            vibrate([300, 100, 300]);
-            Swal.fire({
-              title: 'Invalid QR Code',
-              text: 'Please try scanning again. Make sure you are scanning a valid carton QR code.',
-              icon: 'warning',
-              confirmButtonText: 'OK'
-            });
-            isProcessingRef.current = false;
-            return;
-          }
+      if (typeof decodedText === 'string') {
+        const trimmed = decodedText.trim();
+        
+        console.log('🔍 [SCAN] Trimmed text:', trimmed);
+        
+        // ✅ FIXED: Check if it's JSON or a plain uniqueId
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          // It's JSON - parse it
+          qrData = JSON.parse(trimmed);
+          uniqueId = qrData.uniqueId;
+          console.log('✅ [SCAN] Parsed JSON QR:', qrData);
         } else {
-          qrData = decodedText;
+          // ✅ NEW: It's a plain uniqueId string (common with QR codes)
+          uniqueId = trimmed;
+          qrData = { uniqueId: trimmed };
+          console.log('✅ [SCAN] Plain text uniqueId:', uniqueId);
         }
-      } catch (jsonError) {
-        vibrate([300, 100, 300]);
-        Swal.fire('Invalid QR Code', 'Please try scanning again.', 'error');
-        isProcessingRef.current = false;
-        return;
-      }
-
-      if (!qrData || typeof qrData !== 'object') {
-        vibrate([300, 100, 300]);
-        Swal.fire('Invalid QR Code', 'Please try scanning again.', 'error');
-        isProcessingRef.current = false;
-        return;
-      }
-
-      const uniqueId = qrData.uniqueId || null;
-      const articleName = qrData.articleName 
-        || qrData.contractorInput?.articleName 
-        || qrData.productReference?.articleName 
-        || null;
-
-      console.log('📦 [SCAN] Extracted:', { uniqueId, articleName });
-
-      const shouldProceed = await new Promise((resolve) => {
-        setScannedItems((currentItems) => {
-          const alreadyScanned = currentItems.find(item => item.uniqueId === uniqueId);
-          if (alreadyScanned) {
-            vibrate([100, 50, 100, 50, 100]);
-            Swal.fire('Already Scanned', 'This carton has already been scanned!', 'warning');
-            resolve(false);
-            return currentItems;
-          }
-          resolve(true);
-          return currentItems;
-        });
-      });
-
-      if (!shouldProceed) {
-        isProcessingRef.current = false;
-        return;
-      }
-
-      if (!uniqueId || !articleName) {
-        vibrate([300, 100, 300]);
-        Swal.fire({
-          title: 'Invalid QR Code',
-          text: 'QR code is missing required information. Please try scanning again.',
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
-        isProcessingRef.current = false;
-        return;
-      }
-
-      let currentDistributor;
-      setSelectedDistributor((current) => {
-        currentDistributor = current;
-        return current;
-      });
-
-      let currentDistributors;
-      setDistributors((current) => {
-        currentDistributors = current;
-        return current;
-      });
-
-      if (!currentDistributor) {
-        vibrate([300, 100, 300]);
-        Swal.fire('Warning', 'Please select a distributor first', 'warning');
-        isProcessingRef.current = false;
-        return;
-      }
-
-      if (isScanning) {
-        console.log('🛑 Stopping scanner after successful scan...');
-        setIsScanning(false);
-        await stopScanning();
-      }
-
-      console.log('📡 [SCAN] Sending to backend...');
-      const response = await axios.post(
-        `${baseURL}/api/v1/shipment/scan/${uniqueId}`,
-        {
-          event: 'shipped',
-          scannedBy: {
-            userType: 'shipment_manager'
-          },
-          distributorDetails: {
-            distributorId: currentDistributor,
-            distributorName: currentDistributors.find(d => d._id === currentDistributor)?.distributorDetails?.partyName || 
-                           currentDistributors.find(d => d._id === currentDistributor)?.name || ''
-          },
-          trackingNumber: `TRACK_${Date.now()}`,
-          notes: 'Scanned for shipment to distributor'
-        },
-        {
-          withCredentials: true,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-
-      if (response.data.result) {
-        const formatSizeRange = (sizes) => {
-          if (!sizes) return 'N/A';
-          if (!Array.isArray(sizes)) return sizes.toString();
-          if (sizes.length === 0) return 'N/A';
-          if (sizes.length === 1) return sizes[0].toString();
-          
-          const sorted = [...sizes].sort((a, b) => a - b);
-          return `${sorted[0]}X${sorted[sorted.length - 1]}`;
-        };
-
-        const colors = qrData.contractorInput?.colors || qrData.colors || ['Not specified'];
-        const sizes = qrData.contractorInput?.sizes || qrData.sizes || [];
-        const cartonNumber = qrData.contractorInput?.cartonNumber || qrData.cartonNumber || 'N/A';
-
-        const newItem = {
-          uniqueId: uniqueId,
-          articleName: articleName,
-          colors: colors,
-          sizes: sizes,
-          sizesFormatted: formatSizeRange(sizes),
-          cartonNumber: cartonNumber,
-          scannedAt: new Date().toLocaleTimeString(),
-          status: 'shipped'
-        };
-
-        setScannedItems(prev => [...prev, newItem]);
-        
-        vibrate([100, 50, 100, 50, 200]);
-        
-        Swal.fire({
-          icon: 'success',
-          title: '✅ Carton Scanned!',
-          text: `${newItem.articleName} - Carton ${newItem.cartonNumber}`,
-          timer: 1500,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end'
-        });
-        
       } else {
-        throw new Error(response.data.message || 'Server returned failure');
+        qrData = decodedText;
+        uniqueId = decodedText.uniqueId;
       }
+    } catch (jsonError) {
+      console.error('❌ [SCAN] Parse error:', jsonError);
+      vibrate([300, 100, 300]);
+      Swal.fire('Invalid QR Code', 'Could not read QR code data. Please try scanning again.', 'error');
+      isProcessingRef.current = false;
+      return;
+    }
 
-    } catch (error) {      
-      vibrate([500, 200, 500]);
-      
-      console.error('❌ Scan error:', error);
-      
+    // ✅ FIXED: Validate uniqueId instead of full qrData object
+    if (!uniqueId || uniqueId.length === 0) {
+      vibrate([300, 100, 300]);
       Swal.fire({
-        title: 'Scan Failed',
-        text: 'Unable to process the scan. Please try again.',
+        title: 'Invalid QR Code',
+        text: 'QR code does not contain a valid ID.',
         icon: 'error',
         confirmButtonText: 'OK'
       });
-    } finally {
-      setTimeout(() => {
-        isProcessingRef.current = false;
-      }, 1000);
+      isProcessingRef.current = false;
+      return;
     }
-  };
+
+    console.log('📦 [SCAN] Extracted uniqueId:', uniqueId);
+
+    // Check for duplicates
+    const shouldProceed = await new Promise((resolve) => {
+      setScannedItems((currentItems) => {
+        const alreadyScanned = currentItems.find(item => item.uniqueId === uniqueId);
+        if (alreadyScanned) {
+          vibrate([100, 50, 100, 50, 100]);
+          Swal.fire('Already Scanned', 'This carton has already been scanned!', 'warning');
+          resolve(false);
+          return currentItems;
+        }
+        resolve(true);
+        return currentItems;
+      });
+    });
+
+    if (!shouldProceed) {
+      isProcessingRef.current = false;
+      return;
+    }
+
+    // Get current distributor
+    let currentDistributor;
+    setSelectedDistributor((current) => {
+      currentDistributor = current;
+      return current;
+    });
+
+    let currentDistributors;
+    setDistributors((current) => {
+      currentDistributors = current;
+      return current;
+    });
+
+    if (!currentDistributor) {
+      vibrate([300, 100, 300]);
+      Swal.fire('Warning', 'Please select a distributor first', 'warning');
+      isProcessingRef.current = false;
+      return;
+    }
+
+    // Stop scanner after successful read
+    if (isScanning) {
+      console.log('🛑 Stopping scanner after successful scan...');
+      setIsScanning(false);
+      await stopScanning();
+    }
+
+    console.log('📡 [SCAN] Sending to backend with uniqueId:', uniqueId);
+    
+    // ✅ FIXED: Send uniqueId directly to backend
+    const response = await axios.post(
+      `${baseURL}/api/v1/shipment/scan/${uniqueId}`,
+      {
+        event: 'shipped',
+        scannedBy: {
+          userType: 'shipment_manager'
+        },
+        distributorDetails: {
+          distributorId: currentDistributor,
+          distributorName: currentDistributors.find(d => d._id === currentDistributor)?.distributorDetails?.partyName || 
+                         currentDistributors.find(d => d._id === currentDistributor)?.name || ''
+        },
+        trackingNumber: `TRACK_${Date.now()}`,
+        notes: 'Scanned for shipment to distributor'
+      },
+      {
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+    console.log('✅ [SCAN] Backend response:', response.data);
+
+    if (response.data.result) {
+      // ✅ FIXED: Get data from backend response instead of QR code
+      const shipmentData = response.data.data.shipment;
+      const qrCodeData = response.data.data.qrCode;
+      
+      const formatSizeRange = (sizes) => {
+        if (!sizes) return 'N/A';
+        if (!Array.isArray(sizes)) return sizes.toString();
+        if (sizes.length === 0) return 'N/A';
+        if (sizes.length === 1) return sizes[0].toString();
+        
+        const sorted = [...sizes].sort((a, b) => a - b);
+        return `${sorted[0]}X${sorted[sorted.length - 1]}`;
+      };
+
+      // ✅ Extract from backend response (more reliable than QR data)
+      const lastItem = shipmentData.items?.[shipmentData.items.length - 1];
+      
+      const newItem = {
+        uniqueId: uniqueId,
+        articleName: qrCodeData?.articleName || lastItem?.articleName || 'Unknown Article',
+        colors: qrCodeData?.articleDetails?.colors || lastItem?.articleDetails?.colors || ['Not specified'],
+        sizes: qrCodeData?.articleDetails?.sizes || lastItem?.articleDetails?.sizes || [],
+        sizesFormatted: formatSizeRange(
+          qrCodeData?.articleDetails?.sizes || lastItem?.articleDetails?.sizes
+        ),
+        cartonNumber: qrCodeData?.contractorInput?.cartonNumber || 'N/A',
+        scannedAt: new Date().toLocaleTimeString(),
+        status: 'shipped'
+      };
+
+      setScannedItems(prev => [...prev, newItem]);
+      
+      vibrate([100, 50, 100, 50, 200]);
+      
+      Swal.fire({
+        icon: 'success',
+        title: '✅ Carton Scanned!',
+        text: `${newItem.articleName} - Carton ${newItem.cartonNumber}`,
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+      });
+      
+    } else {
+      throw new Error(response.data.message || 'Server returned failure');
+    }
+
+  } catch (error) {      
+    vibrate([500, 200, 500]);
+    
+    console.error('❌ [SCAN] Full error:', error);
+    console.error('❌ [SCAN] Error response:', error.response?.data);
+    
+    const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+    
+    Swal.fire({
+      title: 'Scan Failed',
+      text: errorMsg,
+      icon: 'error',
+      confirmButtonText: 'OK'
+    });
+  } finally {
+    setTimeout(() => {
+      isProcessingRef.current = false;
+    }, 1000);
+  }
+};
+
 
   const handleStartScanning = () => {
     if (!selectedDistributor) {
