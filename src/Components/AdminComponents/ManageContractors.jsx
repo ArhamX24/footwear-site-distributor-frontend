@@ -1,14 +1,16 @@
+// ✅ FIXED: Password visible + Items Produced removed
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import Swal from 'sweetalert2'; // ✅ Add this import
+import Swal from 'sweetalert2';
 import { baseURL } from '../../Utils/URLS';
-import { FaUsers, FaSpinner, FaUser, FaQrcode, FaEye, FaPhone, FaLock } from 'react-icons/fa';
+import { FaUsers, FaSpinner, FaUser, FaQrcode, FaEye, FaPhone, FaLock, FaDownload } from 'react-icons/fa';
 import AddContractorDialog from '../../Components/AdminComponents/AddContractorDialog';
 
-const ContractorCard = ({ contractor, onViewStats, setIsDeleted, setIsUpdated }) => {
+const ContractorCard = ({ contractor, setIsDeleted, setIsUpdated }) => {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [contractorDetails, setContractorDetails] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState(false);
 
   const handleViewDetails = async () => {
     try {
@@ -36,7 +38,51 @@ const ContractorCard = ({ contractor, onViewStats, setIsDeleted, setIsUpdated })
     }
   };
 
-  // ✅ UPDATED handleDelete with SweetAlert2
+  const handleDownloadReport = async () => {
+    try {
+      setDownloadingReport(true);
+      const response = await axios.get(
+        `${baseURL}/api/v1/admin/download/${contractor._id}`,
+        {
+          withCredentials: true,
+          responseType: 'blob'
+        }
+      );
+
+      const now = new Date();
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `QR-Report-${contractor.fullName.replace(/\s+/g, '_')}-${now.getFullYear()}-${month}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentElement.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      Swal.fire({
+        icon: "success",
+        title: "Downloaded!",
+        text: "Individual contractor report downloaded",
+        background: "#1F2937",
+        color: "#F9FAFB",
+        confirmButtonColor: "#4B5563",
+      });
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.message || "No QR data found for this contractor",
+        background: "#1F2937",
+        color: "#F9FAFB",
+        confirmButtonColor: "#4B5563",
+      });
+    } finally {
+      setDownloadingReport(false);
+    }
+  };
+
   const handleDelete = async () => {
     try {
       const result = await Swal.fire({
@@ -101,20 +147,17 @@ const ContractorCard = ({ contractor, onViewStats, setIsDeleted, setIsUpdated })
           </div>
         </div>
 
+        {/* ✅ REMOVED: Items Produced field from card */}
         <div className="mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-gray-500">Items Produced:</span>
-            <span className="font-semibold text-gray-700">{contractor.totalItemsProduced}</span>
-          </div>
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-500">Joined:</span>
             <span className="text-sm text-gray-600">
-              {new Date(contractor.createdAt).toLocaleDateString()}
+              {new Date(contractor.createdAt).toLocaleDateString('en-IN')}
             </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={handleViewDetails}
             disabled={loading}
@@ -123,6 +166,17 @@ const ContractorCard = ({ contractor, onViewStats, setIsDeleted, setIsUpdated })
             <FaEye className="mr-1" />
             {loading ? "..." : "View"}
           </button>
+          
+          <button
+            onClick={handleDownloadReport}
+            disabled={downloadingReport}
+            className="bg-green-600 text-white px-2 py-2 rounded-lg hover:bg-green-700 transition duration-200 text-xs font-medium flex items-center justify-center disabled:bg-green-400"
+            title="Download this contractor's monthly QR report"
+          >
+            <FaDownload className="mr-1" />
+            {downloadingReport ? "..." : "Report"}
+          </button>
+          
           <button
             onClick={handleDelete}
             className="bg-red-600 text-white px-2 py-2 rounded-lg hover:bg-red-700 transition duration-200 text-xs font-medium"
@@ -132,14 +186,13 @@ const ContractorCard = ({ contractor, onViewStats, setIsDeleted, setIsUpdated })
         </div>
       </div>
 
-      {/* View Details Modal */}
       {viewModalOpen && contractorDetails && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50 p-4">
           <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl border border-gray-200 overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="bg-gradient-to-r from-gray-800 to-gray-900 p-4 text-white sticky top-0 z-10">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <FaEye />
-                Contractor Full Details
+                Bar Code Generator Full Details
               </h2>
             </div>
 
@@ -155,22 +208,18 @@ const ContractorCard = ({ contractor, onViewStats, setIsDeleted, setIsUpdated })
                   <p className="text-gray-900 font-semibold mt-1">{contractorDetails.phoneNo || "N/A"}</p>
                 </div>
 
-                <div className="bg-gray-700 p-4 rounded-lg border-2 border-gray-600">
-                  <label className="text-xs text-gray-300 font-medium flex items-center gap-1">
+                {/* ✅ PASSWORD VISIBLE BY DEFAULT (no special styling) */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <label className="text-xs text-gray-500 font-medium flex items-center gap-1">
                     <FaLock className="text-xs" />
                     Password
                   </label>
-                  <p className="text-white font-bold text-lg mt-2 font-mono tracking-wider break-all">
-                    {contractorDetails.password || "Not available"}
+                  <p className="text-gray-900 font-semibold mt-1 font-mono tracking-wider break-all">
+                    {contractorDetails.password || "Not set"}
                   </p>
                 </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs text-gray-500 font-medium">Total Items Produced</label>
-                  <p className="text-gray-900 font-semibold mt-1">{contractorDetails.totalItemsProduced || 0}</p>
-                </div>
-
-
+                {/* ✅ REMOVED: Total Items Produced field */}
               </div>
 
               <button
@@ -187,107 +236,12 @@ const ContractorCard = ({ contractor, onViewStats, setIsDeleted, setIsUpdated })
   );
 };
 
-
-const ContractorStatsModal = ({ contractor, isOpen, onClose }) => {
-  if (!isOpen || !contractor) return null;
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-900/50 z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Contractor Stats</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-xl font-bold px-2 py-1 rounded-full border"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-center mb-6">
-            <div className="bg-gray-600 p-4 rounded-full mr-4">
-              <FaUser className="text-white text-2xl" />
-            </div>
-            <div className="text-center">
-              <h3 className="text-xl font-semibold text-gray-900">{contractor.fullName}</h3>
-              <p className="text-gray-600">{contractor.role}</p>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 font-medium">Phone Number:</span>
-              <span className="text-gray-800">{contractor.phoneNo}</span>
-            </div>
-          
-
-            
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 font-medium">Status:</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                contractor.isActive 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {contractor.isActive ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 font-medium">Total Items Produced:</span>
-              <span className="text-gray-800 font-semibold">{contractor.totalItemsProduced}</span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 font-medium">Joined Date:</span>
-              <span className="text-gray-800">
-                {new Date(contractor.createdAt).toLocaleDateString()}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 font-medium">Role:</span>
-              <span className="text-gray-800 capitalize">{contractor.role}</span>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <FaQrcode className="text-blue-600 mr-2" />
-                <span className="text-blue-800 font-medium">QR Generation Stats</span>
-              </div>
-              <span className="text-blue-600 text-lg font-bold">
-                {contractor.totalItemsProduced}
-              </span>
-            </div>
-            <p className="text-blue-600 text-sm mt-1">
-              Total QR codes generated by this contractor
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <button
-            onClick={onClose}
-            className="w-full bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-200 font-medium"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const ManageContractors = () => {
   const [contractors, setContractors] = useState(null);
   const [isDeleted, setIsDeleted] = useState(false);
   const [isUpdated, setIsUpdated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [selectedContractor, setSelectedContractor] = useState(null);
-  const [statsModalOpen, setStatsModalOpen] = useState(false);
+  const [downloadingAllReports, setDownloadingAllReports] = useState(false);
 
   const getContractors = async () => {
     try {
@@ -300,19 +254,62 @@ const ManageContractors = () => {
       }
     } catch (error) {
       console.error('Error fetching contractors:', error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load contractors",
+        background: "#1F2937",
+        color: "#F9FAFB",
+        confirmButtonColor: "#4B5563",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleViewStats = (contractor) => {
-    setSelectedContractor(contractor);
-    setStatsModalOpen(true);
-  };
+  const handleDownloadAllReports = async () => {
+    try {
+      setDownloadingAllReports(true);
+      const response = await axios.get(
+        `${baseURL}/api/v1/admin/download-all/excel`,
+        {
+          withCredentials: true,
+          responseType: 'blob'
+        }
+      );
 
-  const handleCloseStatsModal = () => {
-    setStatsModalOpen(false);
-    setSelectedContractor(null);
+      const now = new Date();
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `QR-Report-All-Contractors-${now.getFullYear()}-${month}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentElement.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      Swal.fire({
+        icon: "success",
+        title: "Downloaded!",
+        text: "All contractors' monthly reports downloaded",
+        background: "#1F2937",
+        color: "#F9FAFB",
+        confirmButtonColor: "#4B5563",
+      });
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.message || "No QR data found for this month",
+        background: "#1F2937",
+        color: "#F9FAFB",
+        confirmButtonColor: "#4B5563",
+      });
+    } finally {
+      setDownloadingAllReports(false);
+    }
   };
 
   useEffect(() => {
@@ -336,13 +333,24 @@ const ManageContractors = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <div className="flex justify-center sm:justify-end">
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <AddContractorDialog setIsUpdated={setIsUpdated} />
+              
+              {/* <button
+                onClick={handleDownloadAllReports}
+                disabled={downloadingAllReports}
+                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition duration-200 font-medium disabled:bg-blue-400 flex-1 sm:flex-none"
+                title="Download all contractors' QR reports for this month"
+              >
+                <FaDownload className="text-lg" />
+                {downloadingAllReports ? "Downloading..." : "Download All Reports"}
+              </button> */}
             </div>
+            
             <div>
               {contractors && (
                 <p className="text-gray-600 text-center sm:text-left">
-                  Managing {contractors.length} contractor{contractors.length !== 1 ? 's' : ''}
+                  Managing {contractors.length} Bar Code Generator{contractors.length !== 1 ? 's' : ''}
                 </p>
               )}
             </div>
@@ -354,7 +362,7 @@ const ManageContractors = () => {
             <div className="bg-white rounded-full p-6 shadow-lg mb-4">
               <FaSpinner className="text-3xl text-gray-600 animate-spin" />
             </div>
-            <p className="text-gray-600 font-medium">Loading contractors...</p>
+            <p className="text-gray-600 font-medium">Loading Bar Code Generators...</p>
           </div>
         ) : (
           <>
@@ -364,10 +372,10 @@ const ManageContractors = () => {
                   <FaUsers className="text-4xl text-gray-400" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  No Contractors Found
+                  No Bar Code Generator Found
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  There are no contractors in your system yet. Start by adding your first contractor.
+                  There are no Bar Code Generator in your system yet.
                 </p>
                 <div className="inline-block">
                   <AddContractorDialog setIsUpdated={setIsUpdated} />
@@ -379,7 +387,6 @@ const ManageContractors = () => {
                   <ContractorCard
                     key={contractor._id}
                     contractor={contractor}
-                    onViewStats={handleViewStats}
                     setIsDeleted={setIsDeleted}
                     setIsUpdated={setIsUpdated}
                   />
@@ -388,12 +395,6 @@ const ManageContractors = () => {
             )}
           </>
         )}
-
-        <ContractorStatsModal
-          contractor={selectedContractor}
-          isOpen={statsModalOpen}
-          onClose={handleCloseStatsModal}
-        />
       </div>
     </div>
   );

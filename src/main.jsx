@@ -32,6 +32,7 @@ import ShipmentScanner from './Components/ShipmentManagerComponenets/ShipmentSca
 import ManageContractors from './Components/AdminComponents/ManageContractors.jsx'
 import ManageManagers from './Components/AdminComponents/ManageManagers.jsx'
 import PastOrders from './Screens/User/PastOrders.jsx'
+import DemandPage from './Components/AdminComponents/DemandPage.jsx'
 
 // ✅ Create a Layout component that includes BootAuth
 const Layout = () => {
@@ -76,6 +77,7 @@ let AppRouter = createBrowserRouter([
           { path: "/secure/admin/product/qrdashboard", element: <QRStatisticsDashboard/>},
           { path: "/secure/admin/managecontractor", element: <ManageContractors/>},
           { path: "/secure/admin/managemanagers", element : <ManageManagers/>},
+          { path: "/secure/admin/demand", element: <DemandPage/>}
         ],
       },
 

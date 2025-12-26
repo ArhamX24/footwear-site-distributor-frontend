@@ -12,6 +12,8 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
+  console.log(product)
+
   // Edit form states
    const [editForm, setEditForm] = useState({
     name: product.name,
@@ -29,6 +31,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
   const [previewImages, setPreviewImages] = useState([]);
 
   const handleDelete = async (id) => {
+    console.log(id)
     const { isConfirmed } = await Swal.fire({
       title: "Are you sure?",
       text: "This action cannot be undone.",
@@ -61,6 +64,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
         });
       }
     } catch (err) {
+      console.log(err)
       Swal.fire({
         title: "Error",
         text: "Unable to delete. Try again later.",
@@ -159,67 +163,74 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
   
 
   const handleEditSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (editForm.existingImages.length + editForm.newImages.length === 0) {
-      Swal.fire({
-        title: "No Images",
-        text: "Please add at least one image.",
-        icon: "warning",
-        confirmButtonColor: "#4B5563",
-      });
-      return;
-    }
+  if (editForm.existingImages.length + editForm.newImages.length === 0) {
+    Swal.fire({
+      title: "No Images",
+      text: "Please add at least one image.",
+      icon: "warning",
+      confirmButtonColor: "#4B5563",
+    });
+    return;
+  }
 
-    try {
-      setEditLoading(true);
-      const formData = new FormData();
+  try {
+    setEditLoading(true);
+    const formData = new FormData();
 
-      formData.append("name", editForm.name.trim().toLowerCase());
-      formData.append("segment", editForm.segment.trim().toLowerCase());
-      formData.append("gender", editForm.gender.trim().toLowerCase());
-      formData.append("variantName", editForm.variantName.trim().toLowerCase());
-      formData.append("existingImages", JSON.stringify(editForm.existingImages));
+    // ✅ FIXED: Add the CORRECT article ID to FormData
+    formData.append("articleId", product.id);  // ✅ From your flat data structure
 
-      // ✅ Append keywords as comma-separated strings
-      formData.append("segmentKeywords", editForm.segmentKeywords);
-      formData.append("variantKeywords", editForm.variantKeywords);
-      formData.append("articleKeywords", editForm.articleKeywords);
 
-      editForm.newImages.forEach((file) => {
-        formData.append("images", file);
-      });
+    formData.append("name", editForm.name.trim().toLowerCase());
+    formData.append("segment", editForm.segment.trim().toLowerCase());
+    formData.append("gender", editForm.gender.trim().toLowerCase());
+    formData.append("variantName", editForm.variantName.trim().toLowerCase());
+    formData.append("existingImages", JSON.stringify(editForm.existingImages));
 
-      const res = await axios.put(
-        `${baseURL}/api/v1/admin/products/updateproduct/${product._id}`,
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-          withCredentials: true,
-        }
-      );
+    // Keywords
+    formData.append("segmentKeywords", editForm.segmentKeywords);
+    formData.append("variantKeywords", editForm.variantKeywords);
+    formData.append("articleKeywords", editForm.articleKeywords);
 
-      if (res.data.result) {
-        Swal.fire({
-          title: "Success!",
-          text: "Product updated successfully.",
-          icon: "success",
-          confirmButtonColor: "#4B5563",
-        });
-        setisUpdated(prev => !prev);
-        closeEditModal();
+    // New images
+    editForm.newImages.forEach((file) => {
+      formData.append("images", file);
+    });
+
+    // ✅ FIXED: NO URL PARAM - Send ID in body
+    const res = await axios.put(
+      `${baseURL}/api/v1/admin/products/updateproduct`,  // ✅ No ID in URL
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+        withCredentials: true,
       }
-    } catch (err) {
+    );
+
+    if (res.data.result) {
       Swal.fire({
-        title: "Error",
-        text: err.response?.data?.message || "Unable to update product. Try again later.",
-        icon: "error",
+        title: "Success!",
+        text: "Product updated successfully.",
+        icon: "success",
         confirmButtonColor: "#4B5563",
       });
-    } finally {
-      setEditLoading(false);
+      setisUpdated(prev => !prev);
+      closeEditModal();
     }
-  };
+  } catch (err) {
+    Swal.fire({
+      title: "Error",
+      text: err.response?.data?.message || "Unable to update product. Try again later.",
+      icon: "error",
+      confirmButtonColor: "#4B5563",
+    });
+  } finally {
+    setEditLoading(false);
+  }
+};
+
 
   const nextImage = () => {
     if (product.images && product.images.length > 1) {
@@ -378,7 +389,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
             </button>
             
             <button
-              onClick={() => handleDelete(product._id)}
+              onClick={() => handleDelete(product.id)}
               disabled={loading}
               className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               title="Delete Product"

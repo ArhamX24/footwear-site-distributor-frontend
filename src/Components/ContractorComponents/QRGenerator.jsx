@@ -15,13 +15,10 @@ const QRGenerator = () => {
   const [printLoading, setPrintLoading] = useState(false);
   const [receiptLoading, setReceiptLoading] = useState(false);
   
-  // ✅ Updated states for article management with IDs
   const [articles, setArticles] = useState([]);
   const [articlesLoading, setArticlesLoading] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState(null);
-  const [useCustomArticle, setUseCustomArticle] = useState(false);
 
-  // ✅ Fetch articles with IDs on component mount
   useEffect(() => {
     fetchAllArticles();
   }, []);
@@ -37,34 +34,41 @@ const QRGenerator = () => {
         setArticles(response.data.data);
       }
     } catch (error) {
-      console.error('Error fetching articles:', error);
+      
       setArticles([]);
     } finally {
       setArticlesLoading(false);
     }
   };
 
-  // ✅ NEW: Handle space to comma conversion
+  // ✅ Space to comma conversion
   const handleSpaceToComma = (event, fieldName) => {
     if (event.key === ' ') {
       event.preventDefault();
       const currentValue = qrFormik.values[fieldName];
-      const lastChar = currentValue.slice(-1);
+      const trimmedValue = currentValue.trim();
       
-      // Only add comma if the last character isn't already a comma or space
-      if (currentValue.trim() && lastChar !== ',' && lastChar !== ' ') {
+      if (trimmedValue && !currentValue.endsWith(',') && !currentValue.endsWith(' ')) {
         qrFormik.setFieldValue(fieldName, currentValue + ', ');
       }
     }
   };
 
-  // ✅ NEW: Handle input change for colors/sizes
+  // ✅ Input validation - Colors (letters only), Sizes (numbers only)
   const handleInputChange = (event, fieldName) => {
     const value = event.target.value;
-    qrFormik.setFieldValue(fieldName, value);
+    
+    if (fieldName === 'colors') {
+      const cleanedValue = value.replace(/[^a-zA-Z,\s]/g, '');
+      qrFormik.setFieldValue(fieldName, cleanedValue);
+    } else if (fieldName === 'sizes') {
+      const cleanedValue = value.replace(/[^0-9,\s]/g, '');
+      qrFormik.setFieldValue(fieldName, cleanedValue);
+    } else {
+      qrFormik.setFieldValue(fieldName, value);
+    }
   };
 
-  // ✅ NEW: Logout function
   const handleLogout = async () => {
     try {
       const result = await Swal.fire({
@@ -90,7 +94,7 @@ const QRGenerator = () => {
         }, 1500);
       }
     } catch (error) {
-      console.error('Logout error:', error);
+
       Swal.fire({
         icon: 'error',
         title: 'Logout failed',
@@ -99,17 +103,19 @@ const QRGenerator = () => {
     }
   };
 
-  // ✅ Updated form with article ID support
+  // ✅ Formik with NEW production fields
   const qrFormik = useFormik({
     initialValues: { 
       articleName: "",
       articleId: "",
       colors: "",
       sizes: "", 
-      numberOfQRs: ""
+      numberOfQRs: "",
+      bharra: "",
+      printing: "",
+      packing: ""
     },
     onSubmit: async (values, action) => {
-      // Validation
       if (!values.articleName.trim()) {
         Swal.fire("Article name is required", "", "warning");
         return;
@@ -137,6 +143,9 @@ const QRGenerator = () => {
           colors: values.colors.split(',').map(c => c.trim()).filter(c => c),
           sizes: values.sizes.split(',').map(s => s.trim()).filter(s => s),
           numberOfQRs: parseInt(values.numberOfQRs),
+          bharra: values.bharra.trim() || null,
+          printing: values.printing.trim() || null,
+          packing: values.packing.trim() || null,
         };
 
         const response = await axios.post(
@@ -170,7 +179,7 @@ const QRGenerator = () => {
     },
   });
 
-  // ✅ UPDATED: Handle article selection from dropdown - No auto-filling
+  // ✅ Handle article selection
   const handleArticleSelection = (event, newValue) => {
     if (newValue && typeof newValue === 'object') {
       setSelectedArticle(newValue);
@@ -183,7 +192,6 @@ const QRGenerator = () => {
     }
   };
 
-  // ✅ Download QR codes as ZIP
   const handleDownload = useCallback(async () => {
     if (generatedQRs.length === 0) {
       Swal.fire("No QR codes to download", "", "warning");
@@ -233,7 +241,6 @@ const QRGenerator = () => {
     }
   }, [generatedQRs, qrFormik.values, selectedArticle]);
 
-  // ✅ Print QR codes
   const handlePrint = useCallback(() => {
     if (generatedQRs.length === 0) {
       Swal.fire("No QR codes to print", "", "warning");
@@ -347,14 +354,13 @@ const QRGenerator = () => {
       printWindow.focus();
 
     } catch (err) {
-      console.error('Print error:', err);
+
       Swal.fire("Error", "Failed to open print window", "error");
     } finally {
       setPrintLoading(false);
     }
   }, [generatedQRs, qrFormik.values]);
 
-  // ✅ Generate receipt PDF
   const handleGenerateReceipt = useCallback(async () => {
     if (generatedQRs.length === 0) {
       Swal.fire("No QR codes to generate receipt for", "", "warning");
@@ -411,7 +417,6 @@ const QRGenerator = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Header Section */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex justify-between items-start mb-6">
             <div className="text-center flex-1">
@@ -419,7 +424,6 @@ const QRGenerator = () => {
                 QR Code Label Generator
               </h1>
             </div>
-            {/* ✅ NEW: Logout Button */}
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 font-medium flex items-center"
@@ -429,129 +433,88 @@ const QRGenerator = () => {
             </button>
           </div>
 
-          {/* ✅ Updated form with article dropdown */}
           <form onSubmit={qrFormik.handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
-              {/* ✅ Enhanced Article Selection */}
+              {/* ✅ SIMPLE AUTOCOMPLETE - NO RADIO BUTTONS */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-2 text-gray-700">
                   Article Name <span className="text-red-500">*</span>
                 </label>
                 
-                {/* Toggle between dropdown and custom input */}
-                <div className="mb-3">
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="articleMode"
-                        checked={!useCustomArticle}
-                        onChange={() => setUseCustomArticle(false)}
-                        className="mr-2"
-                      />
-                      Select from existing articles
-                    </label>
-                  </div>
-                </div>
-
-                {!useCustomArticle ? (
-                  // ✅ Enhanced Autocomplete with article objects
-                  <Autocomplete
-                    freeSolo
-                    options={articles}
-                    getOptionLabel={(option) => {
-                      if (typeof option === 'object' && option.articleName) {
-                        return option.articleName;
-                      }
-                      return option;
-                    }}
-                    loading={articlesLoading}
-                    value={selectedArticle}
-                    onChange={handleArticleSelection}
-                    onInputChange={(event, newInputValue) => {
-                      if (!selectedArticle || selectedArticle.articleName !== newInputValue) {
-                        handleArticleSelection(event, newInputValue);
-                      }
-                    }}
-                    renderOption={(props, option) => (
-                      <li {...props} key={option.articleId || option}>
-                        <div className="flex flex-col w-full">
-                          <div className="font-medium">
-                            {typeof option === 'object' ? option.articleName : option}
-                          </div>
-                          {typeof option === 'object' && (
-                            <div className="text-xs text-gray-500">
-                              Segment: {option.segment} | Variant: {option.variantName}
-                              {option.colors && option.colors.length > 0 && (
-                                <span> | Colors: {option.colors.slice(0, 3).join(', ')}</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </li>
-                    )}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        placeholder="Search articles or type new name..."
-                        variant="outlined"
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <>
-                              {articlesLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                              {params.InputProps.endAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
-                    renderTags={(value, getTagProps) =>
-                      value.map((option, index) => (
-                        <Chip
-                          variant="outlined"
-                          label={typeof option === 'object' ? option.articleName : option}
-                          {...getTagProps({ index })}
-                        />
-                      ))
+                <Autocomplete
+                  freeSolo
+                  options={articles}
+                  getOptionLabel={(option) => {
+                    if (typeof option === 'object' && option.articleName) {
+                      return option.articleName;
                     }
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        padding: '8px 12px',
-                      }
-                    }}
-                  />
-                ) : (
-                  // ✅ Custom input for new articles
-                  <TextField
-                    fullWidth
-                    variant="outlined"
-                    placeholder="Enter new article name..."
-                    value={qrFormik.values.articleName}
-                    onChange={(e) => {
-                      qrFormik.setFieldValue('articleName', e.target.value);
-                      qrFormik.setFieldValue('articleId', ''); // Clear articleId for custom
-                      setSelectedArticle(null);
-                    }}
-                    name="articleName"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        padding: '8px 12px',
-                      }
-                    }}
-                  />
-                )}
+                    return option;
+                  }}
+                  loading={articlesLoading}
+                  value={selectedArticle}
+                  onChange={handleArticleSelection}
+                  onInputChange={(event, newInputValue) => {
+                    if (!selectedArticle || selectedArticle.articleName !== newInputValue) {
+                      handleArticleSelection(event, newInputValue);
+                    }
+                  }}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.articleId || option}>
+                      <div className="flex flex-col w-full">
+                        <div className="font-medium">
+                          {typeof option === 'object' ? option.articleName : option}
+                        </div>
+                        {typeof option === 'object' && (
+                          <div className="text-xs text-gray-500">
+                            Segment: {option.segment} | Variant: {option.variantName}
+                            {option.colors && option.colors.length > 0 && (
+                              <span> | Colors: {option.colors.slice(0, 3).join(', ')}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder="Search articles or type new name..."
+                      variant="outlined"
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {articlesLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                      <Chip
+                        key={index}
+                        variant="outlined"
+                        label={typeof option === 'object' ? option.articleName : option}
+                        {...getTagProps({ index })}
+                      />
+                    ))
+                  }
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      padding: '8px 12px',
+                    }
+                  }}
+                />
                 
                 <div className="text-xs text-gray-500 mt-2">
-                  {!useCustomArticle 
-                    ? `${articles.length} existing articles available. You'll need to manually enter colors and sizes.`
-                    : "Enter a completely new article name that will be added to the system."
-                  }
+                  {articles.length} existing articles available. Type to search or enter new name.
                 </div>
               </div>
 
-              {/* ✅ UPDATED: Colors input with space-to-comma */}
+              {/* Colors */}
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">
                   Colors <span className="text-red-500">*</span>
@@ -559,15 +522,16 @@ const QRGenerator = () => {
                 <input
                   type="text"
                   name="colors"
-                  placeholder="e.g., Red, Blue)"
+                  placeholder="e.g., Red Blue Green"
                   onChange={(e) => handleInputChange(e, 'colors')}
                   onKeyDown={(e) => handleSpaceToComma(e, 'colors')}
                   value={qrFormik.values.colors}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+                <p className="text-xs text-gray-500 mt-1">Press space after each color → auto adds ", "</p>
               </div>
 
-              {/* ✅ UPDATED: Sizes input with space-to-comma */}
+              {/* Sizes */}
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">
                   Sizes <span className="text-red-500">*</span>
@@ -575,14 +539,16 @@ const QRGenerator = () => {
                 <input
                   type="text"
                   name="sizes"
-                  placeholder="e.g. 3, 4, 5"
+                  placeholder="e.g., 38 39 40"
                   onChange={(e) => handleInputChange(e, 'sizes')}
                   onKeyDown={(e) => handleSpaceToComma(e, 'sizes')}
                   value={qrFormik.values.sizes}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+                <p className="text-xs text-gray-500 mt-1">Press space after each size → auto adds ", "</p>
               </div>
 
+              {/* Number of Cartons */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-2 text-gray-700">
                   Number of Cartons <span className="text-red-500">*</span>
@@ -597,6 +563,51 @@ const QRGenerator = () => {
                   min="1"
                   max="1000"
                 />
+              </div>
+
+              {/* ✅ NEW: Production Details */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-3 text-gray-700">
+                  🏭 Production Details (Optional)
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600">Bharra</label>
+                    <input
+                      type="text"
+                      name="bharra"
+                      placeholder="e.g., Bharra-001"
+                      onChange={qrFormik.handleChange}
+                      value={qrFormik.values.bharra}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600">Printing</label>
+                    <input
+                      type="text"
+                      name="printing"
+                      placeholder="e.g., Print-A123"
+                      onChange={qrFormik.handleChange}
+                      value={qrFormik.values.printing}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600">Packing</label>
+                    <input
+                      type="text"
+                      name="packing"
+                      placeholder="e.g., Pack-XYZ"
+                      onChange={qrFormik.handleChange}
+                      value={qrFormik.values.packing}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">These details will be tracked with your QR generation report</p>
               </div>
             </div>
 
@@ -619,7 +630,6 @@ const QRGenerator = () => {
           </form>
         </div>
 
-        {/* ✅ RESULTS SECTION */}
         {generatedQRs.length > 0 && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="text-center mb-6">
@@ -631,26 +641,7 @@ const QRGenerator = () => {
               </div>
             </div>
             
-            {/* ✅ ACTION BUTTONS - Download, Print, Receipt */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              {/* <button
-                onClick={handleDownload}
-                className="flex items-center justify-center bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 transition duration-200 disabled:bg-green-400 font-medium"
-                disabled={downloadLoading}
-              >
-                {downloadLoading ? (
-                  <>
-                    <CircularProgress size={20} color="inherit" className="mr-2" />
-                    Preparing ZIP...
-                  </>
-                ) : (
-                  <>
-                    <span className="mr-2">📦</span>
-                    Download as ZIP
-                  </>
-                )}
-              </button> */}
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <button
                 onClick={handlePrint}
                 className="flex items-center justify-center bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition duration-200 disabled:bg-blue-400 font-medium"
@@ -688,7 +679,6 @@ const QRGenerator = () => {
               </button>
             </div>
 
-            {/* ✅ PREVIEW SECTION */}
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">
                 📋 QR Code Preview (First 4)

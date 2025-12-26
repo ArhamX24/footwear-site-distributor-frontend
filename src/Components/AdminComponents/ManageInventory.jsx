@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { baseURL } from '../../Utils/URLS';
+import { Link } from 'react-router';
 
 const ManageInventory = () => {
   const [inventoryData, setInventoryData] = useState([]);
@@ -94,24 +95,17 @@ const ManageInventory = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div className="mb-4 sm:mb-0">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-                📦 Inventory Tracker
+                Godown Inventory Tracker
               </h1>
-              <p className="text-gray-600">
-                Track articles, stock levels, and availability
-              </p>
             </div>
             
-            {/* Summary Stats */}
+            <Link to={"/secure/admin/demand"}>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-              <div className="text-center bg-gray-50 p-3 rounded-lg">
-                <div className="text-sm text-gray-500">Total Articles</div>
-                <div className="text-xl font-bold text-gray-600">{inventoryData.length}</div>
-              </div>
-              <div className="text-center bg-green-50 p-3 rounded-lg">
-                <div className="text-sm text-gray-500">Available</div>
-                <div className="text-xl font-bold text-green-600">{totalAvailable}</div>
+              <div className="text-center bg-gray-100 p-3 rounded-lg hover:bg-gray-300 hover:cursor-pointer">
+                <div className="text-sm text-gray-800">Check Demand</div>
               </div>
             </div>
+            </Link>
           </div>
         </div>
 

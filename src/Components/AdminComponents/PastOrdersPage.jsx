@@ -199,7 +199,7 @@ const handleDownloadPerforma = async (shipmentId) => {
                                 onClick={deleteOldShipments}
                                 className='bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all text-sm font-medium'
                             >
-                                🗑️ Cleanup
+                             Delete Old Shipments
                             </button>
                         </div>
                     </div>

@@ -109,18 +109,25 @@ const AddFestivleImageDialog = () => {
               {/* Image Upload */}
               <div>
                 <label className="block text-sm font-medium mb-1">Upload Festival Image</label>
-                <input
-                    type="file"
-                    name="images" // ✅ Use singular name to match Multer's `single("image")`
-                    accept="image/*"
-                    onChange={(event) => {
-                        const file = event.target.files[0]; // ✅ Get only the first file
+                <div className="mt-2">
+                  <label className="block w-full h-16 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:border-gray-400 hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-all text-lg font-semibold text-gray-700">
+                    <input
+                      type="file"
+                      name="images"
+                      accept="image/*"
+                      onChange={(event) => {
+                        const file = event.target.files[0];
                         if (file) {
-                        formik.setFieldValue("images", file); // ✅ Store single image instead of array
-                        setPreview(URL.createObjectURL(file)); // ✅ Preview only one image
+                          formik.setFieldValue("images", file);
+                          setPreview(URL.createObjectURL(file));
                         }
-                    }}
+                      }}
+                      className="hidden" // ✅ Hidden but covers entire label
                     />
+                    Choose Image
+                  </label>
+                </div>
+
                 </div>
 
               {/* Image Preview */}

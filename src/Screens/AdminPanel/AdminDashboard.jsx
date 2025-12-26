@@ -73,44 +73,56 @@ const AdminDashboard = () => {
     }, []);    
 
 const handleConfirmOrder = async (id) => {
-    try {
-      setIsLoading(true);
-      setError("");
+  try {
+    setIsLoading(true);
+    setError("");
 
-      let response = await axios.post(`${baseURL}/api/v1/admin/products/orders/confirm/${id}`);
+    console.log('🔍 Frontend confirming order:', id); // ✅ DEBUG
 
-      if(!response.data.result){
-        setIsLoading(false);
-        setError(response.data.message);
-      }
+    // ✅ FIXED: Use PUT instead of POST
+    let response = await axios.put(  // ← CHANGED FROM POST
+      `${baseURL}/api/v1/admin/products/orders/confirm/${id}`,
+      {}, // Empty body for PUT
+      { withCredentials: true }
+    );
 
+    console.log('🔍 Response:', response.data); // ✅ DEBUG
+
+    if(!response.data.result){
       setIsLoading(false);
-
-      Swal.fire({
-                title: "Success!",
-                text: "Order Confirmed!",
-                icon: "success",
-      });
-
-      setOrdersStatus(prev => ({
-      pending: prev.pending > 0 ? prev.pending - 1 : 0,
-      completed: prev.completed + 1
-      }));
-
-
-
-      setSelectedOrder(null);
-      getOrders();
+      setError(response.data.message);
       
-    } catch (error) {
-      console.error(error);
+      return;
     }
+
+    setIsLoading(false);
+
+    Swal.fire({
+      title: "Success!",
+      text: "Order Confirmed!",
+      icon: "success",
+    });
+
+    // Refresh data
+    setSelectedOrder(null)
+    getOrders();
+    
+  } catch (error) {
+    console.error('❌ Frontend confirm error:', error.response?.data);
+    setIsLoading(false);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: error?.response?.data?.message || "Failed to confirm order",
+    });
+  }
 };
+
 
 const handleViewOrder = async (id) => {
   try {
     // Open the generated order performa PDF in the user's default browser
-    window.open(`http://localhost:8080/api/v1/admin/orders/view-performa/${id}`, "_blank");
+    window.open(`${baseURL}/api/v1/admin/orders/view-performa/${id}`, "_blank");
   } catch (error) {
     console.error("Error viewing order performa:", error);
   }
@@ -188,8 +200,7 @@ const handleViewOrder = async (id) => {
               :
               <div className="max-h-96 overflow-y-auto">
                 {/* Enhanced Table Headers */}
-                <div className="hidden md:grid md:grid-cols-5 gap-4 pb-3 mb-4 border-b border-gray-200">
-                  <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Bill No</h5>
+                <div className="hidden md:grid md:grid-cols-4 gap-4 pb-3 mb-4 border-b border-gray-200">
                   <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Party Name</h5>
                   <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone No</h5>
                   <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</h5>
@@ -200,8 +211,7 @@ const handleViewOrder = async (id) => {
                 <div className="space-y-2">
                   {orders?.map((order, index) => (
                     !order.isFulfiled ? 
-                    <div key={order._id} className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 items-center hover:bg-gray-50 rounded-lg transition-all duration-200 border border-transparent hover:border-gray-200">
-                      <div className="font-semibold text-gray-900">#{order.billNo}</div>
+                    <div key={order._id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center hover:bg-gray-50 rounded-lg transition-all duration-200 border border-transparent hover:border-gray-200">
                       <div className="text-gray-700 font-medium">{order.partyName}</div>
                       <div className="text-gray-600">{order.phoneNo}</div>
                       <div>
@@ -249,10 +259,6 @@ const handleViewOrder = async (id) => {
 
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Bill No</p>
-                  <p className="font-semibold text-gray-900">#{selectedOrder.billNo}</p>
-                </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Order Date</p>
                   <p className="font-semibold text-gray-900">{new Date(selectedOrder.createdAt).toLocaleDateString("en-GB")}</p>
