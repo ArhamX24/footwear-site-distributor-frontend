@@ -45,7 +45,6 @@ const PastOrdersPage = () => {
                 Swal.fire('Error', 'Invalid response from server', 'error');
             }
         } catch (error) {
-            console.error('Error fetching shipments:', error);
             let errorMessage = 'Failed to fetch shipments';
             
             if (error.response) {
@@ -71,7 +70,6 @@ const PastOrdersPage = () => {
                 setDistributors(response.data.data || []);
             }
         } catch (error) {
-            console.error('Error fetching distributors:', error);
             Swal.fire('Error', 'Failed to fetch distributors', 'error');
         }
     };
@@ -108,7 +106,6 @@ const PastOrdersPage = () => {
                 showConfirmButton: false
             });
         } catch (error) {
-            console.error("Error downloading performa:", error);
             Swal.fire('Error', 'Failed to download performa', 'error');
         } finally {
             setTimeout(() => setDownloadingId(null), 1000);
@@ -136,7 +133,6 @@ const PastOrdersPage = () => {
                 getShipments();
             }
         } catch (error) {
-            console.error('Error deleting shipments:', error);
             Swal.fire('Error', 'Failed to delete old shipments', 'error');
         }
     };
@@ -408,33 +404,6 @@ const PastOrdersPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* ✅ NEW: Show QR Code details for selected article (expandable) */}
-                                    <details className="mt-4 bg-blue-50 rounded-lg border border-blue-200">
-                                        <summary className="p-3 cursor-pointer font-semibold text-blue-900 hover:bg-blue-100 transition-colors rounded-lg">
-                                            📋 View Scanned QR Codes ({selectedShipment.items?.reduce((total, item) => total + (item.qrCodes?.length || 0), 0) || 0} total)
-                                        </summary>
-                                        <div className="p-4 space-y-3">
-                                            {selectedShipment.items?.map((item, itemIndex) => (
-                                                <div key={itemIndex} className="bg-white rounded-lg p-3 border border-gray-200">
-                                                    <div className="font-semibold text-gray-800 mb-2">
-                                                        {item.articleName} ({item.qrCodes?.length || 0} cartons)
-                                                    </div>
-                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                                                        {item.qrCodes?.map((qr, qrIndex) => (
-                                                            <div key={qrIndex} className="bg-gray-50 p-2 rounded border border-gray-200">
-                                                                <div className="font-mono text-gray-600">
-                                                                    {qr.uniqueId?.substring(0, 12)}...
-                                                                </div>
-                                                                <div className="text-gray-500 mt-1">
-                                                                    Carton #{qr.cartonNumber || 'N/A'}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </details>
                                 </div>
                             </div>
 

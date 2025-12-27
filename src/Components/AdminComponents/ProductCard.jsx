@@ -12,7 +12,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
-  console.log(product)
+
 
   // Edit form states
    const [editForm, setEditForm] = useState({
@@ -31,7 +31,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
   const [previewImages, setPreviewImages] = useState([]);
 
   const handleDelete = async (id) => {
-    console.log(id)
+
     const { isConfirmed } = await Swal.fire({
       title: "Are you sure?",
       text: "This action cannot be undone.",
@@ -64,7 +64,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
         });
       }
     } catch (err) {
-      console.log(err)
+
       Swal.fire({
         title: "Error",
         text: "Unable to delete. Try again later.",

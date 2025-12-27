@@ -46,17 +46,17 @@ const ShipmentScanner = () => {
     try {
       if (qrReaderRef.current) {
         const state = qrReaderRef.current.getState();
-        console.log('🧹 Cleanup - Scanner state:', state);
+
         
         if (state === 2) {
           await qrReaderRef.current.stop();
-          console.log('✅ Scanner stopped');
+
         }
         await qrReaderRef.current.clear();
-        console.log('✅ Scanner cleared');
+
       }
     } catch (error) {
-      console.log('⚠️ Cleanup error (safe to ignore):', error.message);
+
     } finally {
       qrReaderRef.current = null;
       const container = document.getElementById("qr-scanner-container");
@@ -65,7 +65,7 @@ const ShipmentScanner = () => {
         container.removeAttribute('style');
       }
       isProcessingRef.current = false;
-      console.log('✅ Cleanup complete');
+
     }
   };
 
@@ -75,7 +75,7 @@ const ShipmentScanner = () => {
         navigator.vibrate(pattern);
       }
     } catch (error) {
-      console.log('Vibration not supported');
+
     }
   };
 
@@ -131,19 +131,19 @@ const ShipmentScanner = () => {
       backCamera = availableCameras[0];
     }
     
-    console.log('🎯 Selected camera:', backCamera?.label || 'Default');
+
     return backCamera;
   };
 
   const startScanning = async () => {
     try {
-      console.log('🎬 Starting camera scanner...');
-      
+
+
       await forceCleanup();
       await new Promise(resolve => setTimeout(resolve, 500));
       
       if (!isMountedRef.current) {
-        console.log('⚠️ Component unmounted, aborting camera start');
+
         return;
       }
       
@@ -153,7 +153,7 @@ const ShipmentScanner = () => {
       const backCamera = getBackCamera();
       const cameraId = backCamera ? backCamera.id : { facingMode: "environment" };
       
-      console.log('📷 Using camera ID:', cameraId);
+
       
       const config = {
         fps: 10,
@@ -182,25 +182,24 @@ const ShipmentScanner = () => {
         cameraId,
         config,
         (decodedText) => {
-          console.log('🔍 QR detected:', decodedText?.substring(0, 50));
+
           if (!isProcessingRef.current) {
             isProcessingRef.current = true;
             vibrate([200, 100, 200]);
             handleScanSuccess(decodedText);
           } else {
-            console.log('⏭️ Already processing, skipping...');
+
           }
         },
         (error) => {
           // Suppress common scanning errors
         }
       );
-      
-      console.log('✅ Camera started successfully');
+
       setCameraPermission('granted');
       
     } catch (error) {
-      console.error('❌ Camera start error:', error);
+
       setCameraPermission('denied');
       setIsScanning(false);
       vibrate([500]);
@@ -226,23 +225,23 @@ const ShipmentScanner = () => {
 
   const stopScanning = async () => {
     try {
-      console.log('🛑 Stopping camera scanner...');
+
       
       if (qrReaderRef.current) {
         const state = qrReaderRef.current.getState();
-        console.log('📊 Current state:', state);
+
         
         if (state === 2) {
           await qrReaderRef.current.stop();
-          console.log('✅ Scanner stopped');
+
         }
         
         await qrReaderRef.current.clear();
-        console.log('✅ Scanner cleared');
+
         qrReaderRef.current = null;
       }
     } catch (error) {
-      console.error('❌ Stop camera error:', error);
+
     } finally {
       const container = document.getElementById("qr-scanner-container");
       if (container) {
@@ -251,13 +250,12 @@ const ShipmentScanner = () => {
       }
       isProcessingRef.current = false;
       setCameraPermission('available');
-      console.log('✅ Stop complete');
+
     }
   };
 
 const handleScanSuccess = async (decodedText) => {
-  console.log('✅ [SCAN] Raw decoded text:', decodedText);
-  console.log('✅ [SCAN] Type:', typeof decodedText);
+
   
   try {
     let qrData;
@@ -267,26 +265,25 @@ const handleScanSuccess = async (decodedText) => {
       if (typeof decodedText === 'string') {
         const trimmed = decodedText.trim();
         
-        console.log('🔍 [SCAN] Trimmed text:', trimmed);
+
         
         // ✅ FIXED: Check if it's JSON or a plain uniqueId
         if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
           // It's JSON - parse it
           qrData = JSON.parse(trimmed);
           uniqueId = qrData.uniqueId;
-          console.log('✅ [SCAN] Parsed JSON QR:', qrData);
+
         } else {
           // ✅ NEW: It's a plain uniqueId string (common with QR codes)
           uniqueId = trimmed;
           qrData = { uniqueId: trimmed };
-          console.log('✅ [SCAN] Plain text uniqueId:', uniqueId);
+
         }
       } else {
         qrData = decodedText;
         uniqueId = decodedText.uniqueId;
       }
     } catch (jsonError) {
-      console.error('❌ [SCAN] Parse error:', jsonError);
       vibrate([300, 100, 300]);
       Swal.fire('Invalid QR Code', 'Could not read QR code data. Please try scanning again.', 'error');
       isProcessingRef.current = false;
@@ -306,7 +303,7 @@ const handleScanSuccess = async (decodedText) => {
       return;
     }
 
-    console.log('📦 [SCAN] Extracted uniqueId:', uniqueId);
+
 
     // Check for duplicates
     const shouldProceed = await new Promise((resolve) => {
@@ -350,12 +347,12 @@ const handleScanSuccess = async (decodedText) => {
 
     // Stop scanner after successful read
     if (isScanning) {
-      console.log('🛑 Stopping scanner after successful scan...');
+
       setIsScanning(false);
       await stopScanning();
     }
 
-    console.log('📡 [SCAN] Sending to backend with uniqueId:', uniqueId);
+
     
     // ✅ FIXED: Send uniqueId directly to backend
     const response = await axios.post(
@@ -379,7 +376,6 @@ const handleScanSuccess = async (decodedText) => {
       }
     );
 
-    console.log('✅ [SCAN] Backend response:', response.data);
 
     if (response.data.result) {
       // ✅ FIXED: Get data from backend response instead of QR code
@@ -433,8 +429,6 @@ const handleScanSuccess = async (decodedText) => {
   } catch (error) {      
     vibrate([500, 200, 500]);
     
-    console.error('❌ [SCAN] Full error:', error);
-    console.error('❌ [SCAN] Error response:', error.response?.data);
     
     const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
     
@@ -567,7 +561,7 @@ const handleScanSuccess = async (decodedText) => {
 
     } catch (error) {
       vibrate([300]);
-      console.error('PDF Download Error:', error);
+
       Swal.fire('Error', 'Failed to download receipt. Please try again.', 'error');
     } finally {
       setLoading(false);
