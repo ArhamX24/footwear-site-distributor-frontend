@@ -29,7 +29,7 @@ api.interceptors.response.use(
 
       try {
         // Try to refresh token
-        await api.get('/api/v1/auth/refresh');
+        await api.get(`${baseURL}/api/v1/auth/refresh`);
         return api(originalRequest);
       } catch (refreshError) {
         // Refresh failed, redirect to login
