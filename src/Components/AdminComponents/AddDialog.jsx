@@ -22,7 +22,7 @@ const AddDialog = ({ getProducts }) => {
       variantKeywords: "",      // ✅ New
       articleName: "",
       articleKeywords: "",      // ✅ New
-      gender: "",
+      gender: [],
       colors: "",
       sizes: "",
       images: [],
@@ -31,7 +31,7 @@ const AddDialog = ({ getProducts }) => {
       const errors = {};
       if (!values.segment) errors.segment = "Segment is required";
       if (!values.articleName) errors.articleName = "Article name is required";
-      if (!values.gender) errors.gender = "Gender is required";
+      if (!values.gender || values.gender.length === 0) errors.gender = "Please select at least one gender";
       return errors;
     },
     onSubmit: async (values, action) => {
@@ -70,16 +70,15 @@ const AddDialog = ({ getProducts }) => {
           .filter(Boolean);
 
         formData.append("segment", values.segment);
-        formData.append("gender", values.gender);
+        values.gender.forEach((g) => formData.append("gender", g));
         formData.append("articleName", values.articleName);
         colorsArr.forEach((color) => formData.append("colors", color));
         sizeArr.forEach((size) => formData.append("sizes", size));
         formData.append("variant", values.variant);
 
-        // ✅ Append all keywords
-        segmentKeywordsArr.forEach((kw) => formData.append("segmentKeywords", kw));
-        variantKeywordsArr.forEach((kw) => formData.append("variantKeywords", kw));
-        articleKeywordsArr.forEach((kw) => formData.append("articleKeywords", kw));
+        formData.append("segmentKeywords", segmentKeywordsArr.join(","));
+        formData.append("variantKeywords", variantKeywordsArr.join(","));
+        formData.append("articleKeywords", articleKeywordsArr.join(","));
 
         values.images.forEach((image) => {
           formData.append("images", image);
@@ -265,29 +264,43 @@ const AddDialog = ({ getProducts }) => {
                 </p>
               </div>
 
-              {/* Gender Select */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Gender *
-                </label>
-                <select
-                  name="gender"
-                  {...formik.getFieldProps("gender")}
-                  className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-                    formik.errors.gender && formik.touched.gender
-                      ? 'border-red-300 focus:ring-red-500'
-                      : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select Gender</option>
-                  <option value="gents">Gents</option>
-                  <option value="ladies">Ladies</option>
-                  <option value="kids">Kids</option>
-                </select>
-                {formik.errors.gender && formik.touched.gender && (
-                  <p className="text-red-500 text-xs mt-1">{formik.errors.gender}</p>
-                )}
-              </div>
+             {/* Gender Multi-Select Toggle */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Gender *
+  </label>
+  <div className="flex gap-2">
+    {["gents", "ladies", "kids"].map((g) => {
+      const selected = Array.isArray(formik.values.gender)
+        ? formik.values.gender.includes(g)
+        : false;
+      return (
+        <button
+          key={g}
+          type="button"
+          onClick={() => {
+            const current = Array.isArray(formik.values.gender) ? formik.values.gender : [];
+            if (current.includes(g)) {
+              formik.setFieldValue("gender", current.filter((x) => x !== g));
+            } else {
+              formik.setFieldValue("gender", [...current, g]);
+            }
+          }}
+          className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium capitalize transition-all duration-200 ${
+            selected
+              ? "bg-gray-700 border-gray-700 text-white shadow-md"
+              : "bg-white border-gray-300 text-gray-600 hover:border-gray-400"
+          }`}
+        >
+          {g}
+        </button>
+      );
+    })}
+  </div>
+  {formik.errors.gender && formik.touched.gender && (
+    <p className="text-red-500 text-xs mt-1">{formik.errors.gender}</p>
+  )}
+</div>
 
               {/* Image Upload */}
               <div>
