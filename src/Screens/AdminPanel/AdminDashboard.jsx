@@ -8,6 +8,28 @@ import AddFestivleImageDialog from '../../Components/AdminComponents/AddFestivle
 import { baseURL } from '../../Utils/URLS';
 import AddProductsUsingExcel from '../../Components/AdminComponents/AddProductsUsingExcel';
 
+const OrderRow = ({ order, onView }) => (
+  <div className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors gap-4">
+    <div className="flex-1 min-w-0">
+      <p className="text-sm font-medium text-gray-900 truncate">{order.partyName}</p>
+      <p className="text-xs text-gray-400 mt-0.5">
+        {new Date(order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+        &nbsp;&middot;&nbsp;{order.items.length} item{order.items.length > 1 ? 's' : ''}
+      </p>
+    </div>
+    <span className="hidden sm:block text-sm text-gray-500">{order.phoneNo}</span>
+    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${order.isFulfiled ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+      {order.isFulfiled ? 'Completed' : 'Pending'}
+    </span>
+    <button
+      onClick={onView}
+      className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 text-gray-700 transition font-medium whitespace-nowrap"
+    >
+      View
+    </button>
+  </div>
+);
+
 const AdminDashboard = () => {
   const [products, setProducts] = useState(null);
   const [distributors, setDistributors] = useState(null);
@@ -17,6 +39,18 @@ const AdminDashboard = () => {
   const [error, setError] = useState('');
   const [ordersStatus, setOrdersStatus] = useState({ pending: 0, completed: 0 });
   const [totalProducts, setTotalProducts] = useState(null)
+
+  const [sortMode, setSortMode] = useState('recent');
+
+  const getSortedOrders = () => {
+    if (!orders) return [];
+    let list = sortMode === 'pending' ? orders.filter(o => !o.isFulfiled) : [...orders];
+    return list.sort((a, b) =>
+      sortMode === 'oldest'
+        ? new Date(a.createdAt) - new Date(b.createdAt)
+        : new Date(b.createdAt) - new Date(a.createdAt)
+    );
+  };
 
   const getProducts = async () => {
     try {
@@ -186,156 +220,152 @@ const handleViewOrder = async (id) => {
 </div>
 
       {/* Recent Orders Section */}
-      <div className='w-11/12 mx-auto'>
-        <div className='bg-white rounded-xl shadow-sm border border-gray-200'>
-          <div className='flex items-center justify-between p-6 border-b border-gray-200'>
-            <h3 className='text-xl font-semibold text-gray-900'>Recent Orders</h3>
-          </div>
-          <div className="p-6">
-            {
-              !orders ? 
-              <div className='flex w-full h-32 items-center justify-center'>
-                <span className="loading loading-bars loading-lg"></span>
-              </div>
-              :
-              <div className="max-h-96 overflow-y-auto">
-                {/* Enhanced Table Headers */}
-                <div className="hidden md:grid md:grid-cols-4 gap-4 pb-3 mb-4 border-b border-gray-200">
-                  <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Party Name</h5>
-                  <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone No</h5>
-                  <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</h5>
-                  <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</h5>
-                </div>
-
-                {/* Enhanced Data Rows */}
-                <div className="space-y-2">
-                  {orders?.map((order, index) => (
-                    !order.isFulfiled ? 
-                    <div key={order._id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center hover:bg-gray-50 rounded-lg transition-all duration-200 border border-transparent hover:border-gray-200">
-                      <div className="text-gray-700 font-medium">{order.partyName}</div>
-                      <div className="text-gray-600">{order.phoneNo}</div>
-                      <div>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          Pending
-                        </span>
-                      </div>
-                      <button
-                        className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                        onClick={() => setSelectedOrder(order)}
-                      >
-                        View
-                      </button>
-                    </div>
-                    : ""
-                  ))}
-                  
-                  {/* Empty state */}
-                  {orders?.every(order => order.isFulfiled) && (
-                    <div className="text-center py-12">
-                      <div className="text-4xl mb-4 opacity-50">📦</div>
-                      <p className="text-gray-500">No pending orders</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            }
-          </div>
-
-      {/* Enhanced Modal for Viewing Order Details */}
-      {selectedOrder && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
-          <div className="bg-white w-full max-w-lg mx-4 rounded-xl shadow-2xl border border-gray-200 transform transition-all">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Order Details</h2>
-              <button
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                onClick={() => setSelectedOrder(null)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" className="text-gray-400">
-                  <path d="M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z"></path>
-                </svg>
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Order Date</p>
-                  <p className="font-semibold text-gray-900">{new Date(selectedOrder.createdAt).toLocaleDateString("en-GB")}</p>
-                </div>
-              </div>
-              
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Party Name</p>
-                <p className="font-semibold text-gray-900">{selectedOrder.partyName}</p>
-              </div>
-              
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Phone Number</p>
-                <p className="font-semibold text-gray-900">{selectedOrder.phoneNo}</p>
-              </div>
-
-              <div className="pt-2">
-                <h3 className="text-lg font-semibold mb-3 text-gray-900">Items Ordered</h3>
-
-                {/* Enhanced Table Header */}
-                <div className="grid grid-cols-4 bg-gray-50 text-gray-700 font-semibold text-sm p-3 rounded-t-lg border">
-                  <span className="text-center">Image</span>
-                  <span>Article</span>
-                  <span className="text-center">Size</span>
-                  <span className="text-center">Cartons</span>
-                </div>
-
-                {/* Order Items */}
-                <div className="border-l border-r border-b border-gray-200 rounded-b-lg overflow-hidden">
-                  <div className="divide-y divide-gray-200 max-h-40 overflow-y-auto">
-                    {selectedOrder.items.map((item, index) => (
-                      <div key={index} className="grid grid-cols-4 items-center p-3 bg-white hover:bg-gray-50">
-                        <div className="flex justify-center">
-                          <img 
-                            src={item.articleImg} 
-                            alt={item.articleName} 
-                            className="w-10 h-10 rounded-md object-cover border border-gray-200" 
-                          />
-                        </div>
-                        <span className="text-gray-800 text-sm font-medium">{item.articleName}</span>
-                        <span className="text-gray-600 text-sm text-center">{item.sizes}</span>
-                        <span className="text-gray-800 text-sm font-semibold text-center">{item.totalCartons}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-600">{error}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Enhanced Action Buttons */}
-            <div className="flex justify-end gap-3 p-6 bg-gray-50 border-t border-gray-200 rounded-b-xl">
-              <button
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md font-medium"
-                onClick={() => handleViewOrder(selectedOrder._id)}
-              >
-                Download PDF
-              </button>
-              <button
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md font-medium"
-                onClick={() => handleConfirmOrder(selectedOrder._id)}
-              >
-                Confirm Order
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-        </div>
+      {/* Recent Orders Section */}
+<div className='w-11/12 mx-auto'>
+  <div className='bg-white rounded-xl shadow-sm border border-gray-200'>
+    
+    {/* Header + Sort Controls */}
+    <div className='flex items-center justify-between p-6 border-b border-gray-200 flex-wrap gap-3'>
+      <h3 className='text-xl font-semibold text-gray-900'>Recent orders</h3>
+      <div className='flex items-center gap-2 flex-wrap'>
+        {['recent', 'oldest'].map(mode => (
+          <button
+            key={mode}
+            onClick={() => setSortMode(mode)}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition-all font-medium ${
+              sortMode === mode
+                ? 'bg-gray-100 border-gray-400 text-gray-800'
+                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            {mode === 'recent' ? 'Newest first' : mode === 'oldest' ? 'Oldest first' : mode === 'pending' ? 'Pending only' : 'All orders'}
+          </button>
+        ))}
       </div>
     </div>
+
+    <div className="p-0">
+      {!orders ? (
+        <div className='flex w-full h-32 items-center justify-center'>
+          <span className="loading loading-bars loading-lg"></span>
+        </div>
+      ) : (
+        <div className="max-h-[500px] overflow-y-auto divide-y divide-gray-100">
+
+          {/* Pending group */}
+          {getSortedOrders().filter(o => !o.isFulfiled).length > 0 && (
+            <>
+              <div className='px-6 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50'>
+                Pending
+              </div>
+              {getSortedOrders().filter(o => !o.isFulfiled).map(order => (
+                <OrderRow key={order._id} order={order} onView={() => setSelectedOrder(order)} />
+              ))}
+            </>
+          )}
+
+
+          {getSortedOrders().length === 0 && (
+            <div className="text-center py-16 text-gray-400 text-sm">No orders found</div>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+</div>
+
+      {selectedOrder && (
+  <div
+    className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50 p-4"
+    onClick={(e) => e.target === e.currentTarget && setSelectedOrder(null)}
+  >
+    <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl border border-gray-200 max-h-[90vh] flex flex-col">
+      
+      {/* Modal Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-xl z-10">
+        <h2 className="text-base font-semibold text-gray-900">{selectedOrder.partyName}</h2>
+        <button
+          onClick={() => setSelectedOrder(null)}
+          className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-100 transition text-sm"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Modal Body */}
+      <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+        
+        {/* Info Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          {[
+            { label: 'Order date', value: new Date(selectedOrder.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) },
+            { label: 'Status', value: selectedOrder.isFulfiled ? '✅ Completed' : '⏳ Pending' },
+            { label: 'Phone', value: selectedOrder.phoneNo },
+            { label: 'Transport', value: selectedOrder.transportSource || '—' },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{label}</p>
+              <p className="text-sm font-medium text-gray-900">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        <hr className="border-gray-100" />
+
+        {/* Items Table */}
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Items ordered</p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left text-xs text-gray-400 font-medium pb-2 w-9"></th>
+                <th className="text-left text-xs text-gray-400 font-medium pb-2">Article</th>
+                <th className="text-left text-xs text-gray-400 font-medium pb-2">Sizes</th>
+                <th className="text-right text-xs text-gray-400 font-medium pb-2">Cartons</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {selectedOrder.items.map((item, i) => (
+                <tr key={i}>
+                  <td className="py-3 pr-2">
+                    <img src={item.articleImg} alt={item.articleName} className="w-8 h-8 rounded-md object-cover border border-gray-200" />
+                  </td>
+                  <td className="py-3">
+                    <p className="font-medium text-gray-900">{item.articleName}</p>
+                    <p className="text-xs text-gray-400">{item.colors?.join(', ')}</p>
+                  </td>
+                  <td className="py-3 text-gray-500">{item.sizes}</td>
+                  <td className="py-3 text-right font-semibold text-gray-900">{item.totalCartons}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">{error}</div>
+        )}
+      </div>
+
+      {/* Modal Footer */}
+      <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl sticky bottom-0">
+        <button
+          onClick={() => handleViewOrder(selectedOrder._id)}
+          className="text-sm px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+        >
+          Download PDF
+        </button>
+        <button
+          onClick={() => handleConfirmOrder(selectedOrder._id)}
+          className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+        >
+          Confirm order
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+        </div>
   )
 }
 

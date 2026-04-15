@@ -257,10 +257,6 @@ const DistributorCard = ({ distributor, setIsDeleted, setIsUpdated }) => {
                   <p className="text-gray-900 font-semibold mt-1">{distributorDetails.totalPurchases || 0}</p>
                 </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs text-gray-500 font-medium">Total Shipments</label>
-                  <p className="text-gray-900 font-semibold mt-1">{distributorDetails.totalShipments || 0}</p>
-                </div>
               </div>
 
               {/* Close Button */}

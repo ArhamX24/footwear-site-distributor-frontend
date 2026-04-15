@@ -35,51 +35,53 @@ const AllArticlesListed = () => {
     getProducts();
   }, []);
 
-  // ✅ Enhanced matching function with keyword support
-  const matchesSearch = (text, keywords = []) => {
-    const searchLower = searchTerm.toLowerCase();
-    
-    // Check if the main text matches
-    if (text && text.toLowerCase().includes(searchLower)) {
-      return true;
-    }
-    
-    // Check if any keyword matches
-    if (keywords && Array.isArray(keywords)) {
-      return keywords.some(keyword => 
-        keyword && keyword.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    return false;
-  };
+ // ✅ Safe match — handles string, array, or undefined
+const matchesSearch = (text, keywords = []) => {
+  if (!searchTerm) return true;
+  const searchLower = searchTerm.toLowerCase();
 
-  // ✅ Enhanced segment matching with keywords
-  const segmentMatchesSearch = (segment, products) => {
-    // Check segment name
-    if (matchesSearch(segment, products[0]?.segmentKeywords)) {
-      return true;
-    }
-    
-    // Check if any product in segment matches
-    return products.some(product =>
-      matchesSearch(product.name, product.articleKeywords) ||
-      matchesSearch(product.variantName, product.variantKeywords) ||
-      matchesSearch(segment, product.segmentKeywords)
-    );
-  };
+  // Handle array (e.g. gender is now [String])
+  if (Array.isArray(text)) {
+    if (text.some(t => t && t.toLowerCase().includes(searchLower))) return true;
+  } else {
+    if (text && typeof text === 'string' && text.toLowerCase().includes(searchLower)) return true;
+  }
 
-  // ✅ Enhanced product matching with keywords
-  const productMatchesSearch = (product, segment) => {
-    if (!searchTerm) return true;
-    
-    return (
-      matchesSearch(product.name, product.articleKeywords) ||
-      matchesSearch(product.variantName, product.variantKeywords) ||
-      matchesSearch(segment, product.segmentKeywords) ||
-      matchesSearch(product.gender)
-    );
-  };
+  // Check keywords array
+  if (Array.isArray(keywords)) {
+    return keywords.some(k => k && typeof k === 'string' && k.toLowerCase().includes(searchLower));
+  }
+
+  return false;
+};
+
+// ✅ Segment matches — checks segment name + all articles inside it
+const segmentMatchesSearch = (segment, products) => {
+  if (!searchTerm) return true;
+
+  // Check segment name against segmentKeywords of first article
+  if (matchesSearch(segment, products[0]?.segmentKeywords || [])) return true;
+
+  // Check any article inside this segment
+  return products.some(product =>
+    matchesSearch(product.name, product.articleKeywords || []) ||
+    matchesSearch(product.variantName, product.variantKeywords || []) ||
+    matchesSearch(segment, product.segmentKeywords || []) ||
+    matchesSearch(product.gender, [])  // gender is now array, handled safely
+  );
+};
+
+// ✅ Product matches — checks article name, variant, segment, gender
+const productMatchesSearch = (product, segment) => {
+  if (!searchTerm) return true;
+
+  return (
+    matchesSearch(product.name, product.articleKeywords || []) ||
+    matchesSearch(product.variantName, product.variantKeywords || []) ||
+    matchesSearch(segment, product.segmentKeywords || []) ||
+    matchesSearch(product.gender, [])  // gender is now [String], handled safely
+  );
+};
 
   // Filter segments based on search term and auto-expand matching segments
   useEffect(() => {
