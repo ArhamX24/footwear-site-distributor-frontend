@@ -109,7 +109,6 @@ const OffersCarousel = ({ offers }) => {
                     "https://via.placeholder.com/800x400?text=Offer+Image";
                   handleImageLoad(index);
                 }}
-                loading={index === 0 ? "eager" : "lazy"}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
             </div>
@@ -153,17 +152,7 @@ const OffersCarousel = ({ offers }) => {
   );
 };
 
-// ─── Segment config ────────────────────────────────────────────────────────
-const SEGMENT_BUTTONS = [
-  { label: "EVA", value: "eva" },
-  { label: "Fab", value: "fabrication" },
-  { label: "Hawaii", value: "hawai" },
-  { label: "PU", value: "pu" },
-  { label: "Sports", value: "sports" },
-  { label: "School", value: "school shoe" },
-  { label: "Sandle", value: "sandle" },
-];
-
+// ─── Fixed Gender Config ───────────────────────────────────────────────────
 const GENDER_BUTTONS = [
   { label: "Gents", value: "gents" },
   { label: "Ladies", value: "ladies" },
@@ -176,12 +165,14 @@ const ProductScreen = () => {
   const savedFilters = loadFiltersFromSession();
 
   const [allProducts, setAllProducts] = useState([]);
+  const [segmentsList, setSegmentsList] = useState([]); // Dynamic segments
   const [selectedSegment, setSelectedSegment] = useState(
     savedFilters?.selectedSegment || ""
   );
   const [selectedGenders, setSelectedGenders] = useState(
     savedFilters?.selectedGenders || []
   );
+  
   const [placeOrderModal, setPlaceOrderModal] = useState(false);
   const [selectedProductDetails, setSelectedProductDetails] = useState(null);
   const [page, setPage] = useState(1);
@@ -196,6 +187,22 @@ const ProductScreen = () => {
   const dropdownRef = useRef(null);
 
   useOutsideAlerter(dropdownRef, () => {});
+
+  // ── Initial load logic (Offers & Dynamic Segments) ──
+  useEffect(() => {
+    const fetchDynamicFilters = async () => {
+      try {
+        const res = await axios.get(`${baseURL}/api/v1/distributor/products/filters/get`);
+        if (res.data.result && res.data.data.segments) {
+          setSegmentsList(res.data.data.segments);
+        }
+      } catch (err) {
+        console.error("Error fetching segments:", err);
+      }
+    };
+    fetchDynamicFilters();
+    getCombinedOffers();
+  }, []);
 
   // ── Persist filters whenever they change ──
   useEffect(() => {
@@ -216,7 +223,6 @@ const ProductScreen = () => {
     );
   }, [selectedSegment, selectedGenders]);
 
-  // ── Build filter object for API ──
   const buildFilters = () => {
     const filterNames = [];
     const filterOptions = [];
@@ -231,13 +237,10 @@ const ProductScreen = () => {
     return { filterNames, filterOptions };
   };
 
-  // ── Fetch offers ──
   const getCombinedOffers = async () => {
     try {
       setOffersLoading(true);
-      const response = await axios.get(
-        `${baseURL}/api/v1/distributor/offers/all`
-      );
+      const response = await axios.get(`${baseURL}/api/v1/distributor/offers/all`);
       if (response.data.result && response.data.data) {
         setOffers(response.data.data);
       } else {
@@ -250,7 +253,6 @@ const ProductScreen = () => {
     }
   };
 
-  // ── Fetch products ──
   const getProducts = async (pageNum = 1, isLoadMore = false) => {
     try {
       if (pageNum === 1) setLoading(true);
@@ -289,24 +291,23 @@ const ProductScreen = () => {
     }
   };
 
-  // ── Search products ──
   const searchProducts = async (pageNum = 1, isLoadMore = false) => {
     try {
       if (pageNum === 1) setLoading(true);
       else setIsFetchingMore(true);
 
+      // Include active Segment & Genders inside the search API call
       const queryParams = new URLSearchParams({
         page: pageNum,
         limit: 12,
         search: searchInput.trim(),
         segment: selectedSegment || "",
+        genders: JSON.stringify(selectedGenders)
       });
 
       const response = await axios.get(
         `${baseURL}/api/v1/distributor/products/search?${queryParams.toString()}`
       );
-
-    console.log("Search response:", response.data);
 
       if (response.data.result) {
         const newProducts = response.data.data;
@@ -328,13 +329,11 @@ const ProductScreen = () => {
     }
   };
 
-  // ── Segment toggle (single select) ──
   const handleSegmentClick = (value) => {
     setSelectedSegment((prev) => (prev === value ? "" : value));
     setPage(1);
   };
 
-  // ── Gender toggle (multi select) ──
   const handleGenderClick = (value) => {
     setSelectedGenders((prev) =>
       prev.includes(value) ? prev.filter((g) => g !== value) : [...prev, value]
@@ -342,11 +341,9 @@ const ProductScreen = () => {
     setPage(1);
   };
 
-  // ── Search input ──
   const handleSearchChange = (e) => setSearchInput(e.target.value);
   const clearSearch = () => setSearchInput("");
 
-  // ── Infinite scroll observer ──
   const lastProductRef = useCallback(
     (node) => {
       if (loading || isFetchingMore) return;
@@ -361,12 +358,6 @@ const ProductScreen = () => {
     [loading, isFetchingMore, hasMore]
   );
 
-  // ── Initial load ──
-  useEffect(() => {
-    getCombinedOffers();
-  }, []);
-
-  // ── Debounced fetch on filter/search change ──
   useEffect(() => {
     const handler = setTimeout(() => {
       setPage(1);
@@ -380,7 +371,6 @@ const ProductScreen = () => {
     return () => clearTimeout(handler);
   }, [searchInput, selectedSegment, selectedGenders]);
 
-  // ── Load more on page change ──
   useEffect(() => {
     if (page > 1) {
       if (searchInput.trim()) {
@@ -393,25 +383,12 @@ const ProductScreen = () => {
 
   return (
     <div className="w-full bg-gray-50 min-h-screen">
-      {/* ── Sticky top bar ── */}
       <div className="sticky top-0 z-30 bg-gray-50/95 backdrop-blur-sm shadow-sm pt-2 pb-3 px-2 md:px-4 lg:px-6">
-        {/* Search bar */}
         <div className="max-w-7xl mx-auto">
           <div className="relative mb-3">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
             <input
@@ -422,41 +399,26 @@ const ProductScreen = () => {
               className="w-full pl-9 pr-9 py-2.5 text-sm rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:outline-none shadow-sm transition-colors bg-white"
             />
             {searchInput && (
-              <button
-                onClick={clearSearch}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+              <button onClick={clearSearch} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             )}
           </div>
 
-          {/* ── Filter Buttons Row ── */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Segment label */}
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mr-1 hidden sm:inline">
               Segment
             </span>
 
-            {SEGMENT_BUTTONS.map(({ label, value }) => {
-              const active = selectedSegment === value;
+            {/* Render dynamically fetched segments */}
+            {segmentsList.map((segment) => {
+              const active = selectedSegment === segment;
               return (
                 <button
-                  key={value}
-                  onClick={() => handleSegmentClick(value)}
+                  key={segment}
+                  onClick={() => handleSegmentClick(segment)}
                   className={`
                     px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 shadow-sm
                     ${
@@ -466,15 +428,13 @@ const ProductScreen = () => {
                     }
                   `}
                 >
-                  {label}
+                  {segment.toUpperCase()}
                 </button>
               );
             })}
 
-            {/* Divider */}
             <div className="h-5 w-px bg-gray-200 mx-1 hidden sm:block" />
 
-            {/* Gender label */}
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mr-1 hidden sm:inline">
               Gender
             </span>
@@ -499,7 +459,6 @@ const ProductScreen = () => {
               );
             })}
 
-            {/* Clear all */}
             {(selectedSegment || selectedGenders.length > 0) && (
               <button
                 onClick={() => {
@@ -515,7 +474,6 @@ const ProductScreen = () => {
         </div>
       </div>
 
-      {/* ── Main content ── */}
       <main className="w-full max-w-7xl mx-auto p-2 md:p-4 lg:p-6">
         {placeOrderModal && (
           <OrderModal
@@ -525,20 +483,17 @@ const ProductScreen = () => {
           />
         )}
 
-        {/* Offers Carousel */}
         {offersLoading ? (
           <CarouselSkeleton />
         ) : (
           offers.length > 0 && <OffersCarousel offers={offers} />
         )}
 
-        {/* Active filter chips (visual feedback) */}
         {(selectedSegment || selectedGenders.length > 0) && (
           <div className="flex flex-wrap gap-1.5 mb-3">
             {selectedSegment && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-100">
-                {SEGMENT_BUTTONS.find((s) => s.value === selectedSegment)
-                  ?.label || selectedSegment}
+                {selectedSegment.toUpperCase()}
                 <button
                   onClick={() => setSelectedSegment("")}
                   className="text-indigo-400 hover:text-indigo-700"
@@ -564,7 +519,6 @@ const ProductScreen = () => {
           </div>
         )}
 
-        {/* Products grid */}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 lg:gap-6">
             {[...Array(12)].map((_, index) => (
@@ -583,10 +537,7 @@ const ProductScreen = () => {
                       articleIndex === variant.articles.length - 1;
 
                     return (
-                      <div
-                        key={article._id}
-                        ref={isLast ? lastProductRef : null}
-                      >
+                      <div key={article._id} ref={isLast ? lastProductRef : null}>
                         <ProductCard
                           variant={variant}
                           product={article}

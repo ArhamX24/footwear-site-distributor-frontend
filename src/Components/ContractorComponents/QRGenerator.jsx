@@ -18,70 +18,63 @@ const buildPrintHTML = (qrCodes, articleName) => `
     /* ── Reset ── */
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-    /* ── Screen: body scrolls freely so labels don't overlap ── */
+    /* ── Screen UI ── */
     body {
       background: #e5e7eb;
       padding: 16px;
-      /* Do NOT set width/height on body — let it scroll */
+      font-family: sans-serif;
     }
 
-    /* ── Each label card on screen ── */
     .qr-label {
-      width: 50mm;
-      height: 35mm;
+      width: 100mm;
+      height: 50mm;
       background: white;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      margin: 0 auto 8px auto;  /* stack vertically with gap between */
-      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+      margin: 0 auto 16px auto; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
     .qr-label img {
-      width: 50mm;
-      height: 35mm;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
-      display: block;
     }
 
-    /* ── Print: one label per page, exact sticker size ── */
+    /* ── Print Configuration (Crucial for fixing blank sheets) ── */
     @page {
-      size: 50mm 35mm;
-      margin: 0;
+      size: 100mm 50mm;
+      margin: 0; /* STRIPS BROWSER MARGINS */
     }
 
     @media print {
       /* Hide screen controls */
       .controls { display: none !important; }
 
-      /* Reset body for print */
-      body {
+      body, html {
         background: white !important;
         padding: 0 !important;
         margin: 0 !important;
-        width: 50mm !important;
+        width: 100mm !important;
       }
 
-      /* Each label = exactly one page */
+      /* Each label exactly fits one physical page */
       .qr-label {
-        width: 50mm !important;
-        height: 35mm !important;
+        width: 100mm !important;
+        height: 50mm !important;
         margin: 0 !important;
+        padding: 0 !important;
         box-shadow: none !important;
         page-break-after: always;
-        page-break-inside: avoid;
         break-after: page;
       }
 
+      /* Prevents an empty blank page at the very end of printing */
       .qr-label:last-child {
-        page-break-after: avoid;
-        break-after: avoid;
-      }
-
-      .qr-label img {
-        width: 50mm !important;
-        height: 35mm !important;
+        page-break-after: auto;
+        break-after: auto;
       }
     }
 
@@ -97,7 +90,6 @@ const buildPrintHTML = (qrCodes, articleName) => `
       align-items: center;
       gap: 12px;
       margin: -16px -16px 16px -16px;
-      font-family: sans-serif;
       font-size: 14px;
     }
     .controls span { flex: 1; font-weight: 600; }
@@ -557,7 +549,7 @@ const QRGenerator = () => {
                 className="flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-4 rounded-xl hover:bg-blue-700 transition disabled:bg-blue-400 font-semibold">
                 {printLoading
                   ? <><CircularProgress size={20} color="inherit" /> Opening...</>
-                  : <><span>🖨️</span> Print QR Labels (50×35mm)</>}
+                  : <><span>🖨️</span> Print QR Labels</>}
               </button>
             </div>
 

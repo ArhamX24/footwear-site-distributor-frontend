@@ -155,7 +155,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
           background: "#1F2937", color: "#F9FAFB", confirmButtonColor: "#4B5563",
         });
       }
-    } catch {
+    } catch(err){
       Swal.fire({
         title: "Error", text: "Unable to delete. Try again later.", icon: "error",
         background: "#1F2937", color: "#F9FAFB", confirmButtonColor: "#4B5563",
@@ -287,7 +287,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
           <div className="flex items-start space-x-4">
             <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 shadow-sm">
               {!imageError && product.images?.[0] ? (
-                <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" onError={() => setImageError(true)} />
+                <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" onError={() => setImageError(true)} loading="lazy" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
                   <FaImage className="text-gray-500 text-lg" />
@@ -324,7 +324,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-200">
               {!imageError && product.images?.[0] ? (
-                <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" onError={() => setImageError(true)} />
+                <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" onError={() => setImageError(true)} loading="lazy" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
                   <FaImage className="text-gray-500 text-sm" />
@@ -394,7 +394,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
                   {product.images?.length > 0 ? (
                     <div className="space-y-4">
                       <div className="relative bg-gray-100 rounded-xl overflow-hidden aspect-square">
-                        <img src={product.images[currentImageIndex]} alt={product.name} className="w-full h-full object-contain" />
+                        <img src={product.images[currentImageIndex]} alt={product.name} className="w-full h-full object-contain" loading="lazy" />
                         {product.images.length > 1 && (
                           <>
                             <button onClick={prevImage} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70">←</button>
@@ -408,7 +408,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
                           {product.images.map((img, i) => (
                             <button key={i} onClick={() => setCurrentImageIndex(i)}
                               className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${i === currentImageIndex ? "border-gray-600" : "border-gray-200"}`}>
-                              <img src={img} alt="" className="w-full h-full object-cover" />
+                              <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
                             </button>
                           ))}
                         </div>
@@ -563,7 +563,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                         {editForm.existingImages.map((img, i) => (
                           <div key={`ex-${i}`} className="relative group">
-                            <img src={img} alt="" className="w-full h-24 object-cover rounded-lg border-2 border-gray-200" />
+                            <img src={img} alt="" className="w-full h-24 object-cover rounded-lg border-2 border-gray-200" loading="lazy" />
                             <button type="button" onClick={() => removeExistingImage(i)}
                               className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <X size={14} />
@@ -580,7 +580,7 @@ const ProductCard = ({ product, setIsDeleted, setisUpdated }) => {
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                         {previewImages.map((src, i) => (
                           <div key={`nw-${i}`} className="relative group">
-                            <img src={src} alt="" className="w-full h-24 object-cover rounded-lg border-2 border-blue-400" />
+                            <img src={src} alt="" className="w-full h-24 object-cover rounded-lg border-2 border-blue-400" loading="lazy" />
                             <button type="button" onClick={() => removeNewImage(i)}
                               className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <X size={14} />

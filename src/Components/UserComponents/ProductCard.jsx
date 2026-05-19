@@ -52,11 +52,20 @@ const ProductCard = React.memo(({ product, setPlaceOrderModal, setSelectedProduc
     setIsZoomed(false); 
   }; 
 
+  // ✅ Free Image CDN Proxy Helper to shrink ImgBB images and convert to WebP
+  const getOptimizedUrl = (url, width) => {
+    if (!url) return "";
+    // If it's already an optimized or local URL, just return it
+    if (url.includes("wsrv.nl") || url.startsWith("/")) return url;
+    // Wrap the ImgBB URL in the free proxy
+    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${width}&output=webp&q=75`;
+  };
+
   return ( 
     <div className="w-full bg-white rounded-lg md:rounded-xl shadow-sm md:shadow-md overflow-hidden relative flex flex-col h-full hover:shadow-lg md:hover:shadow-xl transition-all duration-300 border border-gray-100"> 
       {/* Main Image Display with Loading Skeleton */} 
       <div className="relative w-full h-full aspect-[3/4] md:aspect-[4/5] overflow-hidden bg-gray-100/90"> 
-        {/* ✅ Image Loading Skeleton - Using inline shimmer */}
+        {/* Image Loading Skeleton - Using inline shimmer */}
         {imageLoading && (
           <div className="absolute inset-0 bg-gray-200 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-[shimmer_2s_infinite]"></div>
@@ -64,12 +73,20 @@ const ProductCard = React.memo(({ product, setPlaceOrderModal, setSelectedProduc
         )}
 
         <img 
-          src={product.images[currentImageIndex]} 
+          // Requesting a 400px wide optimized version
+          src={getOptimizedUrl(product.images[currentImageIndex], 400)} 
           alt={product.name} 
           className={`w-full h-fit object-cover object-top cursor-pointer transition-all duration-500 hover:scale-105 md:hover:scale-110 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
           onClick={handleImageClick}
           onLoad={() => setImageLoading(false)}
-          onError={() => setImageLoading(false)}
+          onError={(e) => {
+            setImageLoading(false);
+            // Fallback to original ImgBB URL if proxy fails
+            if (e.target.src !== product.images[currentImageIndex]) {
+              e.target.src = product.images[currentImageIndex];
+            }
+          }}
+          loading="lazy"
         /> 
 
         {/* Thumbnail Image Selector */} 
@@ -81,7 +98,13 @@ const ProductCard = React.memo(({ product, setPlaceOrderModal, setSelectedProduc
                 className={`w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 rounded-full overflow-hidden cursor-pointer border-2 transition-all flex-shrink-0 ${currentImageIndex === index ? "border-indigo-600 scale-110" : "border-transparent opacity-70 hover:opacity-100"}`}
                 onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(index)}}
               >
-                <img src={image} alt="thumbnail" className="w-full h-full object-cover" />
+                <img 
+                  // Requesting a tiny 100px version for thumbnails
+                  src={getOptimizedUrl(image, 100)} 
+                  alt="thumbnail" 
+                  className="w-full h-full object-cover" 
+                  loading="lazy" 
+                />
               </div>
             ))} 
           </div> 
@@ -125,9 +148,11 @@ const ProductCard = React.memo(({ product, setPlaceOrderModal, setSelectedProduc
             </button> 
         
             <img 
-              src={product.images[currentImageIndex]} 
+              // Requesting a high-quality 800px version for the zoom
+              src={getOptimizedUrl(product.images[currentImageIndex], 800)} 
               alt="Zoomed View" 
               className="w-full h-auto max-h-[70vh] object-contain rounded-md" 
+              loading="eager" 
             /> 
         
             <button 
