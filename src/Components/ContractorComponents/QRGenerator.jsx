@@ -41,16 +41,18 @@ const buildPrintHTML = (qrCodes, articleName) => `
       width: 100%;
       height: 100%;
       object-fit: contain;
+      /* ✅ CRITICAL FIX: Forces printer to not blur the image */
+      image-rendering: crisp-edges;
+      image-rendering: pixelated;
     }
 
-    /* ── Print Configuration (Crucial for fixing blank sheets) ── */
+    /* ── Print Configuration ── */
     @page {
       size: 100mm 50mm;
       margin: 0; /* STRIPS BROWSER MARGINS */
     }
 
     @media print {
-      /* Hide screen controls */
       .controls { display: none !important; }
 
       body, html {
@@ -60,7 +62,6 @@ const buildPrintHTML = (qrCodes, articleName) => `
         width: 100mm !important;
       }
 
-      /* Each label exactly fits one physical page */
       .qr-label {
         width: 100mm !important;
         height: 50mm !important;
@@ -71,7 +72,11 @@ const buildPrintHTML = (qrCodes, articleName) => `
         break-after: page;
       }
 
-      /* Prevents an empty blank page at the very end of printing */
+      .qr-label img {
+        width: 100mm !important;
+        height: 50mm !important;
+      }
+
       .qr-label:last-child {
         page-break-after: auto;
         break-after: auto;
