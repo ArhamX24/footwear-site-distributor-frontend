@@ -21,81 +21,22 @@ const buildPrintHTML = (qrCodes, articleName) => `
     /* ── Screen UI ── */
     body {
       background: #e5e7eb;
-      padding: 16px;
       font-family: sans-serif;
     }
 
-    .qr-label {
-      width: 100mm;
-      height: 50mm;
-      background: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      margin: 0 auto 16px auto; 
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-
-    .qr-label img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      /* ✅ CRITICAL FIX: Forces printer to not blur the image */
-      image-rendering: crisp-edges;
-      image-rendering: pixelated;
-    }
-
-    /* ── Print Configuration ── */
-    @page {
-      size: 100mm 50mm;
-      margin: 0; /* STRIPS BROWSER MARGINS */
-    }
-
-    @media print {
-      .controls { display: none !important; }
-
-      body, html {
-        background: white !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        width: 100mm !important;
-      }
-
-      .qr-label {
-        width: 100mm !important;
-        height: 50mm !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        box-shadow: none !important;
-        page-break-after: always;
-        break-after: page;
-      }
-
-      .qr-label img {
-        width: 100mm !important;
-        height: 50mm !important;
-      }
-
-      .qr-label:last-child {
-        page-break-after: auto;
-        break-after: auto;
-      }
-    }
-
-    /* ── Screen controls bar ── */
+    /* Keep controls fixed so they NEVER affect print flow */
     .controls {
-      position: sticky;
-      top: 0;
+      position: fixed;
+      top: 0; left: 0; right: 0;
       z-index: 100;
       background: #1f2937;
       color: white;
-      padding: 10px 16px;
+      padding: 12px 16px;
       display: flex;
       align-items: center;
       gap: 12px;
-      margin: -16px -16px 16px -16px;
       font-size: 14px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .controls span { flex: 1; font-weight: 600; }
     .controls button {
@@ -106,25 +47,96 @@ const buildPrintHTML = (qrCodes, articleName) => `
     .btn-print:hover { background: #1d4ed8; }
     .btn-close { background: #6b7280; color: white; }
     .btn-close:hover { background: #4b5563; }
+
+    .print-container {
+      padding-top: 70px; /* Space for the fixed header on screen */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .qr-label {
+      width: 100mm;
+      height: 50mm;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-bottom: 16px; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .qr-label img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: crisp-edges;
+      image-rendering: pixelated;
+    }
+
+    /* ── Print Configuration ── */
+    @page {
+      size: 100mm 50mm;
+      margin: 0mm; /* Absolutely zero margins */
+    }
+
+    @media print {
+      .controls { display: none !important; }
+      
+      .print-container {
+        padding-top: 0 !important;
+        display: block !important;
+      }
+
+      body, html {
+        background: white !important;
+        width: 100mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .qr-label {
+        width: 100mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        display: block !important; /* CRITICAL: Block layout fixes 1st page margin bugs */
+        page-break-after: always;
+        break-after: page;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .qr-label img {
+        width: 100mm !important;
+        height: 50mm !important;
+        display: block !important; /* Removes invisible inline spacing below image */
+      }
+    }
   </style>
 </head>
 <body>
-
   <div class="controls">
     <span>🏷️ ${articleName} — ${qrCodes.length} label${qrCodes.length !== 1 ? 's' : ''}</span>
     <button class="btn-print" onclick="window.print()">🖨️ Print</button>
     <button class="btn-close" onclick="window.close()">✕ Close</button>
   </div>
+  
+  <div class="print-container">
+    ${qrCodes.map((qr, i) => `
+      <div class="qr-label">
+        <img src="${qr.qrCodeImage}" alt="QR Carton ${qr.cartonNumber || i + 1}" />
+      </div>
+    `).join('\n')}
+  </div>
 
-  ${qrCodes.map((qr, i) => `
-    <div class="qr-label">
-      <img
-        src="${qr.qrCodeImage}"
-        alt="QR Carton ${qr.cartonNumber || i + 1}"
-      />
-    </div>
-  `).join('\n')}
-
+  <script>
+    // Auto-trigger print slightly after images render
+    window.onload = () => { setTimeout(() => window.print(), 300); }
+  </script>
 </body>
 </html>
 `;
